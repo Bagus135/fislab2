@@ -13,7 +13,11 @@
 
 # IDE
 .idea/
+.idea/*
 .vscode/
+*.iml
+*.iws
+*.ipr
 
 # Go
 *.exe
