@@ -1,0 +1,25 @@
+# Environment
+.env
+*.env
+!.env.example
+
+# Database
+/docker/pgdata/
+*.sql
+
+# Build
+/bin
+/tmp
+
+# IDE
+.idea/
+.vscode/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
