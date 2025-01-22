@@ -10,7 +10,7 @@ const Navbar = async () =>{
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
                         <Link href="/" className="text-xl font-mono font-bold text-primary tracking-wider">
-                            FISLAB I
+                            FISLAB II
                         </Link>
                     </div>
                     <ThemeButton/>
