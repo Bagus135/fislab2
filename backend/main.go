@@ -1,6 +1,8 @@
 package main
 
 import (
+	"backend/config"
+	"backend/helper"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
@@ -17,6 +19,13 @@ func main() {
 	}
 	fmt.Printf("Start server!" + os.Getenv("PORT"+"\n"))
 
+	// Handle DB connection
+	db, err := config.ConnectDB()
+	helper.ErrorPanic(err)
+
+	defer db.Prisma.Disconnect()
+
+	// handle server connection
 	server := &http.Server{
 		Addr:           ":" + os.Getenv("PORT"+"\n"),
 		ReadTimeout:    5 * time.Second,
@@ -28,5 +37,4 @@ func main() {
 	if serverErr != nil {
 		panic(serverErr)
 	}
-
 }
