@@ -1,0 +1,101 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator db {
+  provider = "go run github.com/steebchen/prisma-client-go"
+}
+
+// role user
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ASISTEN
+  PRAKTIKAN
+}
+
+// user
+model User {
+  id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
+  nrp       String
+  name      String
+  password  String
+  role      Role
+  CreatedAt DateTime? @default(now()) @map("created at")
+  UpdatedAt DateTime? @updatedAt @map("updated at")
+}
+
+// kelompok
+model Group {
+  id          String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
+  name        Int
+  practicumId Int
+  asistantId  Int
+
+  praktikum Praktikum @relation(fields: [practicumId], references: [id])
+  asistant  User      @relation("AsistantGroups", fields: [asistantId], references: [id])
+  members   User[]    @relation("MemberGroups")
+}
+
+// model untuk tiap judul praktikum
+model Practicum {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules Schedule[]
+  modules   Module[]
+
+  @@map("practicums")
+}
+
+// model jadwal
+model Schedule {
+  id          Int      @id @default(autoincrement())
+  practicumId Int
+  groupId     Int
+  asistenId   Int
+  date        DateTime
+  startTime   DateTime
+  status      Status   @default(SCHEDULED)
+
+  practicum Practicum @relation(fields: [practicumId], references: [id])
+  group     Group     @relation(fields: [groupId], references: [id])
+  asisten   User      @relation(fields: [asistenId], references: [id])
+
+  grades Grade[]
+
+  @@unique([groupId, startTime]) // Memastikan tidak ada jadwal yang bentrok
+}
+
+enum Status {
+  SCHEDULED // Dijadwalkan oleh asisten
+  COMPLETED // Praktikum selesai
+  CANCELLED // Praktikum dibatalkan
+}
+
+// model penilaian
+model Grade {
+  id           Int      @id @default(autoincrement())
+  scheduleId   Int
+  userId       Int
+  prelab       Int?     @db.SmallInt // 0-100
+  inlab        Int?     @db.SmallInt
+  abstract     Int?     @db.SmallInt
+  introduction Int?     @db.SmallInt
+  methodology  Int?     @db.SmallInt
+  discussion   Int?     @db.SmallInt
+  conclusion   Int?     @db.SmallInt
+  formatting   Int?     @db.SmallInt
+  feedback     String? // Feedback dari asisten
+  gradedBy     Int // Asisten yang memberi nilai
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  grader   User     @relation("GradedBy", fields: [gradedBy], references: [id])
+}
