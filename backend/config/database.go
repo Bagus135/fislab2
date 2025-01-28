@@ -2,14 +2,20 @@ package config
 
 import (
 	"backend/prisma/db"
-	"github.com/rs/zerolog/log"
 )
 
-func ConnectDB() (*db.PrismaClient, error) {
-	client := &db.PrismaClient{}
-	if err := client.Connect(); err != nil {
+type DB struct {
+	Prisma *db.PrismaClient
+}
+
+func ConnectDB() (*DB, error) {
+	client := db.NewClient()
+	err := client.Connect()
+	if err != nil {
 		return nil, err
 	}
-	log.Info().Msg("Connected to database!")
-	return client, nil
+
+	return &DB{
+		Prisma: client,
+	}, nil
 }

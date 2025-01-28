@@ -1,9 +1,9 @@
 package main
 
 import (
-	"backend/config"
-	"backend/helper"
-	"fmt"
+	"backend/handler"
+	"backend/prisma/db"
+	"backend/router"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
@@ -13,20 +13,32 @@ import (
 
 func main() {
 
+	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	fmt.Printf("Start server!" + os.Getenv("PORT"+"\n"))
 
-	// Handle DB connection
-	db, err := config.ConnectDB()
-	helper.ErrorPanic(err)
+	// Buat instance Prisma Client
+	client := db.NewClient()
+	if err := client.Prisma.Connect(); err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := client.Prisma.Disconnect(); err != nil {
+			log.Printf("Failed to disconnect from database: %v", err)
+		}
+	}()
 
-	defer db.Prisma.Disconnect()
+	// Buat instance AuthHandler
+	authHandler := handler.NewAuthHandler(client)
 
-	// handle server connection
+	// Buat router
+	r := router.NewRouter(authHandler)
+
+	// Jalankan server
 	server := &http.Server{
+		Handler:        r,
 		Addr:           ":" + os.Getenv("PORT"+"\n"),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
