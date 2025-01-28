@@ -15,7 +15,7 @@ enum Role {
   PRAKTIKAN
 }
 
-// User
+// user
 model User {
   id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp       String
@@ -25,27 +25,49 @@ model User {
   createdAt DateTime? @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
 
-  asistantGroups    Group[]    @relation("AsistantGroups") // Relasi untuk asisten ke kelompok
-  memberGroups      Group[]    @relation("MemberGroups") // Relasi untuk anggota kelompok
-  gradedGrades      Grade[]    @relation("GradedBy") // Relasi untuk asisten yang memberi nilai
-  userGrades        Grade[]    @relation("UserGrades") // Relasi untuk praktikan yang menerima nilai
-  asistantSchedules Schedule[] @relation("AsistantSchedules") // Relasi ke jadwal asisten
+  // Relasi untuk asisten ke kelompok
+  asistantGroups Group[] @relation("AsistantGroups")
+
+  // Relasi untuk anggota kelompok
+  memberGroups Group[] @relation("MemberGroups")
+
+  // Relasi untuk asisten yang memberi nilai
+  gradedGrades Grade[] @relation("GradedBy")
+
+  // Relasi untuk praktikan yang menerima nilai
+  userGrades Grade[] @relation("UserGrades")
+
+  // Relasi ke jadwal asisten
+  asistantSchedules Schedule[] @relation("AsistantSchedules")
+
+  // Relasi ke pengumuman yang dibuat
+  announcements Announcement[]
 }
 
-// Group
+// kelompok
 model Group {
   groupId     String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
-  name        Int    @db.SmallInt // Urutan kelompok
+  name        Int    @db.SmallInt
   practicumId Int
   asistantId  String
 
-  practicum Practicum  @relation(fields: [practicumId], references: [id])
-  asistant  User       @relation("AsistantGroups", fields: [asistantId], references: [id])
-  members   User[]     @relation("MemberGroups")
-  schedules Schedule[] @relation("GroupSchedules") // Relasi ke jadwal grup
+  // Relasi ke Practicum
+  practicum Practicum @relation("PracticumGroups", fields: [practicumId], references: [id])
+
+  // Relasi ke User (asisten)
+  asistant User @relation("AsistantGroups", fields: [asistantId], references: [id])
+
+  // Relasi ke User (anggota kelompok)
+  members User[] @relation("MemberGroups")
+
+  // Relasi ke Schedule (jadwal praktikum)
+  schedules Schedule[] @relation("GroupSchedules")
+
+  @@index([practicumId])
+  @@index([asistantId])
 }
 
-// Practicum
+// praktikum
 model Practicum {
   id          Int      @id @default(autoincrement())
   title       String
@@ -53,13 +75,16 @@ model Practicum {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  schedules Schedule[] // Relasi ke jadwal
-  groups    Group[] // Relasi ke kelompok
+  // Relasi ke Group
+  groups Group[] @relation("PracticumGroups")
+
+  // Relasi ke Schedule
+  schedules Schedule[]
 
   @@map("practicums")
 }
 
-// Schedule
+// jadwal
 model Schedule {
   id          Int      @id @default(autoincrement())
   practicumId Int
@@ -73,17 +98,17 @@ model Schedule {
   group     Group     @relation("GroupSchedules", fields: [groupId], references: [groupId])
   asistant  User      @relation("AsistantSchedules", fields: [asistantId], references: [id])
 
-  grades Grade[] // Relasi ke nilai
+  grades Grade[]
 
-  @@unique([groupId, startTime]) // Memastikan tidak ada jadwal yang bentrok
+  @@unique([groupId, startTime])
 }
 
-// Grade
+// penilaian
 model Grade {
   id           Int      @id @default(autoincrement())
   scheduleId   Int
   userId       String
-  prelab       Int?     @db.SmallInt // 0-100
+  prelab       Int?     @db.SmallInt
   inlab        Int?     @db.SmallInt
   abstract     Int?     @db.SmallInt
   introduction Int?     @db.SmallInt
@@ -91,8 +116,8 @@ model Grade {
   discussion   Int?     @db.SmallInt
   conclusion   Int?     @db.SmallInt
   formatting   Int?     @db.SmallInt
-  feedback     String? // Feedback dari asisten
-  gradedBy     String // Asisten yang memberi nilai
+  feedback     String?
+  gradedBy     String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -101,9 +126,23 @@ model Grade {
   grader   User     @relation("GradedBy", fields: [gradedBy], references: [id])
 }
 
-// Status Praktikum
+// status praktikum yang diambil
 enum Status {
-  SCHEDULED // Dijadwalkan oleh asisten
-  COMPLETED // Praktikum selesai
-  CANCELLED // Praktikum dibatalkan
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(200)
+  content     String   @db.Text
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isPublished Boolean  @default(false)
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([createdAt])
 }
