@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import { Button } from "./ui/button"; // shadcn
-import { Calendar, Gauge, Home, HomeIcon, Menu, Search, SigmaSquare } from "lucide-react";
+import { Calendar, Gauge, GaugeCircle, Home, HomeIcon, Menu, Search, SigmaSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { useState } from "react";
 import { Separator } from "./ui/separator";
@@ -10,7 +10,7 @@ export default function SideBar () {
     return (
         <div className="w-full h-[calc(100vh-4rem) flex flex-col space-y-4">
             <Button variant={'ghost'} className="w-full flex items-center justify-start mt-2" asChild>
-                <Link href={'/schedule'}>
+                <Link href={'/dashboard'}>
                     <div className="w-8  flex justify-center">
                         <Gauge className="size-6"/>
                     </div>
@@ -82,17 +82,17 @@ export function MobileSidebar () {
                 </SheetHeader>
                 <div className=" flex flex-col space-y-4 mt-6">
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
-                        <Link href={'/'}>
-                            <HomeIcon className="size-6"/>
+                        <Link href={'/dashboard'}>
+                            <GaugeCircle className="size-6"/>
                             <Separator orientation="vertical"/>
-                                Home
+                                Dashboard
                         </Link>
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
-                        <Link href={'/'}>
-                            <HomeIcon className="size-6"/>
+                        <Link href={'/schedule'}>
+                            <Calendar className="size-6"/>
                             <Separator orientation="vertical"/>
-                                Home
+                                Schedule
                         </Link>
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
