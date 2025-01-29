@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 type AuthHandler struct {
@@ -60,10 +61,27 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Jika berhasil, kirim response sukses
+	// Jika berhasil, kirim token
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		fmt.Printf("Error getting JWT_SECRET environment variable\n")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.ErrorResponse("server error"))
+		return
+	}
+
+	token, err := utils.GenerateTokens(user.ID, user.Nrp, string(user.Role), secretKey)
+	if err != nil {
+		fmt.Printf("Error generating JWT: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.ErrorResponse("could not generating token"))
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(types.SuccessResponse("login successful"))
+	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
