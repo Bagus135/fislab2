@@ -1,60 +1,30 @@
-'use client'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { TrendingUp } from "lucide-react"
-import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import {BarChartComponent, RadialChart } from "./barChart";
+import { AnnouncementCard, TimeCard } from "./component";
 
- export default function DashboardPage() {
-  const chartData = [
-    { practicum: "January", score: 186 },
-    { practicum: "February", score: 305 },
-    { practicum: "March", score: 237 },
-    { practicum: "April", score: 73 },
-    { practicum: "May", score: 209 },
-    { practicum: "June", score: 214 },
-  ]
-  const chartConfig = {
-    desktop: {
-      label: "Desktop",
-      color: "hsl(var(--chart-1))",
-    },
-  } satisfies ChartConfig
-  
+export default function DashboardPage (){
   return (
-   <Card>
-      <CardHeader>
-        <CardTitle>Bar Chart</CardTitle>
-        <CardDescription>Practicum Graph</CardDescription>
-      </CardHeader>
-      <CardContent>
-          <ChartContainer config={chartConfig}>
-            <BarChart accessibilityLayer data={chartData}>
-              <CartesianGrid vertical={true}/>
-              <XAxis
-                dataKey={"practicum"}
-                tickLine={true}
-                tickMargin={3}
-                axisLine={false}
-                tickFormatter={(val)=> val.slice(0,3)}
-              />
-              <ChartTooltip 
-                cursor={true}
-                content={<ChartTooltipContent hideLabel/>}
-              />
-              <Bar dataKey={"score"} fill="#00000" radius={5}/>
-            </BarChart>
-          </ChartContainer>
-      </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 font-medium leading-none">
-          Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="leading-none text-muted-foreground">
-          Showing total visitors for the last 6 months
-        </div>
-      </CardFooter>
-   </Card>
+      <div className="flex flex-1 flex-col md:grid md:grid-flow-row gap-4 p-4 pt-0">
+        <div className="grid auto-rows-min gap-4 md:grid-cols-10">
+            <div className="md:col-span-7 lg:col-span-6 md:grid order-last md:order-first" >
+              <BarChartComponent/>
+            </div>
+            <div className="flex flex-col md:grid items-stretch md:col-span-3 lg:col-span-4  md:gap-2 gap-4">
+                <div className="">
+                  <TimeCard/>
+                </div>
+                <div className="flex items-stretch">
+                  <AnnouncementCard/>
+                </div>
+            </div>
+         </div>
+        <div className="grid auto-rows-min gap-4 md:grid-cols-10">
+            <div className="md:col-span-7 lg:col-span-6 " >
+              <RadialChart/>
+            </div>
+            <div className="md:col-span-3  lg:col-span-4 flex items-stretch">
+                <AnnouncementCard/>
+            </div>
+         </div>
+      </div>
   )
 }
-
-

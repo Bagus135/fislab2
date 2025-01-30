@@ -36,8 +36,8 @@ export default function OwnCalendar () {
                     <ChevronRight className="size-4"/>
                 </Button>
             </div>
-                <Separator orientation="horizontal"/>
-                <div className="grid grid-cols-7 gap-2 mt-4">
+                <Separator orientation="horizontal" className="hidden lg:block"/>
+                <div className="hidden lg:grid grid-cols-7 gap-2 mt-4">
                     {dayArray.map((day, idx)=>(
                         <div key={idx} className="text-center">
                             <div className={`font-bold`}>
