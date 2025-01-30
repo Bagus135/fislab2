@@ -23,5 +23,7 @@ func NewRouter(authHandler *handler.AuthHandler) *mux.Router {
 	assistantAPI := api.PathPrefix("/assistant").Subrouter()
 	assistantAPI.Use(middleware.RoleCheck("ASISTEN"))
 
+	r.HandleFunc("/api/register", authHandler.Register).Methods("POST")
+
 	return r
 }
