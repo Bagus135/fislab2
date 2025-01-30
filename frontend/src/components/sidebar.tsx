@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import { Button } from "./ui/button"; // shadcn
-import { Calendar, Gauge, GaugeCircle, Home, HomeIcon, Menu, Search, SigmaSquare } from "lucide-react";
+import { Calendar, FlaskConical, Gauge, GaugeCircle, Home, HomeIcon, Megaphone, Menu} from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { useState } from "react";
 import { Separator } from "./ui/separator";
@@ -18,6 +18,14 @@ export default function SideBar () {
                 </Link>
             </Button>
             <Button variant={'ghost'} className="w-full flex items-center justify-start mt-2" asChild>
+                <Link href={'/practicum'}>
+                    <div className="w-8  flex justify-center">
+                        <FlaskConical className="size-6"/>
+                    </div>
+                    <p className="hidden lg:flex ml-2 ">Practicum</p>
+                </Link>
+            </Button>
+            <Button variant={'ghost'} className="w-full flex items-center justify-start mt-2" asChild>
                 <Link href={'/schedule'}>
                     <div className="w-8  flex justify-center">
                         <Calendar className="size-6"/>
@@ -26,35 +34,11 @@ export default function SideBar () {
                 </Link>
             </Button>
             <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
-                <Link href={'/schedule'}>
+                <Link href={'/announcement'}>
                     <div className="w-8  flex justify-center">
-                        <Home className="size-6"/>
+                        <Megaphone className="size-6"/>
                     </div>
-                    <p className="hidden lg:flex ml-2">Home</p>
-                </Link>
-            </Button>
-            <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
-                <Link href={'/schedule'}>
-                    <div className="w-8  flex justify-center">
-                        <Home className="size-6"/>
-                    </div>
-                    <p className="hidden lg:flex ml-2">Home</p>
-                </Link>
-            </Button>
-            <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
-                <Link href={'/schedule'}>
-                    <div className="w-8  flex justify-center">
-                        <Home className="size-6"/>
-                    </div>
-                    <p className="hidden lg:flex ml-2">Home</p>
-                </Link>
-            </Button>
-            <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
-                <Link href={'/schedule'}>
-                    <div className="w-8  flex justify-center">
-                        <Home className="size-6"/>
-                    </div>
-                    <p className="hidden lg:flex ml-2">Home</p>
+                    <p className="hidden lg:flex ml-2 text-xs">Announcement</p>
                 </Link>
             </Button>
         </div>
@@ -89,6 +73,13 @@ export function MobileSidebar () {
                         </Link>
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
+                        <Link href={'/practicum'}>
+                            <HomeIcon className="size-6"/>
+                            <Separator orientation="vertical"/>
+                                Practicum
+                        </Link>
+                    </Button>
+                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
                         <Link href={'/schedule'}>
                             <Calendar className="size-6"/>
                             <Separator orientation="vertical"/>
@@ -96,14 +87,7 @@ export function MobileSidebar () {
                         </Link>
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
-                        <Link href={'/'}>
-                            <HomeIcon className="size-6"/>
-                            <Separator orientation="vertical"/>
-                                Home
-                        </Link>
-                    </Button>
-                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
-                        <Link href={'/'}>
+                        <Link href={'/anouncement'}>
                             <HomeIcon className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Home

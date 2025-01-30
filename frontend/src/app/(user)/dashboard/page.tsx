@@ -1,9 +1,10 @@
 import {BarChartComponent, RadialChart } from "./barChart";
-import { AnnouncementCard, TimeCard } from "./component";
+import { AnnouncementCard, TimeCard, UpcomingCard, UserGreetings } from "./component";
 
 export default function DashboardPage (){
   return (
-      <div className="flex flex-1 flex-col md:grid md:grid-flow-row gap-4 p-4 pt-0">
+      <div className="flex flex-1 flex-col md:grid md:grid-flow-row gap-4 p-2 pt-0">
+        <UserGreetings/>
         <div className="grid auto-rows-min gap-4 md:grid-cols-10">
             <div className="md:col-span-6 md:grid order-last md:order-first" >
               <BarChartComponent/>
@@ -12,8 +13,8 @@ export default function DashboardPage (){
                 <div className="">
                   <TimeCard/>
                 </div>
-                <div className="flex items-stretch">
-                  <AnnouncementCard/>
+                <div className="grid">
+                  <UpcomingCard/>
                 </div>
             </div>
          </div>

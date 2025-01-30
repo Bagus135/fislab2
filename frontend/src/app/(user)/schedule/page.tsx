@@ -5,7 +5,7 @@ import { CardSchedule, CheckScheduleCard, EventCard } from "./component";
 
 export default async function SchedulePage(){
     return (
-        <div className="grid auto-rows-min  lg:grid-cols-10  xl:grid-cols-8 lg:gap-4 space-y-4 lg:space-y-0">
+        <div className="grid auto-rows-min  lg:grid-cols-10  xl:grid-cols-8 lg:gap-4 space-y-4 lg:space-y-0 p-2">
             <div className=" lg:col-span-4 xl:col-span-3 lg:flex lg:flex-col  lg:min-h-[calc(100vh-6rem)] lg:order-last space-y-4" >
                     
                     <Card className="mx-2">

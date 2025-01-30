@@ -36,7 +36,7 @@ export async function CardSchedule() {
                             <Separator orientation="horizontal"/>
                         <div className=" grid grid-cols-3 space-x-2 w-full ">
                             <div className="col-span-2 flex flex-rows items-center space-x-2 ">
-                                <Avatar className="bg-slate-200 w-8 h-8" asChild>
+                                <Avatar className=" w-8 h-8" asChild>
                                     <AvatarImage src="/avatar.png"/>
                                 </Avatar>
                                 <p className="text-sm line-clamp-2 ">{data.aslab}</p>

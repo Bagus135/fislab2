@@ -86,3 +86,7 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+#trigger:checked ~ label .chevrondown-score {
+  transform: rotate(180deg);
+}

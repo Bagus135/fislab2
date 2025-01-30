@@ -1,5 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Megaphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { ArrowRight, Megaphone } from "lucide-react";
 
 export function AnnouncementCard (){
     return (
@@ -22,6 +24,9 @@ export function AnnouncementCard (){
             ))
                 }
             </CardContent>
+            <CardFooter className="flex justify-end">
+                <Button variant={"outline"}>See All Announcement</Button>
+            </CardFooter>
         </Card>
     )
 }
@@ -35,9 +40,45 @@ export function TimeCard(){
                     <p className="tracking-wider text-start">18 December 2025</p>
                 </div>
                 <div className="flex items-center justify-end">
-                    <span className="text-xs text-end ">Week 12</span>
+                    <span className="text-sm text-end ">Week 12</span>
                 </div>
             </CardContent>
         </Card>
     )
+}
+
+export function UpcomingCard(){
+    return (
+        <Card>
+            <CardHeader className="space-y-0 rounded-t-lg flex-row justify-between items-center p-4">
+                <CardTitle>Upcoming Practicum</CardTitle>
+                <CardTitle className="text-sm">Week - 2 </CardTitle>
+            </CardHeader>
+            <Separator orientation="horizontal"/>
+            <CardContent>
+                <div className="flex flex-col gap-1 text-center mt-2">
+                    <p className="font-bold tracking-wider">Tetes Minyak Milikan dan Frank Hertz</p>
+                    <p>Modern Physics - 1</p>
+                    <p>Alief Hisyam Al Hasany Nur Rahmat</p>
+                    <p>18 January 2025</p>
+                    <p>18.00 - 19.00</p>
+                </div>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+                <Button variant={"outline"}>
+                    Schedule
+                    <ArrowRight className="size-4"/>         
+                </Button>
+            </CardFooter>
+        </Card>
+    )
+}
+
+export function UserGreetings (){
+    return (
+            <div className="flex flex-col md:mx-4">
+                    <p className="font-bold tracking-wider">WELCOME! Mas Alief</p>
+                    <p className="text-xs">Bagaimana Kabarmu Hari Ini ?</p>
+            </div>
+                )
 }

@@ -18,9 +18,16 @@ import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, Radial
     { practicum: "June", score: 214 },
   ]
   const chartConfig = {
+    views: {
+      label: "Page Views",
+    },
     desktop: {
       label: "Desktop",
       color: "hsl(var(--chart-1))",
+    },
+    mobile: {
+      label: "Mobile",
+      color: "hsl(var(--chart-2))",
     },
   } satisfies ChartConfig
   
@@ -31,7 +38,7 @@ import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, Radial
         <CardDescription>Practicum Graph</CardDescription>
       </CardHeader>
       <CardContent>
-          <ChartContainer config={chartConfig} className="min-h-[200px] max-h-[300px] w-full">
+          <ChartContainer config={chartConfig} className="aspect-auto  h-[250px] w-full">
             <BarChart accessibilityLayer data={chartData}>
               <CartesianGrid vertical={true}/>
               <XAxis
