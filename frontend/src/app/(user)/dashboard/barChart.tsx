@@ -31,7 +31,7 @@ import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, Radial
         <CardDescription>Practicum Graph</CardDescription>
       </CardHeader>
       <CardContent>
-          <ChartContainer config={chartConfig} className="min-h-[200px] lg:aspect-[5/2] w-full">
+          <ChartContainer config={chartConfig} className="min-h-[200px] max-h-[300px] w-full">
             <BarChart accessibilityLayer data={chartData}>
               <CartesianGrid vertical={true}/>
               <XAxis
