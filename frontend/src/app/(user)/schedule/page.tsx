@@ -1,7 +1,9 @@
 import OwnCalendar from "@/components/ownCalendar";
+import CheckScheduleCard from "@/components/schedule/check-schedule";
+import EventCard from "@/components/schedule/eventcard";
+import CardSchedule from "@/components/schedule/practicum-schedule";
 import { Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CardSchedule, CheckScheduleCard, EventCard } from "./component";
 
 export default async function SchedulePage(){
     return (

@@ -87,6 +87,3 @@ body {
   }
 }
 
-#trigger:checked ~ label .chevrondown-score {
-  transform: rotate(180deg);
-}

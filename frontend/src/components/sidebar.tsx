@@ -38,7 +38,7 @@ export default function SideBar () {
                     <div className="w-8  flex justify-center">
                         <Megaphone className="size-6"/>
                     </div>
-                    <p className="hidden lg:flex ml-2 text-xs">Announcement</p>
+                    <p className="hidden lg:flex ml-2">Announcement</p>
                 </Link>
             </Button>
         </div>
@@ -55,7 +55,7 @@ export function MobileSidebar () {
                 </Button>
             </SheetTrigger>
             <SheetContent side={'left'} className="w-[200px] min-h-screen pt-5">
-                <SheetHeader >
+                <SheetHeader>
                     <SheetTitle className="flex flex-row items-center gap-4 ">
                         <img src="/logofisika.png" className=" h-6 w-6 dark:hidden"/>
                         <img src="/whitephi.png" className=" h-6 w-6 hidden dark:block"/>
@@ -74,7 +74,7 @@ export function MobileSidebar () {
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
                         <Link href={'/practicum'}>
-                            <HomeIcon className="size-6"/>
+                            <FlaskConical className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Practicum
                         </Link>
@@ -87,10 +87,10 @@ export function MobileSidebar () {
                         </Link>
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
-                        <Link href={'/anouncement'}>
-                            <HomeIcon className="size-6"/>
+                        <Link href={'/announcement'}>
+                            <Megaphone className="size-6"/>
                             <Separator orientation="vertical"/>
-                                Home
+                                Announcement
                         </Link>
                     </Button>
                 </div>

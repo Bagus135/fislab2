@@ -1,4 +1,5 @@
-import { ModulPracticumCard, ScoreCard } from "./component";
+import ModulPracticumCard from "@/components/practicum/modulcard";
+import ScoreCard from "@/components/practicum/scorecard";
 
 export default function PracticumPage(){
     return (
@@ -8,10 +9,7 @@ export default function PracticumPage(){
                     <ModulPracticumCard/>
                 </div>
                 <div className="md:col-span-6 flex flex-col gap-4">
-                    {[1,2,3,4].map((_,idx)=>(
-                        <ScoreCard key={idx}/>
-
-                    ))}
+                        <ScoreCard/>
                 </div>
             </div>
         </div>
