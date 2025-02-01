@@ -95,6 +95,9 @@ model User {
   id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp       String    @unique
   name      String
+  about     String
+  email     String
+  phone     String
   password  String
   role      Role
   createdAt DateTime? @default(now()) @map("created_at")
@@ -370,6 +373,9 @@ const (
 	UserScalarFieldEnumID        UserScalarFieldEnum = "id"
 	UserScalarFieldEnumNrp       UserScalarFieldEnum = "nrp"
 	UserScalarFieldEnumName      UserScalarFieldEnum = "name"
+	UserScalarFieldEnumAbout     UserScalarFieldEnum = "about"
+	UserScalarFieldEnumEmail     UserScalarFieldEnum = "email"
+	UserScalarFieldEnumPhone     UserScalarFieldEnum = "phone"
 	UserScalarFieldEnumPassword  UserScalarFieldEnum = "password"
 	UserScalarFieldEnumRole      UserScalarFieldEnum = "role"
 	UserScalarFieldEnumCreatedAt UserScalarFieldEnum = "createdAt"
@@ -497,6 +503,12 @@ const userFieldID userPrismaFields = "id"
 const userFieldNrp userPrismaFields = "nrp"
 
 const userFieldName userPrismaFields = "name"
+
+const userFieldAbout userPrismaFields = "about"
+
+const userFieldEmail userPrismaFields = "email"
+
+const userFieldPhone userPrismaFields = "phone"
 
 const userFieldPassword userPrismaFields = "password"
 
@@ -948,6 +960,9 @@ type InnerUser struct {
 	ID        string    `json:"id"`
 	Nrp       string    `json:"nrp"`
 	Name      string    `json:"name"`
+	About     string    `json:"about"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
 	Password  string    `json:"password"`
 	Role      Role      `json:"role"`
 	CreatedAt *DateTime `json:"createdAt,omitempty"`
@@ -959,6 +974,9 @@ type RawUserModel struct {
 	ID        RawString    `json:"id"`
 	Nrp       RawString    `json:"nrp"`
 	Name      RawString    `json:"name"`
+	About     RawString    `json:"about"`
+	Email     RawString    `json:"email"`
+	Phone     RawString    `json:"phone"`
 	Password  RawString    `json:"password"`
 	Role      RawRole      `json:"role"`
 	CreatedAt *RawDateTime `json:"createdAt,omitempty"`
@@ -1400,6 +1418,21 @@ type userQuery struct {
 	//
 	// @required
 	Name userQueryNameString
+
+	// About
+	//
+	// @required
+	About userQueryAboutString
+
+	// Email
+	//
+	// @required
+	Email userQueryEmailString
+
+	// Phone
+	//
+	// @required
+	Phone userQueryPhoneString
 
 	// Password
 	//
@@ -2524,6 +2557,1047 @@ func (r userQueryNameString) HasSuffixIfPresent(value *string) userDefaultParam 
 
 func (r userQueryNameString) Field() userPrismaFields {
 	return userFieldName
+}
+
+// base struct
+type userQueryAboutString struct{}
+
+// Set the required value of About
+func (r userQueryAboutString) Set(value string) userWithPrismaAboutSetParam {
+
+	return userWithPrismaAboutSetParam{
+		data: builder.Field{
+			Name:  "about",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of About dynamically
+func (r userQueryAboutString) SetIfPresent(value *String) userWithPrismaAboutSetParam {
+	if value == nil {
+		return userWithPrismaAboutSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r userQueryAboutString) Equals(value string) userWithPrismaAboutEqualsParam {
+
+	return userWithPrismaAboutEqualsParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) EqualsIfPresent(value *string) userWithPrismaAboutEqualsParam {
+	if value == nil {
+		return userWithPrismaAboutEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r userQueryAboutString) Order(direction SortOrder) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name:  "about",
+			Value: direction,
+		},
+	}
+}
+
+func (r userQueryAboutString) Cursor(cursor string) userCursorParam {
+	return userCursorParam{
+		data: builder.Field{
+			Name:  "about",
+			Value: cursor,
+		},
+	}
+}
+
+func (r userQueryAboutString) In(value []string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) InIfPresent(value []string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r userQueryAboutString) NotIn(value []string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) NotInIfPresent(value []string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r userQueryAboutString) Lt(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) LtIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r userQueryAboutString) Lte(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) LteIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r userQueryAboutString) Gt(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) GtIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r userQueryAboutString) Gte(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) GteIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r userQueryAboutString) Contains(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) ContainsIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Contains(*value)
+}
+
+func (r userQueryAboutString) StartsWith(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) StartsWithIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r userQueryAboutString) EndsWith(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) EndsWithIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r userQueryAboutString) Mode(value QueryMode) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) ModeIfPresent(value *QueryMode) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Mode(*value)
+}
+
+func (r userQueryAboutString) Not(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) NotIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r userQueryAboutString) HasPrefix(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r userQueryAboutString) HasPrefixIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r userQueryAboutString) HasSuffix(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r userQueryAboutString) HasSuffixIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r userQueryAboutString) Field() userPrismaFields {
+	return userFieldAbout
+}
+
+// base struct
+type userQueryEmailString struct{}
+
+// Set the required value of Email
+func (r userQueryEmailString) Set(value string) userWithPrismaEmailSetParam {
+
+	return userWithPrismaEmailSetParam{
+		data: builder.Field{
+			Name:  "email",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Email dynamically
+func (r userQueryEmailString) SetIfPresent(value *String) userWithPrismaEmailSetParam {
+	if value == nil {
+		return userWithPrismaEmailSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r userQueryEmailString) Equals(value string) userWithPrismaEmailEqualsParam {
+
+	return userWithPrismaEmailEqualsParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) EqualsIfPresent(value *string) userWithPrismaEmailEqualsParam {
+	if value == nil {
+		return userWithPrismaEmailEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r userQueryEmailString) Order(direction SortOrder) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name:  "email",
+			Value: direction,
+		},
+	}
+}
+
+func (r userQueryEmailString) Cursor(cursor string) userCursorParam {
+	return userCursorParam{
+		data: builder.Field{
+			Name:  "email",
+			Value: cursor,
+		},
+	}
+}
+
+func (r userQueryEmailString) In(value []string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) InIfPresent(value []string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r userQueryEmailString) NotIn(value []string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) NotInIfPresent(value []string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r userQueryEmailString) Lt(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) LtIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r userQueryEmailString) Lte(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) LteIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r userQueryEmailString) Gt(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) GtIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r userQueryEmailString) Gte(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) GteIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r userQueryEmailString) Contains(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) ContainsIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Contains(*value)
+}
+
+func (r userQueryEmailString) StartsWith(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) StartsWithIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r userQueryEmailString) EndsWith(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) EndsWithIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r userQueryEmailString) Mode(value QueryMode) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) ModeIfPresent(value *QueryMode) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Mode(*value)
+}
+
+func (r userQueryEmailString) Not(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) NotIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r userQueryEmailString) HasPrefix(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r userQueryEmailString) HasPrefixIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r userQueryEmailString) HasSuffix(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r userQueryEmailString) HasSuffixIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r userQueryEmailString) Field() userPrismaFields {
+	return userFieldEmail
+}
+
+// base struct
+type userQueryPhoneString struct{}
+
+// Set the required value of Phone
+func (r userQueryPhoneString) Set(value string) userWithPrismaPhoneSetParam {
+
+	return userWithPrismaPhoneSetParam{
+		data: builder.Field{
+			Name:  "phone",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Phone dynamically
+func (r userQueryPhoneString) SetIfPresent(value *String) userWithPrismaPhoneSetParam {
+	if value == nil {
+		return userWithPrismaPhoneSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r userQueryPhoneString) Equals(value string) userWithPrismaPhoneEqualsParam {
+
+	return userWithPrismaPhoneEqualsParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) EqualsIfPresent(value *string) userWithPrismaPhoneEqualsParam {
+	if value == nil {
+		return userWithPrismaPhoneEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r userQueryPhoneString) Order(direction SortOrder) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name:  "phone",
+			Value: direction,
+		},
+	}
+}
+
+func (r userQueryPhoneString) Cursor(cursor string) userCursorParam {
+	return userCursorParam{
+		data: builder.Field{
+			Name:  "phone",
+			Value: cursor,
+		},
+	}
+}
+
+func (r userQueryPhoneString) In(value []string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) InIfPresent(value []string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r userQueryPhoneString) NotIn(value []string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) NotInIfPresent(value []string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r userQueryPhoneString) Lt(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) LtIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r userQueryPhoneString) Lte(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) LteIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r userQueryPhoneString) Gt(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) GtIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r userQueryPhoneString) Gte(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) GteIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r userQueryPhoneString) Contains(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) ContainsIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Contains(*value)
+}
+
+func (r userQueryPhoneString) StartsWith(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) StartsWithIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r userQueryPhoneString) EndsWith(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) EndsWithIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r userQueryPhoneString) Mode(value QueryMode) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) ModeIfPresent(value *QueryMode) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Mode(*value)
+}
+
+func (r userQueryPhoneString) Not(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) NotIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r userQueryPhoneString) HasPrefix(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r userQueryPhoneString) HasPrefixIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r userQueryPhoneString) HasSuffix(value string) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r userQueryPhoneString) HasSuffixIfPresent(value *string) userDefaultParam {
+	if value == nil {
+		return userDefaultParam{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r userQueryPhoneString) Field() userPrismaFields {
+	return userFieldPhone
 }
 
 // base struct
@@ -20552,6 +21626,9 @@ var userOutput = []builder.Output{
 	{Name: "id"},
 	{Name: "nrp"},
 	{Name: "name"},
+	{Name: "about"},
+	{Name: "email"},
+	{Name: "phone"},
 	{Name: "password"},
 	{Name: "role"},
 	{Name: "createdAt"},
@@ -20955,6 +22032,255 @@ func (p userWithPrismaNameEqualsUniqueParam) nameField() {}
 
 func (userWithPrismaNameEqualsUniqueParam) unique() {}
 func (userWithPrismaNameEqualsUniqueParam) equals() {}
+
+type UserWithPrismaAboutEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	aboutField()
+}
+
+type UserWithPrismaAboutSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	aboutField()
+}
+
+type userWithPrismaAboutSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAboutSetParam) phoneField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p userWithPrismaAboutSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAboutSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAboutSetParam) userModel() {}
+
+func (p userWithPrismaAboutSetParam) aboutField() {}
+
+type UserWithPrismaAboutWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	aboutField()
+}
+
+type userWithPrismaAboutEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAboutEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAboutEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAboutEqualsParam) userModel() {}
+
+func (p userWithPrismaAboutEqualsParam) aboutField() {}
+
+func (userWithPrismaAboutSetParam) settable()  {}
+func (userWithPrismaAboutEqualsParam) equals() {}
+
+type userWithPrismaAboutEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAboutEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAboutEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAboutEqualsUniqueParam) userModel()  {}
+func (p userWithPrismaAboutEqualsUniqueParam) aboutField() {}
+
+func (userWithPrismaAboutEqualsUniqueParam) unique() {}
+func (userWithPrismaAboutEqualsUniqueParam) equals() {}
+
+type UserWithPrismaEmailEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	emailField()
+}
+
+type UserWithPrismaEmailSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	emailField()
+}
+
+type userWithPrismaEmailSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaEmailSetParam) aboutField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p userWithPrismaEmailSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaEmailSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaEmailSetParam) userModel() {}
+
+func (p userWithPrismaEmailSetParam) emailField() {}
+
+type UserWithPrismaEmailWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	emailField()
+}
+
+type userWithPrismaEmailEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaEmailEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaEmailEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaEmailEqualsParam) userModel() {}
+
+func (p userWithPrismaEmailEqualsParam) emailField() {}
+
+func (userWithPrismaEmailSetParam) settable()  {}
+func (userWithPrismaEmailEqualsParam) equals() {}
+
+type userWithPrismaEmailEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaEmailEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaEmailEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaEmailEqualsUniqueParam) userModel()  {}
+func (p userWithPrismaEmailEqualsUniqueParam) emailField() {}
+
+func (userWithPrismaEmailEqualsUniqueParam) unique() {}
+func (userWithPrismaEmailEqualsUniqueParam) equals() {}
+
+type UserWithPrismaPhoneEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	phoneField()
+}
+
+type UserWithPrismaPhoneSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	phoneField()
+}
+
+type userWithPrismaPhoneSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaPhoneSetParam) emailField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p userWithPrismaPhoneSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaPhoneSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaPhoneSetParam) userModel() {}
+
+func (p userWithPrismaPhoneSetParam) phoneField() {}
+
+type UserWithPrismaPhoneWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	phoneField()
+}
+
+type userWithPrismaPhoneEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaPhoneEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaPhoneEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaPhoneEqualsParam) userModel() {}
+
+func (p userWithPrismaPhoneEqualsParam) phoneField() {}
+
+func (userWithPrismaPhoneSetParam) settable()  {}
+func (userWithPrismaPhoneEqualsParam) equals() {}
+
+type userWithPrismaPhoneEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaPhoneEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaPhoneEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaPhoneEqualsUniqueParam) userModel()  {}
+func (p userWithPrismaPhoneEqualsUniqueParam) phoneField() {}
+
+func (userWithPrismaPhoneEqualsUniqueParam) unique() {}
+func (userWithPrismaPhoneEqualsUniqueParam) equals() {}
 
 type UserWithPrismaPasswordEqualsSetParam interface {
 	field() builder.Field
@@ -26617,6 +27943,9 @@ func (announcementWithPrismaAuthorEqualsUniqueParam) equals() {}
 func (r userActions) CreateOne(
 	_nrp UserWithPrismaNrpSetParam,
 	_name UserWithPrismaNameSetParam,
+	_about UserWithPrismaAboutSetParam,
+	_email UserWithPrismaEmailSetParam,
+	_phone UserWithPrismaPhoneSetParam,
 	_password UserWithPrismaPasswordSetParam,
 	_role UserWithPrismaRoleSetParam,
 
@@ -26635,6 +27964,9 @@ func (r userActions) CreateOne(
 
 	fields = append(fields, _nrp.field())
 	fields = append(fields, _name.field())
+	fields = append(fields, _about.field())
+	fields = append(fields, _email.field())
+	fields = append(fields, _phone.field())
 	fields = append(fields, _password.field())
 	fields = append(fields, _role.field())
 
@@ -42361,6 +43693,9 @@ func (r userUpsertOne) Create(
 
 	_nrp UserWithPrismaNrpSetParam,
 	_name UserWithPrismaNameSetParam,
+	_about UserWithPrismaAboutSetParam,
+	_email UserWithPrismaEmailSetParam,
+	_phone UserWithPrismaPhoneSetParam,
 	_password UserWithPrismaPasswordSetParam,
 	_role UserWithPrismaRoleSetParam,
 
@@ -42372,6 +43707,9 @@ func (r userUpsertOne) Create(
 	var fields []builder.Field
 	fields = append(fields, _nrp.field())
 	fields = append(fields, _name.field())
+	fields = append(fields, _about.field())
+	fields = append(fields, _email.field())
+	fields = append(fields, _phone.field())
 	fields = append(fields, _password.field())
 	fields = append(fields, _role.field())
 

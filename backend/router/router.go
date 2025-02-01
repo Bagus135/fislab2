@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func NewRouter(authHandler *handler.AuthHandler, announcementHandler *handler.AnnouncementHandler) *mux.Router {
+func NewRouter(authHandler *handler.AuthHandler, announcementHandler *handler.AnnouncementHandler, userHandler *handler.UserProfile) *mux.Router {
 	r := mux.NewRouter()
 
 	// Public routes (tidak memerlukan autentikasi)
@@ -26,6 +26,11 @@ func NewRouter(authHandler *handler.AuthHandler, announcementHandler *handler.An
 
 	// Change password route
 	api.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
+
+	// Get user profile
+	api.HandleFunc("/profile/", userHandler.GetMyProfile).Methods("GET")
+	api.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")
+	api.HandleFunc("/profile/", userHandler.UpdateMyProfile).Methods("PUT")
 
 	return r
 }
