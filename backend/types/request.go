@@ -11,3 +11,8 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 	Role     string `json:"role"`
 }
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password"` // Password lama
+	NewPassword string `json:"new_password"` // Password baru
+}

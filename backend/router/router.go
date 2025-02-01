@@ -24,5 +24,8 @@ func NewRouter(authHandler *handler.AuthHandler, announcementHandler *handler.An
 	api.HandleFunc("/announcement", announcementHandler.UpdateAnnouncement).Methods("PUT")    // Hanya SUPER_ADMIN dan ADMIN
 	api.HandleFunc("/announcement", announcementHandler.DeleteAnnouncement).Methods("DELETE") // Hanya SUPER_ADMIN dan ADMIN
 
+	// Change password route
+	api.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
+
 	return r
 }
