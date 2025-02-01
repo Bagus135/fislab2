@@ -95,7 +95,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Cek apakah NRP sudah ada
 	existingUser, _ := h.client.User.FindUnique(
-		db.User.Nrp.Equals(req.Nrp),
+		db.User.Nrp.Equals(req.NRP),
 	).Exec(r.Context())
 
 	if existingUser != nil {
@@ -118,7 +118,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	_, err = h.client.User.CreateOne(
-		db.User.Nrp.Set(req.Nrp),
+		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
 		db.User.Password.Set(hashedPassword),
 		db.User.Role.Set(role),
