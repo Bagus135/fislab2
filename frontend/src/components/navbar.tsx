@@ -3,8 +3,8 @@
 import Link from "next/link";
 import ThemeButton from "./themeToogle";
 import { Button } from "./ui/button";
-import { ChevronDown, Github, Loader2Icon, LogOut, Menu, User } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { ChevronDown, Github, Loader2Icon, LogOut, User } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar } from "@radix-ui/react-avatar";
 import { AvatarFallback, AvatarImage } from "./ui/avatar";
 import { MobileSidebar } from "./sidebar";
