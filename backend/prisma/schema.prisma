@@ -5,7 +5,6 @@ datasource db {
 
 generator client {
   provider = "go run github.com/steebchen/prisma-client-go"
-  output   = "./path/to/generated/client"
 }
 
 // role user
@@ -21,6 +20,9 @@ model User {
   id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp       String    @unique
   name      String
+  about     String
+  email     String
+  phone     String
   password  String
   role      Role
   createdAt DateTime? @default(now()) @map("created_at")
@@ -134,16 +136,14 @@ enum Status {
   CANCELLED
 }
 
+// pengumuman
 model Announcement {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(200)
-  content     String   @db.Text
-  authorId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isPublished Boolean  @default(false)
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  authorId  String
 
   author User @relation(fields: [authorId], references: [id])
-
-  @@index([createdAt])
 }

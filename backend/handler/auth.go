@@ -6,6 +6,7 @@ import (
 	"backend/utils"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
 )
@@ -21,10 +22,7 @@ func NewAuthHandler(client *db.PrismaClient) *AuthHandler {
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		NRP      string `json:"nrp"`
-		Password string `json:"password"`
-	}
+	var req types.LoginRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		fmt.Printf("Error decoding request: %v\n", err)
@@ -95,7 +93,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Cek apakah NRP sudah ada
 	existingUser, _ := h.client.User.FindUnique(
-		db.User.Nrp.Equals(req.Nrp),
+		db.User.Nrp.Equals(req.NRP),
 	).Exec(r.Context())
 
 	if existingUser != nil {
@@ -118,8 +116,11 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	_, err = h.client.User.CreateOne(
-		db.User.Nrp.Set(req.Nrp),
+		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
+		db.User.Email.Set(""),
+		db.User.Phone.Set(""),
+		db.User.About.Set(""),
 		db.User.Password.Set(hashedPassword),
 		db.User.Role.Set(role),
 	).Exec(r.Context())
@@ -134,4 +135,86 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(types.SuccessResponse("user created"))
+}
+
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	// Ambil userID dari context (setelah user login)
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "userID not found in context"})
+		return
+	}
+
+	fmt.Printf("UserID from context: %s\n", userID)
+
+	// Decode request body
+	var req struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	// Validasi input
+	if req.OldPassword == "" || req.NewPassword == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "old_password and new_password are required"})
+		return
+	}
+
+	// Ambil user dari database
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Exec(r.Context())
+	if err != nil {
+		fmt.Printf("Error finding user: %v\n", err)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		return
+	}
+
+	fmt.Printf("Found user: %+v\n", user)
+	fmt.Printf("Stored password hash: %s\n", user.Password)
+	fmt.Printf("Old password attempt: %s\n", req.OldPassword)
+
+	// Verifikasi password lama
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "old password is incorrect"})
+		return
+	}
+
+	// Hash password baru
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("Error hashing new password: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to hash password"})
+		return
+	}
+
+	// Update password di database
+	updatedUser, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Update(
+		db.User.Password.Set(string(hashedPassword)),
+	).Exec(r.Context())
+	if err != nil {
+		fmt.Printf("Error updating password: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to update password"})
+		return
+	}
+
+	fmt.Printf("Password updated user: %s\n", updatedUser.ID)
+
+	// Kirim response sukses
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "password updated"})
 }

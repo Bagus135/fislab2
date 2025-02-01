@@ -22,9 +22,11 @@ func main() {
 
 	// Buat instance AuthHandler
 	authHandler := handler.NewAuthHandler(client)
+	announcementHandler := handler.NewAnnouncementHandler(client)
+	userHandler := handler.NewUserProfile(client)
 
-	// Buat router
-	r := router.NewRouter(authHandler)
+	// Initialising router
+	r := router.NewRouter(authHandler, announcementHandler, userHandler)
 
 	// Jalankan server
 	log.Println("Server started on :8080")
