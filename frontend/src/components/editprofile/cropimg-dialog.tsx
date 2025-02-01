@@ -12,18 +12,18 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Loader2Icon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DialogTrigger } from '@radix-ui/react-dialog';
 
 interface ProfileImageDialogProps {
-  dialogRef : RefObject<HTMLButtonElement | null>
+  inputRef : RefObject<HTMLInputElement | null>
 }
 
 export default function ProfileImageDialog({ 
-  dialogRef,
+  inputRef,
 }: ProfileImageDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,37 +39,11 @@ export default function ProfileImageDialog({
   const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  const cropImage = useCallback(
-    async (image: HTMLImageElement, crop: Crop) => {
-      const canvas = document.createElement('canvas');
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-      const ctx = canvas.getContext('2d');
-
-      if (ctx) {
-        ctx.drawImage(
-          image,
-          crop.x * scaleX,
-          crop.y * scaleY,
-          crop.width * scaleX,
-          crop.height * scaleY,
-          0,
-          0,
-          crop.width,
-          crop.height
-        );
-
-        return canvas.toDataURL('image/jpeg');
-      }
-    },
-    []
-  );
-
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    
     if (file) {
+      setOpen(true);
       const reader = new FileReader();
       reader.onload = () => {
         setOriginalImage(reader.result as string);
@@ -81,12 +55,18 @@ export default function ProfileImageDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="hidden" ref={dialogRef}>
-        </Button>
-      </DialogTrigger>
-      
-      <DialogContent className="sm:max-w-[600px]">
+          <Input
+            type="file"
+            ref={inputRef}
+            accept="image/jpeg,image/png"
+            onChange={handleImageUpload}
+            className="hidden"
+            />
+      <DialogContent className="sm:max-w-screen-sm p-0">
+        <ScrollArea className="max-h-[calc(100vh-10rem)] p-0">
+          <div className="w-full p-8">
+
+         
         <DialogHeader>
           <DialogTitle>Edit Profile Picture</DialogTitle>
           <DialogDescription>
@@ -94,14 +74,7 @@ export default function ProfileImageDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(100vh-10rem)]">
         <div className="space-y-4 py-4">
-          <Input
-            type="file"
-            accept="image/jpeg,image/png"
-            onChange={handleImageUpload}
-            className="cursor-pointer"
-          />
 
           {originalImage && (
             <div className="max-w-full overflow-hidden rounded-lg border mb-2">
@@ -111,14 +84,16 @@ export default function ProfileImageDialog({
                 onComplete={(c) => setCompletedCrop(c)}
                 aspect={1}
                 circularCrop
+                keepSelection
               >
                 <Image
                   ref={imgRef as any}
                   src={originalImage}
-                  alt="Original"
-                  width={500}
-                  height={500}
-                  style={{ maxWidth: '100%', height: 'auto' }}
+                  alt='img'
+                  width="0"
+                  height="0"
+                  sizes="100%"
+                  className="w-full h-auto"
                 />
               </ReactCrop>
             </div>
@@ -126,7 +101,7 @@ export default function ProfileImageDialog({
           <p className={`${!error.trim()? "hidden": "block text-red-500 mt-0"}`}>test</p>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className='gap-4'>
           <Button 
             variant="outline" 
             onClick={() => {
@@ -145,6 +120,7 @@ export default function ProfileImageDialog({
             }
           </Button>
         </DialogFooter>
+          </div>
         </ScrollArea>
       </DialogContent>
     </Dialog>

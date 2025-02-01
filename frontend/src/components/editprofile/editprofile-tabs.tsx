@@ -13,19 +13,19 @@ export default function EditProfileTabs(){
             <TabsList className="w-full justify-around  border-b rounded-none h-auto p-0 bg-transparent ">
                 <TabsTrigger
                     value="profile"
-                    className=" text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                    className=" p-2 text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                         <User className="size-4"/>
                         Profile
                 </TabsTrigger>
                 <TabsTrigger
                     value="contact"
-                    className="text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                    className="p-2 text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                         <ContactRound className="size-4"/>
                         Contact
                 </TabsTrigger>
                 <TabsTrigger
                     value="password"
-                    className="text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                    className="p-2 text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                         <Lock className="size-4"/>
                         Password
                 </TabsTrigger>
