@@ -1,8 +1,7 @@
-import { EditIcon, Instagram, LinkIcon, MessageCircle, PencilIcon } from "lucide-react";
+import { Instagram, LinkIcon, MessageCircle, PencilIcon } from "lucide-react";
 import { Avatar, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { Separator } from "../ui/separator";
 
 export default function ProfilePreview(){
     return (
@@ -17,9 +16,9 @@ export default function ProfilePreview(){
                         </Button> 
                     </Avatar>
                 </div>
-                <h1 className="mt-4 text-2xl font-bold text-left">Alief Hisyam Al Hasany Nur Rahmat</h1>
-                <p className="text-muted-foreground text-left">5001221060</p>
-                <p className="mt-2 text-sm text-left">Saya adalah seorang pemula</p>
+                <h1 className="mt-4 text-2xl font-bold text-center">Alief Hisyam Al Hasany Nur Rahmat</h1>
+                <p className="text-muted-foreground text-center">5001221060</p>
+                <p className="mt-2 text-sm text-center">Saya adalah seorang pemula</p>
 
                 <div className="w-full mt-6 space-y-2 text-sm">
                         <div className="flex items-center text-muted-foreground">
