@@ -7,7 +7,7 @@ export default function LoginLayout ({
   }>){
     return (
         <div className="w-full flex justify-center items-center ">
-            <Card className="max-w-[400px] w-[calc(100vw-2rem)]">
+            <Card className="max-w-[400px] w-[calc(100vw-2rem)] mt-4">
                {children}
             </Card>
         </div>
