@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2Icon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DialogTrigger } from '@radix-ui/react-dialog';
+
 
 interface ProfileImageDialogProps {
   inputRef : RefObject<HTMLInputElement | null>
@@ -56,6 +56,7 @@ export default function ProfileImageDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
           <Input
+          
             type="file"
             ref={inputRef}
             accept="image/jpeg,image/png"

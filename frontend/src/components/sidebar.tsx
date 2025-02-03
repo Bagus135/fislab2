@@ -65,28 +65,28 @@ export function MobileSidebar () {
                     </SheetTitle>
                 </SheetHeader>
                 <div className=" flex flex-col space-y-4 mt-6">
-                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
+                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
                         <Link href={'/dashboard'}>
                             <GaugeCircle className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Dashboard
                         </Link>
                     </Button>
-                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
+                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
                         <Link href={'/practicum'}>
                             <FlaskConical className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Practicum
                         </Link>
                     </Button>
-                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
+                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
                         <Link href={'/schedule'}>
                             <Calendar className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Schedule
                         </Link>
                     </Button>
-                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild>
+                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
                         <Link href={'/announcement'}>
                             <Megaphone className="size-6"/>
                             <Separator orientation="vertical"/>

@@ -3,10 +3,11 @@ import { Avatar, AvatarImage } from "../ui/avatar"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardFooter } from "../ui/card"
 import { Separator } from "../ui/separator"
+import ProfileModal from "../profile-modal"
 
 export default function ScoreCard () {
     const data = [
-        {aslab: "Alief", nilaitot : 90, pendahuluan : 8, metodologi : 5, abstrak : 7, pembahasan : 20},
+        {aslab: "Alief Hisyam Al Hasany Nur rahmat", nilaitot : 90, pendahuluan : 8, metodologi : 5, abstrak : 7, pembahasan : 20},
         {aslab: "Hugo", nilaitot : 78, pendahuluan : 3, metodologi : 6, abstrak : 71, pembahasan : 10},
         {aslab: "Baha", nilaitot : 87, pendahuluan : 10, metodologi : 8, abstrak : 71, pembahasan : 21},
     ]
@@ -21,11 +22,15 @@ export default function ScoreCard () {
                 </div>
                 <Separator/>
                 <div className="grid grid-cols-10 items-center gap-4">
-                    <div className="col-span-8  flex flex-row space-x-2 items-center">
-                        <Avatar className="w-8 h-8" asChild>
-                            <AvatarImage src="/avatar.png"/>
-                        </Avatar>
-                        <p className="text-sm line-clamp-2">{item.aslab}</p>
+                    <div className="col-span-8  flex flex-row items-center">
+                        <ProfileModal>
+                            <div className="  flex flex-row space-x-2 items-center">
+                                <Avatar className="w-8 h-8" asChild>
+                                    <AvatarImage src="/avatar.png"/>
+                                </Avatar>
+                                <p className="text-sm line-clamp-2">{item.aslab}</p>
+                            </div>
+                        </ProfileModal>
                     </div>
                     <div className="col-span-2 flex flex-row gap-2 justify-end items-center">
                         <p className="text-sm">{item.nilaitot}</p>
@@ -45,7 +50,7 @@ export default function ScoreCard () {
                         <ChevronDown className="size-4 "/>
                     </label>
                     
-                    <div className="mt-2 p-4 hidden peer-checked:flex w-full  flex-col ">
+                    <div className="mt-2 p-4 hidden peer-checked:flex w-full  flex-col transition ease-out duration-1000 ">
                         <div className="flex flex-row justify-between gap-2 items-center w-full">
                             <p>Pendahuluan</p>
                             <p>{item.pendahuluan}</p>

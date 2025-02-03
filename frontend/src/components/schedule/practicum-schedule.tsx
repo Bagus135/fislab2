@@ -1,3 +1,4 @@
+import ProfileModal from "../profile-modal"
 import { Avatar, AvatarImage } from "../ui/avatar"
 import { Card, CardContent } from "../ui/card"
 import { Separator } from "../ui/separator"
@@ -33,11 +34,15 @@ export default async function CardSchedule() {
                         </div>
                             <Separator orientation="horizontal"/>
                         <div className=" grid grid-cols-3 space-x-2 w-full ">
-                            <div className="col-span-2 flex flex-rows items-center space-x-2 ">
-                                <Avatar className=" w-8 h-8" asChild>
-                                    <AvatarImage src="/avatar.png"/>
-                                </Avatar>
-                                <p className="text-sm line-clamp-2 ">{data.aslab}</p>
+                            <div className="col-span-2 flex">
+                                <ProfileModal>
+                                    <div className="flex flex-rows items-center space-x-2 ">
+                                        <Avatar className=" w-8 h-8" asChild>
+                                            <AvatarImage src="/avatar.png"/>
+                                        </Avatar>
+                                        <p className="text-sm line-clamp-2 ">{data.aslab}</p>
+                                    </div>
+                                </ProfileModal>
                             </div>
                             <div className="col-span-1 flex flex-col justify-end">
                                 <p className="text-end text-sm">18 November 2025</p>
