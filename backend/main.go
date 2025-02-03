@@ -1,15 +1,16 @@
 package main
 
 import (
-	"backend/config"
+	"backend/config/database"
+	"backend/config/server"
 	"backend/handler"
 	"backend/router"
 )
 
 func main() {
 	// DB connection
-	client := config.ConnectDB()
-	defer config.DisconnectDB(client)
+	client := database.ConnectDB()
+	defer database.DisconnectDB(client)
 
 	// Instance handler
 	authHandler := handler.NewAuthHandler(client)
@@ -20,5 +21,5 @@ func main() {
 	r := router.NewRouter(authHandler, announcementHandler, userHandler)
 
 	// Running server
-	config.StartServer("8080", r)
+	server.StartServer("8080", r)
 }
