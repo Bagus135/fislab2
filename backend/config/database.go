@@ -1,11 +1,10 @@
-package database
+package config
 
 import (
 	"backend/prisma/db"
 	"log"
 )
 
-// ConnectDB menginisialisasi dan mengembalikan client Prisma yang terhubung ke database.
 func ConnectDB() *db.PrismaClient {
 	client := db.NewClient()
 	if err := client.Prisma.Connect(); err != nil {

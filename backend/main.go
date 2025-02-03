@@ -4,14 +4,12 @@ import (
 	"backend/config"
 	"backend/handler"
 	"backend/router"
-	"log"
-	"net/http"
 )
 
 func main() {
 	// DB connection
-	client := database.ConnectDB()
-	defer database.DisconnectDB(client)
+	client := config.ConnectDB()
+	defer config.DisconnectDB(client)
 
 	// Instance handler
 	authHandler := handler.NewAuthHandler(client)
@@ -22,8 +20,5 @@ func main() {
 	r := router.NewRouter(authHandler, announcementHandler, userHandler)
 
 	// Running server
-	log.Println("Server started on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	config.StartServer("8080", r)
 }
