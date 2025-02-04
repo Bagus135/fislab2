@@ -35,7 +35,6 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
         format : score.format? `${score.format}` : "",
     })
     const [comment, setComment] = useState("")
-
     const [loading, setLoading] = useState(false);
     const [isValid, setIsValid] = useState(true); // State to track overall validity
 
@@ -46,7 +45,7 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
             inlab: /^([0-4](\.\d{1,2})?|5)$/,
             pendahuluan: /^([0-9](\.\d{1,2})?|10)$/,
             metodologi: /^([0-4](\.\d{1,2})?|5)$/,
-            pembahasan: /^([0-2]?[0-9])(\.\d{1,2})?|30$/,
+            pembahasan: /^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$/,
             kesimpulan: /^([0-9](\.\d{1,2})?|10)$/,
             format: /^([0-4](\.\d{1,2})?|5)$/,
         };
@@ -88,7 +87,7 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
                                             placeholder="0-30" 
                                             className="peer invalid:border-red-500"
                                             value={input.prelab!}
-                                            pattern="^(?:[0-2]?[0-9])(\.\d{1,2})?|30$"
+                                            pattern="^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$"
                                             onChange={(e)=>setInput({...input, prelab : e.target.value })}
                                             />
                                             <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
@@ -148,7 +147,7 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
                                             placeholder="0-30" 
                                             className="peer invalid:border-red-500"
                                             value={input.pembahasan!}
-                                            pattern="^([0-2]?[0-9])(\.\d{1,2})?|30$"
+                                            pattern="^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$"
                                             onChange={(e)=>setInput({...input, pembahasan : e.target.value })}
                                             />
                                             <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
