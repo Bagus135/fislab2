@@ -53,8 +53,10 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
 
         // Check each input against its pattern
         for (const key in patterns) {
-            if (!(patterns[key as keyof typeof patterns].test(input[key as keyof typeof input]))) {
-                return false; // If any input is invalid, return false
+            if(!!input[key as keyof typeof input].trim()){
+                if (!(patterns[key as keyof typeof patterns].test(input[key as keyof typeof input]))) {
+                    return false; // If any input is invalid, return false
+                }
             }
         }
         return true; // All inputs are valid

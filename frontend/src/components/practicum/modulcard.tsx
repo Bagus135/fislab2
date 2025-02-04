@@ -10,7 +10,7 @@ export default function ModulPracticumCard (){
                 <CardDescription>Guide Book for Practicum Fislab</CardDescription>
             </CardHeader>
             <CardContent className="gap-2 flex flex-col">
-                <InputScoreModal score={{prelab : null, inlab : 80, abstrak: 70, pendahuluan : 80, metodologi : 90, pembahasan : 80, kesimpulan : 90, format : 80, comment : "Good Job"}}>
+                <InputScoreModal score={{prelab : null, inlab : null, abstrak: null, pendahuluan : null, metodologi : null, pembahasan : null, kesimpulan : null, format : null, comment : "Good Job"}}>
                     <Button variant={"outline"}>Preview</Button>
                 </InputScoreModal>
                 <Button variant={"default"}>Download</Button>
