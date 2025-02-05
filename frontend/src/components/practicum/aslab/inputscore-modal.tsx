@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { FormEvent, ReactHTMLElement, useEffect, useState } from "react";
 
 
 type Score = {
@@ -23,7 +23,19 @@ type Score = {
     comment : string
 }
 
+type DataType = {
+        prelab: number|null;
+        inlab: number|null;
+        abstrak: number|null;
+        pendahuluan: number|null;
+        metodologi: number|null;
+        pembahasan: number|null;
+        kesimpulan: number|null;
+        format: number|null;
+}
+
 export default function InputScoreModal ({children, score}: {children: React.ReactNode, score : Score}) {
+
     const [input, setInput] = useState({
         prelab : score.prelab ? `${score.prelab}`: "",
         inlab : score.inlab? `${score.inlab}` : "",
@@ -49,7 +61,6 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
             kesimpulan: /^([0-9](\.\d{1,2})?|10)$/,
             format: /^([0-4](\.\d{1,2})?|5)$/,
         };
-
         // Check each input against its pattern
         for (const key in patterns) {
             if(!!input[key as keyof typeof input].trim()){
@@ -66,6 +77,29 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
         setIsValid(validateInputs());
     }, [input]);
 
+    const handleSubmit = (e :FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const data :DataType = {
+            prelab: null,
+            inlab: null,
+            abstrak: null,
+            pendahuluan: null,
+            metodologi: null,
+            pembahasan: null,
+            kesimpulan: null,
+            format: null
+        };
+
+        for (const key in data) {
+            if(!!(input[key as keyof typeof input] as string).trim()){
+                data[key as keyof typeof data] = parseFloat(input[key as keyof typeof input]as string)
+            } else {
+                data[key as keyof typeof data] = null
+            }
+            console.log(data)
+        }
+        
+    } 
     return (
         <Dialog>
         <DialogTrigger className="cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" asChild>
@@ -76,7 +110,7 @@ export default function InputScoreModal ({children, score}: {children: React.Rea
             <Card className="border-none shadow-none">
                 <CardContent className="border-none shadow-none">
                     <ScrollArea className="h-[calc(100vh-6rem)] px-2">
-                        <form noValidate>
+                        <form noValidate onSubmit={handleSubmit}>
                             <div className="grid w-full items-center gap-4 mt-2">
                                 <div className="flex flex-col space-y-2">
                                     <Label htmlFor="prelab" className="font-medium">Prelab</Label>

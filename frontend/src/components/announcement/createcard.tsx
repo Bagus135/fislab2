@@ -1,5 +1,6 @@
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import CreateAnnouncementModal from "./admin/create-modal";
 
 export default function CreateAnnouncementCard(){
     return (
@@ -9,7 +10,9 @@ export default function CreateAnnouncementCard(){
                 <CardDescription>Make an announcement for your practican</CardDescription>
             </CardHeader>
             <CardContent className="gap-2 flex flex-col">
-                <Button variant={"default"}>Create</Button>
+                <CreateAnnouncementModal>
+                    <Button variant={"default"}>Create</Button>
+                </CreateAnnouncementModal>
             </CardContent>
         </Card>
     )
