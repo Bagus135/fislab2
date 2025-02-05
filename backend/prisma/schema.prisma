@@ -28,9 +28,6 @@ model User {
   createdAt DateTime? @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
 
-  // Relasi untuk asisten ke kelompok
-  asistantGroups Group[] @relation("AsistantGroups")
-
   // Relasi untuk anggota kelompok
   memberGroups Group[] @relation("MemberGroups")
 
@@ -41,7 +38,7 @@ model User {
   userGrades Grade[] @relation("UserGrades")
 
   // Relasi ke jadwal asisten
-  asistantSchedules Schedule[] @relation("AsistantSchedules")
+  assistantSchedules Schedule[] @relation("AssistantSchedules")
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
@@ -49,25 +46,14 @@ model User {
 
 // kelompok
 model Group {
-  groupId     String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
-  name        Int    @db.SmallInt
-  practicumId Int
-  asistantId  String
+  id   String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
+  name Int    @db.SmallInt @unique
 
-  // Relasi ke Practicum
-  practicum Practicum @relation("PracticumGroups", fields: [practicumId], references: [id])
-
-  // Relasi ke User (asisten)
-  asistant User @relation("AsistantGroups", fields: [asistantId], references: [id])
-
-  // Relasi ke User (anggota kelompok)
+  // Anggota kelompok (praktikan)
   members User[] @relation("MemberGroups")
 
   // Relasi ke Schedule (jadwal praktikum)
   schedules Schedule[] @relation("GroupSchedules")
-
-  @@index([practicumId])
-  @@index([asistantId])
 }
 
 // praktikum
@@ -77,9 +63,6 @@ model Practicum {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relasi ke Group
-  groups Group[] @relation("PracticumGroups")
 
   // Relasi ke Schedule
   schedules Schedule[]
@@ -92,14 +75,14 @@ model Schedule {
   id          Int      @id @default(autoincrement())
   practicumId Int
   groupId     String
-  asistantId  String
+  assistantId String
   date        DateTime
   startTime   DateTime
   status      Status   @default(SCHEDULED)
 
   practicum Practicum @relation(fields: [practicumId], references: [id])
-  group     Group     @relation("GroupSchedules", fields: [groupId], references: [groupId])
-  asistant  User      @relation("AsistantSchedules", fields: [asistantId], references: [id])
+  group     Group     @relation("GroupSchedules", fields: [groupId], references: [id])
+  assistant User      @relation("AssistantSchedules", fields: [assistantId], references: [id])
 
   grades Grade[]
 

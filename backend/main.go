@@ -16,9 +16,10 @@ func main() {
 	authHandler := handler.NewAuthHandler(client)
 	announcementHandler := handler.NewAnnouncementHandler(client)
 	userHandler := handler.NewUserProfile(client)
+	groupHandler := handler.NewGroupHandler(client)
 
 	// Initializing router
-	r := router.NewRouter(authHandler, announcementHandler, userHandler)
+	r := router.NewRouter(authHandler, announcementHandler, userHandler, groupHandler)
 
 	// Running server
 	server.StartServer("8080", r)

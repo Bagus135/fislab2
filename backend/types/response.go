@@ -16,3 +16,15 @@ func SuccessResponse(token string) Response {
 		Token: token,
 	}
 }
+
+type GroupResponse struct {
+	ID      string           `json:"id"`
+	Name    int              `json:"kelompok"`
+	Members []MemberResponse `json:"members"`
+}
+
+type MemberResponse struct {
+	ID   string `json:"id"`
+	NRP  string `json:"nrp"`
+	Name string `json:"name"`
+}
