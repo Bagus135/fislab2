@@ -103,9 +103,6 @@ model User {
   createdAt DateTime? @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
 
-  // Relasi untuk asisten ke kelompok
-  asistantGroups Group[] @relation("AsistantGroups")
-
   // Relasi untuk anggota kelompok
   memberGroups Group[] @relation("MemberGroups")
 
@@ -116,7 +113,7 @@ model User {
   userGrades Grade[] @relation("UserGrades")
 
   // Relasi ke jadwal asisten
-  asistantSchedules Schedule[] @relation("AsistantSchedules")
+  assistantSchedules Schedule[] @relation("AssistantSchedules")
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
@@ -124,25 +121,14 @@ model User {
 
 // kelompok
 model Group {
-  groupId     String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
-  name        Int    @db.SmallInt
-  practicumId Int
-  asistantId  String
+  id   String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
+  name Int    @unique @db.SmallInt
 
-  // Relasi ke Practicum
-  practicum Practicum @relation("PracticumGroups", fields: [practicumId], references: [id])
-
-  // Relasi ke User (asisten)
-  asistant User @relation("AsistantGroups", fields: [asistantId], references: [id])
-
-  // Relasi ke User (anggota kelompok)
+  // Anggota kelompok (praktikan)
   members User[] @relation("MemberGroups")
 
   // Relasi ke Schedule (jadwal praktikum)
   schedules Schedule[] @relation("GroupSchedules")
-
-  @@index([practicumId])
-  @@index([asistantId])
 }
 
 // praktikum
@@ -152,9 +138,6 @@ model Practicum {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relasi ke Group
-  groups Group[] @relation("PracticumGroups")
 
   // Relasi ke Schedule
   schedules Schedule[]
@@ -167,14 +150,14 @@ model Schedule {
   id          Int      @id @default(autoincrement())
   practicumId Int
   groupId     String
-  asistantId  String
+  assistantId String
   date        DateTime
   startTime   DateTime
   status      Status   @default(SCHEDULED)
 
   practicum Practicum @relation(fields: [practicumId], references: [id])
-  group     Group     @relation("GroupSchedules", fields: [groupId], references: [groupId])
-  asistant  User      @relation("AsistantSchedules", fields: [asistantId], references: [id])
+  group     Group     @relation("GroupSchedules", fields: [groupId], references: [id])
+  assistant User      @relation("AssistantSchedules", fields: [assistantId], references: [id])
 
   grades Grade[]
 
@@ -211,6 +194,7 @@ enum Status {
   CANCELLED
 }
 
+// pengumuman
 model Announcement {
   id        Int      @id @default(autoincrement())
   title     String
@@ -385,10 +369,8 @@ const (
 type GroupScalarFieldEnum string
 
 const (
-	GroupScalarFieldEnumGroupID     GroupScalarFieldEnum = "groupId"
-	GroupScalarFieldEnumName        GroupScalarFieldEnum = "name"
-	GroupScalarFieldEnumPracticumID GroupScalarFieldEnum = "practicumId"
-	GroupScalarFieldEnumAsistantID  GroupScalarFieldEnum = "asistantId"
+	GroupScalarFieldEnumID   GroupScalarFieldEnum = "id"
+	GroupScalarFieldEnumName GroupScalarFieldEnum = "name"
 )
 
 type PracticumScalarFieldEnum string
@@ -407,7 +389,7 @@ const (
 	ScheduleScalarFieldEnumID          ScheduleScalarFieldEnum = "id"
 	ScheduleScalarFieldEnumPracticumID ScheduleScalarFieldEnum = "practicumId"
 	ScheduleScalarFieldEnumGroupID     ScheduleScalarFieldEnum = "groupId"
-	ScheduleScalarFieldEnumAsistantID  ScheduleScalarFieldEnum = "asistantId"
+	ScheduleScalarFieldEnumAssistantID ScheduleScalarFieldEnum = "assistantId"
 	ScheduleScalarFieldEnumDate        ScheduleScalarFieldEnum = "date"
 	ScheduleScalarFieldEnumStartTime   ScheduleScalarFieldEnum = "startTime"
 	ScheduleScalarFieldEnumStatus      ScheduleScalarFieldEnum = "status"
@@ -518,31 +500,21 @@ const userFieldCreatedAt userPrismaFields = "createdAt"
 
 const userFieldUpdatedAt userPrismaFields = "updatedAt"
 
-const userFieldAsistantGroups userPrismaFields = "asistantGroups"
-
 const userFieldMemberGroups userPrismaFields = "memberGroups"
 
 const userFieldGradedGrades userPrismaFields = "gradedGrades"
 
 const userFieldUserGrades userPrismaFields = "userGrades"
 
-const userFieldAsistantSchedules userPrismaFields = "asistantSchedules"
+const userFieldAssistantSchedules userPrismaFields = "assistantSchedules"
 
 const userFieldAnnouncements userPrismaFields = "announcements"
 
 type groupPrismaFields = prismaFields
 
-const groupFieldGroupID groupPrismaFields = "groupId"
+const groupFieldID groupPrismaFields = "id"
 
 const groupFieldName groupPrismaFields = "name"
-
-const groupFieldPracticumID groupPrismaFields = "practicumId"
-
-const groupFieldAsistantID groupPrismaFields = "asistantId"
-
-const groupFieldPracticum groupPrismaFields = "practicum"
-
-const groupFieldAsistant groupPrismaFields = "asistant"
 
 const groupFieldMembers groupPrismaFields = "members"
 
@@ -560,8 +532,6 @@ const practicumFieldCreatedAt practicumPrismaFields = "createdAt"
 
 const practicumFieldUpdatedAt practicumPrismaFields = "updatedAt"
 
-const practicumFieldGroups practicumPrismaFields = "groups"
-
 const practicumFieldSchedules practicumPrismaFields = "schedules"
 
 type schedulePrismaFields = prismaFields
@@ -572,7 +542,7 @@ const scheduleFieldPracticumID schedulePrismaFields = "practicumId"
 
 const scheduleFieldGroupID schedulePrismaFields = "groupId"
 
-const scheduleFieldAsistantID schedulePrismaFields = "asistantId"
+const scheduleFieldAssistantID schedulePrismaFields = "assistantId"
 
 const scheduleFieldDate schedulePrismaFields = "date"
 
@@ -584,7 +554,7 @@ const scheduleFieldPracticum schedulePrismaFields = "practicum"
 
 const scheduleFieldGroup schedulePrismaFields = "group"
 
-const scheduleFieldAsistant schedulePrismaFields = "asistant"
+const scheduleFieldAssistant schedulePrismaFields = "assistant"
 
 const scheduleFieldGrades schedulePrismaFields = "grades"
 
@@ -985,12 +955,11 @@ type RawUserModel struct {
 
 // RelationsUser holds the relation data separately
 type RelationsUser struct {
-	AsistantGroups    []GroupModel        `json:"asistantGroups,omitempty"`
-	MemberGroups      []GroupModel        `json:"memberGroups,omitempty"`
-	GradedGrades      []GradeModel        `json:"gradedGrades,omitempty"`
-	UserGrades        []GradeModel        `json:"userGrades,omitempty"`
-	AsistantSchedules []ScheduleModel     `json:"asistantSchedules,omitempty"`
-	Announcements     []AnnouncementModel `json:"announcements,omitempty"`
+	MemberGroups       []GroupModel        `json:"memberGroups,omitempty"`
+	GradedGrades       []GradeModel        `json:"gradedGrades,omitempty"`
+	UserGrades         []GradeModel        `json:"userGrades,omitempty"`
+	AssistantSchedules []ScheduleModel     `json:"assistantSchedules,omitempty"`
+	Announcements      []AnnouncementModel `json:"announcements,omitempty"`
 }
 
 func (r UserModel) CreatedAt() (value DateTime, ok bool) {
@@ -1005,13 +974,6 @@ func (r UserModel) UpdatedAt() (value DateTime, ok bool) {
 		return value, false
 	}
 	return *r.InnerUser.UpdatedAt, true
-}
-
-func (r UserModel) AsistantGroups() (value []GroupModel) {
-	if r.RelationsUser.AsistantGroups == nil {
-		panic("attempted to access asistantGroups but did not fetch it using the .With() syntax")
-	}
-	return r.RelationsUser.AsistantGroups
 }
 
 func (r UserModel) MemberGroups() (value []GroupModel) {
@@ -1035,11 +997,11 @@ func (r UserModel) UserGrades() (value []GradeModel) {
 	return r.RelationsUser.UserGrades
 }
 
-func (r UserModel) AsistantSchedules() (value []ScheduleModel) {
-	if r.RelationsUser.AsistantSchedules == nil {
-		panic("attempted to access asistantSchedules but did not fetch it using the .With() syntax")
+func (r UserModel) AssistantSchedules() (value []ScheduleModel) {
+	if r.RelationsUser.AssistantSchedules == nil {
+		panic("attempted to access assistantSchedules but did not fetch it using the .With() syntax")
 	}
-	return r.RelationsUser.AsistantSchedules
+	return r.RelationsUser.AssistantSchedules
 }
 
 func (r UserModel) Announcements() (value []AnnouncementModel) {
@@ -1057,40 +1019,20 @@ type GroupModel struct {
 
 // InnerGroup holds the actual data
 type InnerGroup struct {
-	GroupID     string `json:"groupId"`
-	Name        int    `json:"name"`
-	PracticumID int    `json:"practicumId"`
-	AsistantID  string `json:"asistantId"`
+	ID   string `json:"id"`
+	Name int    `json:"name"`
 }
 
 // RawGroupModel is a struct for Group when used in raw queries
 type RawGroupModel struct {
-	GroupID     RawString `json:"groupId"`
-	Name        RawInt    `json:"name"`
-	PracticumID RawInt    `json:"practicumId"`
-	AsistantID  RawString `json:"asistantId"`
+	ID   RawString `json:"id"`
+	Name RawInt    `json:"name"`
 }
 
 // RelationsGroup holds the relation data separately
 type RelationsGroup struct {
-	Practicum *PracticumModel `json:"practicum,omitempty"`
-	Asistant  *UserModel      `json:"asistant,omitempty"`
 	Members   []UserModel     `json:"members,omitempty"`
 	Schedules []ScheduleModel `json:"schedules,omitempty"`
-}
-
-func (r GroupModel) Practicum() (value *PracticumModel) {
-	if r.RelationsGroup.Practicum == nil {
-		panic("attempted to access practicum but did not fetch it using the .With() syntax")
-	}
-	return r.RelationsGroup.Practicum
-}
-
-func (r GroupModel) Asistant() (value *UserModel) {
-	if r.RelationsGroup.Asistant == nil {
-		panic("attempted to access asistant but did not fetch it using the .With() syntax")
-	}
-	return r.RelationsGroup.Asistant
 }
 
 func (r GroupModel) Members() (value []UserModel) {
@@ -1133,7 +1075,6 @@ type RawPracticumModel struct {
 
 // RelationsPracticum holds the relation data separately
 type RelationsPracticum struct {
-	Groups    []GroupModel    `json:"groups,omitempty"`
 	Schedules []ScheduleModel `json:"schedules,omitempty"`
 }
 
@@ -1142,13 +1083,6 @@ func (r PracticumModel) Description() (value String, ok bool) {
 		return value, false
 	}
 	return *r.InnerPracticum.Description, true
-}
-
-func (r PracticumModel) Groups() (value []GroupModel) {
-	if r.RelationsPracticum.Groups == nil {
-		panic("attempted to access groups but did not fetch it using the .With() syntax")
-	}
-	return r.RelationsPracticum.Groups
 }
 
 func (r PracticumModel) Schedules() (value []ScheduleModel) {
@@ -1169,7 +1103,7 @@ type InnerSchedule struct {
 	ID          int      `json:"id"`
 	PracticumID int      `json:"practicumId"`
 	GroupID     string   `json:"groupId"`
-	AsistantID  string   `json:"asistantId"`
+	AssistantID string   `json:"assistantId"`
 	Date        DateTime `json:"date"`
 	StartTime   DateTime `json:"startTime"`
 	Status      Status   `json:"status"`
@@ -1180,7 +1114,7 @@ type RawScheduleModel struct {
 	ID          RawInt      `json:"id"`
 	PracticumID RawInt      `json:"practicumId"`
 	GroupID     RawString   `json:"groupId"`
-	AsistantID  RawString   `json:"asistantId"`
+	AssistantID RawString   `json:"assistantId"`
 	Date        RawDateTime `json:"date"`
 	StartTime   RawDateTime `json:"startTime"`
 	Status      RawStatus   `json:"status"`
@@ -1190,7 +1124,7 @@ type RawScheduleModel struct {
 type RelationsSchedule struct {
 	Practicum *PracticumModel `json:"practicum,omitempty"`
 	Group     *GroupModel     `json:"group,omitempty"`
-	Asistant  *UserModel      `json:"asistant,omitempty"`
+	Assistant *UserModel      `json:"assistant,omitempty"`
 	Grades    []GradeModel    `json:"grades,omitempty"`
 }
 
@@ -1208,11 +1142,11 @@ func (r ScheduleModel) Group() (value *GroupModel) {
 	return r.RelationsSchedule.Group
 }
 
-func (r ScheduleModel) Asistant() (value *UserModel) {
-	if r.RelationsSchedule.Asistant == nil {
-		panic("attempted to access asistant but did not fetch it using the .With() syntax")
+func (r ScheduleModel) Assistant() (value *UserModel) {
+	if r.RelationsSchedule.Assistant == nil {
+		panic("attempted to access assistant but did not fetch it using the .With() syntax")
 	}
-	return r.RelationsSchedule.Asistant
+	return r.RelationsSchedule.Assistant
 }
 
 func (r ScheduleModel) Grades() (value []GradeModel) {
@@ -1454,15 +1388,13 @@ type userQuery struct {
 	// @optional
 	UpdatedAt userQueryUpdatedAtDateTime
 
-	AsistantGroups userQueryAsistantGroupsRelations
-
 	MemberGroups userQueryMemberGroupsRelations
 
 	GradedGrades userQueryGradedGradesRelations
 
 	UserGrades userQueryUserGradesRelations
 
-	AsistantSchedules userQueryAsistantSchedulesRelations
+	AssistantSchedules userQueryAssistantSchedulesRelations
 
 	Announcements userQueryAnnouncementsRelations
 }
@@ -4791,178 +4723,6 @@ func (r userQueryUpdatedAtDateTime) Field() userPrismaFields {
 }
 
 // base struct
-type userQueryAsistantGroupsGroup struct{}
-
-type userQueryAsistantGroupsRelations struct{}
-
-// User -> AsistantGroups
-//
-// @relation
-// @required
-func (userQueryAsistantGroupsRelations) Some(
-	params ...GroupWhereParam,
-) userDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userDefaultParam{
-		data: builder.Field{
-			Name: "asistantGroups",
-			Fields: []builder.Field{
-				{
-					Name:   "some",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-// User -> AsistantGroups
-//
-// @relation
-// @required
-func (userQueryAsistantGroupsRelations) Every(
-	params ...GroupWhereParam,
-) userDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userDefaultParam{
-		data: builder.Field{
-			Name: "asistantGroups",
-			Fields: []builder.Field{
-				{
-					Name:   "every",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-// User -> AsistantGroups
-//
-// @relation
-// @required
-func (userQueryAsistantGroupsRelations) None(
-	params ...GroupWhereParam,
-) userDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userDefaultParam{
-		data: builder.Field{
-			Name: "asistantGroups",
-			Fields: []builder.Field{
-				{
-					Name:   "none",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-func (userQueryAsistantGroupsRelations) Fetch(
-
-	params ...GroupWhereParam,
-
-) userToAsistantGroupsFindMany {
-	var v userToAsistantGroupsFindMany
-
-	v.query.Operation = "query"
-	v.query.Method = "asistantGroups"
-	v.query.Outputs = groupOutput
-
-	var where []builder.Field
-	for _, q := range params {
-		if query := q.getQuery(); query.Operation != "" {
-			v.query.Outputs = append(v.query.Outputs, builder.Output{
-				Name:    query.Method,
-				Inputs:  query.Inputs,
-				Outputs: query.Outputs,
-			})
-		} else {
-			where = append(where, q.field())
-		}
-	}
-
-	if len(where) > 0 {
-		v.query.Inputs = append(v.query.Inputs, builder.Input{
-			Name:   "where",
-			Fields: where,
-		})
-	}
-
-	return v
-}
-
-func (r userQueryAsistantGroupsRelations) Link(
-	params ...GroupWhereParam,
-) userSetParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userSetParam{
-		data: builder.Field{
-			Name: "asistantGroups",
-			Fields: []builder.Field{
-				{
-					Name:   "connect",
-					Fields: builder.TransformEquals(fields),
-
-					List:     true,
-					WrapList: true,
-				},
-			},
-		},
-	}
-}
-
-func (r userQueryAsistantGroupsRelations) Unlink(
-	params ...GroupWhereParam,
-) userSetParam {
-	var v userSetParam
-
-	var fields []builder.Field
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-	v = userSetParam{
-		data: builder.Field{
-			Name: "asistantGroups",
-			Fields: []builder.Field{
-				{
-					Name:     "disconnect",
-					List:     true,
-					WrapList: true,
-					Fields:   builder.TransformEquals(fields),
-				},
-			},
-		},
-	}
-
-	return v
-}
-
-func (r userQueryAsistantGroupsGroup) Field() userPrismaFields {
-	return userFieldAsistantGroups
-}
-
-// base struct
 type userQueryMemberGroupsGroup struct{}
 
 type userQueryMemberGroupsRelations struct{}
@@ -5479,15 +5239,15 @@ func (r userQueryUserGradesGrade) Field() userPrismaFields {
 }
 
 // base struct
-type userQueryAsistantSchedulesSchedule struct{}
+type userQueryAssistantSchedulesSchedule struct{}
 
-type userQueryAsistantSchedulesRelations struct{}
+type userQueryAssistantSchedulesRelations struct{}
 
-// User -> AsistantSchedules
+// User -> AssistantSchedules
 //
 // @relation
 // @required
-func (userQueryAsistantSchedulesRelations) Some(
+func (userQueryAssistantSchedulesRelations) Some(
 	params ...ScheduleWhereParam,
 ) userDefaultParam {
 	var fields []builder.Field
@@ -5498,7 +5258,7 @@ func (userQueryAsistantSchedulesRelations) Some(
 
 	return userDefaultParam{
 		data: builder.Field{
-			Name: "asistantSchedules",
+			Name: "assistantSchedules",
 			Fields: []builder.Field{
 				{
 					Name:   "some",
@@ -5509,11 +5269,11 @@ func (userQueryAsistantSchedulesRelations) Some(
 	}
 }
 
-// User -> AsistantSchedules
+// User -> AssistantSchedules
 //
 // @relation
 // @required
-func (userQueryAsistantSchedulesRelations) Every(
+func (userQueryAssistantSchedulesRelations) Every(
 	params ...ScheduleWhereParam,
 ) userDefaultParam {
 	var fields []builder.Field
@@ -5524,7 +5284,7 @@ func (userQueryAsistantSchedulesRelations) Every(
 
 	return userDefaultParam{
 		data: builder.Field{
-			Name: "asistantSchedules",
+			Name: "assistantSchedules",
 			Fields: []builder.Field{
 				{
 					Name:   "every",
@@ -5535,11 +5295,11 @@ func (userQueryAsistantSchedulesRelations) Every(
 	}
 }
 
-// User -> AsistantSchedules
+// User -> AssistantSchedules
 //
 // @relation
 // @required
-func (userQueryAsistantSchedulesRelations) None(
+func (userQueryAssistantSchedulesRelations) None(
 	params ...ScheduleWhereParam,
 ) userDefaultParam {
 	var fields []builder.Field
@@ -5550,7 +5310,7 @@ func (userQueryAsistantSchedulesRelations) None(
 
 	return userDefaultParam{
 		data: builder.Field{
-			Name: "asistantSchedules",
+			Name: "assistantSchedules",
 			Fields: []builder.Field{
 				{
 					Name:   "none",
@@ -5561,15 +5321,15 @@ func (userQueryAsistantSchedulesRelations) None(
 	}
 }
 
-func (userQueryAsistantSchedulesRelations) Fetch(
+func (userQueryAssistantSchedulesRelations) Fetch(
 
 	params ...ScheduleWhereParam,
 
-) userToAsistantSchedulesFindMany {
-	var v userToAsistantSchedulesFindMany
+) userToAssistantSchedulesFindMany {
+	var v userToAssistantSchedulesFindMany
 
 	v.query.Operation = "query"
-	v.query.Method = "asistantSchedules"
+	v.query.Method = "assistantSchedules"
 	v.query.Outputs = scheduleOutput
 
 	var where []builder.Field
@@ -5595,7 +5355,7 @@ func (userQueryAsistantSchedulesRelations) Fetch(
 	return v
 }
 
-func (r userQueryAsistantSchedulesRelations) Link(
+func (r userQueryAssistantSchedulesRelations) Link(
 	params ...ScheduleWhereParam,
 ) userSetParam {
 	var fields []builder.Field
@@ -5606,7 +5366,7 @@ func (r userQueryAsistantSchedulesRelations) Link(
 
 	return userSetParam{
 		data: builder.Field{
-			Name: "asistantSchedules",
+			Name: "assistantSchedules",
 			Fields: []builder.Field{
 				{
 					Name:   "connect",
@@ -5620,7 +5380,7 @@ func (r userQueryAsistantSchedulesRelations) Link(
 	}
 }
 
-func (r userQueryAsistantSchedulesRelations) Unlink(
+func (r userQueryAssistantSchedulesRelations) Unlink(
 	params ...ScheduleWhereParam,
 ) userSetParam {
 	var v userSetParam
@@ -5631,7 +5391,7 @@ func (r userQueryAsistantSchedulesRelations) Unlink(
 	}
 	v = userSetParam{
 		data: builder.Field{
-			Name: "asistantSchedules",
+			Name: "assistantSchedules",
 			Fields: []builder.Field{
 				{
 					Name:     "disconnect",
@@ -5646,8 +5406,8 @@ func (r userQueryAsistantSchedulesRelations) Unlink(
 	return v
 }
 
-func (r userQueryAsistantSchedulesSchedule) Field() userPrismaFields {
-	return userFieldAsistantSchedules
+func (r userQueryAssistantSchedulesSchedule) Field() userPrismaFields {
+	return userFieldAssistantSchedules
 }
 
 // base struct
@@ -5828,29 +5588,16 @@ var Group = groupQuery{}
 // groupQuery exposes query functions for the group model
 type groupQuery struct {
 
-	// GroupID
+	// ID
 	//
 	// @required
-	GroupID groupQueryGroupIDString
+	ID groupQueryIDString
 
 	// Name
 	//
 	// @required
+	// @unique
 	Name groupQueryNameInt
-
-	// PracticumID
-	//
-	// @required
-	PracticumID groupQueryPracticumIDInt
-
-	// AsistantID
-	//
-	// @required
-	AsistantID groupQueryAsistantIDString
-
-	Practicum groupQueryPracticumRelations
-
-	Asistant groupQueryAsistantRelations
 
 	Members groupQueryMembersRelations
 
@@ -5909,22 +5656,22 @@ func (groupQuery) And(params ...GroupWhereParam) groupDefaultParam {
 }
 
 // base struct
-type groupQueryGroupIDString struct{}
+type groupQueryIDString struct{}
 
-// Set the required value of GroupID
-func (r groupQueryGroupIDString) Set(value string) groupSetParam {
+// Set the required value of ID
+func (r groupQueryIDString) Set(value string) groupSetParam {
 
 	return groupSetParam{
 		data: builder.Field{
-			Name:  "groupId",
+			Name:  "id",
 			Value: value,
 		},
 	}
 
 }
 
-// Set the optional value of GroupID dynamically
-func (r groupQueryGroupIDString) SetIfPresent(value *String) groupSetParam {
+// Set the optional value of ID dynamically
+func (r groupQueryIDString) SetIfPresent(value *String) groupSetParam {
 	if value == nil {
 		return groupSetParam{}
 	}
@@ -5932,11 +5679,11 @@ func (r groupQueryGroupIDString) SetIfPresent(value *String) groupSetParam {
 	return r.Set(*value)
 }
 
-func (r groupQueryGroupIDString) Equals(value string) groupWithPrismaGroupIDEqualsUniqueParam {
+func (r groupQueryIDString) Equals(value string) groupWithPrismaIDEqualsUniqueParam {
 
-	return groupWithPrismaGroupIDEqualsUniqueParam{
+	return groupWithPrismaIDEqualsUniqueParam{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -5947,35 +5694,35 @@ func (r groupQueryGroupIDString) Equals(value string) groupWithPrismaGroupIDEqua
 	}
 }
 
-func (r groupQueryGroupIDString) EqualsIfPresent(value *string) groupWithPrismaGroupIDEqualsUniqueParam {
+func (r groupQueryIDString) EqualsIfPresent(value *string) groupWithPrismaIDEqualsUniqueParam {
 	if value == nil {
-		return groupWithPrismaGroupIDEqualsUniqueParam{}
+		return groupWithPrismaIDEqualsUniqueParam{}
 	}
 	return r.Equals(*value)
 }
 
-func (r groupQueryGroupIDString) Order(direction SortOrder) groupDefaultParam {
+func (r groupQueryIDString) Order(direction SortOrder) groupDefaultParam {
 	return groupDefaultParam{
 		data: builder.Field{
-			Name:  "groupId",
+			Name:  "id",
 			Value: direction,
 		},
 	}
 }
 
-func (r groupQueryGroupIDString) Cursor(cursor string) groupCursorParam {
+func (r groupQueryIDString) Cursor(cursor string) groupCursorParam {
 	return groupCursorParam{
 		data: builder.Field{
-			Name:  "groupId",
+			Name:  "id",
 			Value: cursor,
 		},
 	}
 }
 
-func (r groupQueryGroupIDString) In(value []string) groupParamUnique {
+func (r groupQueryIDString) In(value []string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "in",
@@ -5986,17 +5733,17 @@ func (r groupQueryGroupIDString) In(value []string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) InIfPresent(value []string) groupParamUnique {
+func (r groupQueryIDString) InIfPresent(value []string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.In(value)
 }
 
-func (r groupQueryGroupIDString) NotIn(value []string) groupParamUnique {
+func (r groupQueryIDString) NotIn(value []string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "notIn",
@@ -6007,17 +5754,17 @@ func (r groupQueryGroupIDString) NotIn(value []string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) NotInIfPresent(value []string) groupParamUnique {
+func (r groupQueryIDString) NotInIfPresent(value []string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.NotIn(value)
 }
 
-func (r groupQueryGroupIDString) Lt(value string) groupParamUnique {
+func (r groupQueryIDString) Lt(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "lt",
@@ -6028,17 +5775,17 @@ func (r groupQueryGroupIDString) Lt(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) LtIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) LtIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.Lt(*value)
 }
 
-func (r groupQueryGroupIDString) Lte(value string) groupParamUnique {
+func (r groupQueryIDString) Lte(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "lte",
@@ -6049,17 +5796,17 @@ func (r groupQueryGroupIDString) Lte(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) LteIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) LteIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.Lte(*value)
 }
 
-func (r groupQueryGroupIDString) Gt(value string) groupParamUnique {
+func (r groupQueryIDString) Gt(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "gt",
@@ -6070,17 +5817,17 @@ func (r groupQueryGroupIDString) Gt(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) GtIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) GtIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.Gt(*value)
 }
 
-func (r groupQueryGroupIDString) Gte(value string) groupParamUnique {
+func (r groupQueryIDString) Gte(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "gte",
@@ -6091,17 +5838,17 @@ func (r groupQueryGroupIDString) Gte(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) GteIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) GteIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.Gte(*value)
 }
 
-func (r groupQueryGroupIDString) Contains(value string) groupParamUnique {
+func (r groupQueryIDString) Contains(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "contains",
@@ -6112,17 +5859,17 @@ func (r groupQueryGroupIDString) Contains(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) ContainsIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) ContainsIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.Contains(*value)
 }
 
-func (r groupQueryGroupIDString) StartsWith(value string) groupParamUnique {
+func (r groupQueryIDString) StartsWith(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "startsWith",
@@ -6133,17 +5880,17 @@ func (r groupQueryGroupIDString) StartsWith(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) StartsWithIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) StartsWithIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.StartsWith(*value)
 }
 
-func (r groupQueryGroupIDString) EndsWith(value string) groupParamUnique {
+func (r groupQueryIDString) EndsWith(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "endsWith",
@@ -6154,17 +5901,17 @@ func (r groupQueryGroupIDString) EndsWith(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) EndsWithIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) EndsWithIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.EndsWith(*value)
 }
 
-func (r groupQueryGroupIDString) Mode(value QueryMode) groupParamUnique {
+func (r groupQueryIDString) Mode(value QueryMode) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "mode",
@@ -6175,17 +5922,17 @@ func (r groupQueryGroupIDString) Mode(value QueryMode) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) ModeIfPresent(value *QueryMode) groupParamUnique {
+func (r groupQueryIDString) ModeIfPresent(value *QueryMode) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.Mode(*value)
 }
 
-func (r groupQueryGroupIDString) Not(value string) groupParamUnique {
+func (r groupQueryIDString) Not(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "not",
@@ -6196,7 +5943,7 @@ func (r groupQueryGroupIDString) Not(value string) groupParamUnique {
 	}
 }
 
-func (r groupQueryGroupIDString) NotIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) NotIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
@@ -6205,10 +5952,10 @@ func (r groupQueryGroupIDString) NotIfPresent(value *string) groupParamUnique {
 
 // deprecated: Use StartsWith instead.
 
-func (r groupQueryGroupIDString) HasPrefix(value string) groupParamUnique {
+func (r groupQueryIDString) HasPrefix(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "starts_with",
@@ -6220,7 +5967,7 @@ func (r groupQueryGroupIDString) HasPrefix(value string) groupParamUnique {
 }
 
 // deprecated: Use StartsWithIfPresent instead.
-func (r groupQueryGroupIDString) HasPrefixIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) HasPrefixIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
@@ -6229,10 +5976,10 @@ func (r groupQueryGroupIDString) HasPrefixIfPresent(value *string) groupParamUni
 
 // deprecated: Use EndsWith instead.
 
-func (r groupQueryGroupIDString) HasSuffix(value string) groupParamUnique {
+func (r groupQueryIDString) HasSuffix(value string) groupParamUnique {
 	return groupParamUnique{
 		data: builder.Field{
-			Name: "groupId",
+			Name: "id",
 			Fields: []builder.Field{
 				{
 					Name:  "ends_with",
@@ -6244,15 +5991,15 @@ func (r groupQueryGroupIDString) HasSuffix(value string) groupParamUnique {
 }
 
 // deprecated: Use EndsWithIfPresent instead.
-func (r groupQueryGroupIDString) HasSuffixIfPresent(value *string) groupParamUnique {
+func (r groupQueryIDString) HasSuffixIfPresent(value *string) groupParamUnique {
 	if value == nil {
 		return groupParamUnique{}
 	}
 	return r.HasSuffix(*value)
 }
 
-func (r groupQueryGroupIDString) Field() groupPrismaFields {
-	return groupFieldGroupID
+func (r groupQueryIDString) Field() groupPrismaFields {
+	return groupFieldID
 }
 
 // base struct
@@ -6367,9 +6114,9 @@ func (r groupQueryNameInt) DivideIfPresent(value *int) groupWithPrismaNameSetPar
 	return r.Divide(*value)
 }
 
-func (r groupQueryNameInt) Equals(value int) groupWithPrismaNameEqualsParam {
+func (r groupQueryNameInt) Equals(value int) groupWithPrismaNameEqualsUniqueParam {
 
-	return groupWithPrismaNameEqualsParam{
+	return groupWithPrismaNameEqualsUniqueParam{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6382,9 +6129,9 @@ func (r groupQueryNameInt) Equals(value int) groupWithPrismaNameEqualsParam {
 	}
 }
 
-func (r groupQueryNameInt) EqualsIfPresent(value *int) groupWithPrismaNameEqualsParam {
+func (r groupQueryNameInt) EqualsIfPresent(value *int) groupWithPrismaNameEqualsUniqueParam {
 	if value == nil {
-		return groupWithPrismaNameEqualsParam{}
+		return groupWithPrismaNameEqualsUniqueParam{}
 	}
 	return r.Equals(*value)
 }
@@ -6407,8 +6154,8 @@ func (r groupQueryNameInt) Cursor(cursor int) groupCursorParam {
 	}
 }
 
-func (r groupQueryNameInt) In(value []int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) In(value []int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6421,15 +6168,15 @@ func (r groupQueryNameInt) In(value []int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) InIfPresent(value []int) groupDefaultParam {
+func (r groupQueryNameInt) InIfPresent(value []int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.In(value)
 }
 
-func (r groupQueryNameInt) NotIn(value []int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) NotIn(value []int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6442,15 +6189,15 @@ func (r groupQueryNameInt) NotIn(value []int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) NotInIfPresent(value []int) groupDefaultParam {
+func (r groupQueryNameInt) NotInIfPresent(value []int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.NotIn(value)
 }
 
-func (r groupQueryNameInt) Lt(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) Lt(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6463,15 +6210,15 @@ func (r groupQueryNameInt) Lt(value int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) LtIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) LtIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.Lt(*value)
 }
 
-func (r groupQueryNameInt) Lte(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) Lte(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6484,15 +6231,15 @@ func (r groupQueryNameInt) Lte(value int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) LteIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) LteIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.Lte(*value)
 }
 
-func (r groupQueryNameInt) Gt(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) Gt(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6505,15 +6252,15 @@ func (r groupQueryNameInt) Gt(value int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) GtIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) GtIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.Gt(*value)
 }
 
-func (r groupQueryNameInt) Gte(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) Gte(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6526,15 +6273,15 @@ func (r groupQueryNameInt) Gte(value int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) GteIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) GteIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.Gte(*value)
 }
 
-func (r groupQueryNameInt) Not(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) Not(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6547,17 +6294,17 @@ func (r groupQueryNameInt) Not(value int) groupDefaultParam {
 	}
 }
 
-func (r groupQueryNameInt) NotIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) NotIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.Not(*value)
 }
 
 // deprecated: Use Lt instead.
 
-func (r groupQueryNameInt) LT(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) LT(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6571,17 +6318,17 @@ func (r groupQueryNameInt) LT(value int) groupDefaultParam {
 }
 
 // deprecated: Use LtIfPresent instead.
-func (r groupQueryNameInt) LTIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) LTIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.LT(*value)
 }
 
 // deprecated: Use Lte instead.
 
-func (r groupQueryNameInt) LTE(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) LTE(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6595,17 +6342,17 @@ func (r groupQueryNameInt) LTE(value int) groupDefaultParam {
 }
 
 // deprecated: Use LteIfPresent instead.
-func (r groupQueryNameInt) LTEIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) LTEIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.LTE(*value)
 }
 
 // deprecated: Use Gt instead.
 
-func (r groupQueryNameInt) GT(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) GT(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6619,17 +6366,17 @@ func (r groupQueryNameInt) GT(value int) groupDefaultParam {
 }
 
 // deprecated: Use GtIfPresent instead.
-func (r groupQueryNameInt) GTIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) GTIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.GT(*value)
 }
 
 // deprecated: Use Gte instead.
 
-func (r groupQueryNameInt) GTE(value int) groupDefaultParam {
-	return groupDefaultParam{
+func (r groupQueryNameInt) GTE(value int) groupParamUnique {
+	return groupParamUnique{
 		data: builder.Field{
 			Name: "name",
 			Fields: []builder.Field{
@@ -6643,937 +6390,15 @@ func (r groupQueryNameInt) GTE(value int) groupDefaultParam {
 }
 
 // deprecated: Use GteIfPresent instead.
-func (r groupQueryNameInt) GTEIfPresent(value *int) groupDefaultParam {
+func (r groupQueryNameInt) GTEIfPresent(value *int) groupParamUnique {
 	if value == nil {
-		return groupDefaultParam{}
+		return groupParamUnique{}
 	}
 	return r.GTE(*value)
 }
 
 func (r groupQueryNameInt) Field() groupPrismaFields {
 	return groupFieldName
-}
-
-// base struct
-type groupQueryPracticumIDInt struct{}
-
-// Set the required value of PracticumID
-func (r groupQueryPracticumIDInt) Set(value int) groupSetParam {
-
-	return groupSetParam{
-		data: builder.Field{
-			Name:  "practicumId",
-			Value: value,
-		},
-	}
-
-}
-
-// Set the optional value of PracticumID dynamically
-func (r groupQueryPracticumIDInt) SetIfPresent(value *Int) groupSetParam {
-	if value == nil {
-		return groupSetParam{}
-	}
-
-	return r.Set(*value)
-}
-
-// Increment the required value of PracticumID
-func (r groupQueryPracticumIDInt) Increment(value int) groupSetParam {
-	return groupSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "increment",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) IncrementIfPresent(value *int) groupSetParam {
-	if value == nil {
-		return groupSetParam{}
-	}
-	return r.Increment(*value)
-}
-
-// Decrement the required value of PracticumID
-func (r groupQueryPracticumIDInt) Decrement(value int) groupSetParam {
-	return groupSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "decrement",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) DecrementIfPresent(value *int) groupSetParam {
-	if value == nil {
-		return groupSetParam{}
-	}
-	return r.Decrement(*value)
-}
-
-// Multiply the required value of PracticumID
-func (r groupQueryPracticumIDInt) Multiply(value int) groupSetParam {
-	return groupSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "multiply",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) MultiplyIfPresent(value *int) groupSetParam {
-	if value == nil {
-		return groupSetParam{}
-	}
-	return r.Multiply(*value)
-}
-
-// Divide the required value of PracticumID
-func (r groupQueryPracticumIDInt) Divide(value int) groupSetParam {
-	return groupSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "divide",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) DivideIfPresent(value *int) groupSetParam {
-	if value == nil {
-		return groupSetParam{}
-	}
-	return r.Divide(*value)
-}
-
-func (r groupQueryPracticumIDInt) Equals(value int) groupWithPrismaPracticumIDEqualsParam {
-
-	return groupWithPrismaPracticumIDEqualsParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "equals",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) EqualsIfPresent(value *int) groupWithPrismaPracticumIDEqualsParam {
-	if value == nil {
-		return groupWithPrismaPracticumIDEqualsParam{}
-	}
-	return r.Equals(*value)
-}
-
-func (r groupQueryPracticumIDInt) Order(direction SortOrder) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name:  "practicumId",
-			Value: direction,
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) Cursor(cursor int) groupCursorParam {
-	return groupCursorParam{
-		data: builder.Field{
-			Name:  "practicumId",
-			Value: cursor,
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) In(value []int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "in",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) InIfPresent(value []int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.In(value)
-}
-
-func (r groupQueryPracticumIDInt) NotIn(value []int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "notIn",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) NotInIfPresent(value []int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.NotIn(value)
-}
-
-func (r groupQueryPracticumIDInt) Lt(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "lt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) LtIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Lt(*value)
-}
-
-func (r groupQueryPracticumIDInt) Lte(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "lte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) LteIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Lte(*value)
-}
-
-func (r groupQueryPracticumIDInt) Gt(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "gt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) GtIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Gt(*value)
-}
-
-func (r groupQueryPracticumIDInt) Gte(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "gte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) GteIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Gte(*value)
-}
-
-func (r groupQueryPracticumIDInt) Not(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "not",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumIDInt) NotIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Not(*value)
-}
-
-// deprecated: Use Lt instead.
-
-func (r groupQueryPracticumIDInt) LT(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "lt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use LtIfPresent instead.
-func (r groupQueryPracticumIDInt) LTIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.LT(*value)
-}
-
-// deprecated: Use Lte instead.
-
-func (r groupQueryPracticumIDInt) LTE(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "lte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use LteIfPresent instead.
-func (r groupQueryPracticumIDInt) LTEIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.LTE(*value)
-}
-
-// deprecated: Use Gt instead.
-
-func (r groupQueryPracticumIDInt) GT(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "gt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use GtIfPresent instead.
-func (r groupQueryPracticumIDInt) GTIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.GT(*value)
-}
-
-// deprecated: Use Gte instead.
-
-func (r groupQueryPracticumIDInt) GTE(value int) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "gte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use GteIfPresent instead.
-func (r groupQueryPracticumIDInt) GTEIfPresent(value *int) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.GTE(*value)
-}
-
-func (r groupQueryPracticumIDInt) Field() groupPrismaFields {
-	return groupFieldPracticumID
-}
-
-// base struct
-type groupQueryAsistantIDString struct{}
-
-// Set the required value of AsistantID
-func (r groupQueryAsistantIDString) Set(value string) groupSetParam {
-
-	return groupSetParam{
-		data: builder.Field{
-			Name:  "asistantId",
-			Value: value,
-		},
-	}
-
-}
-
-// Set the optional value of AsistantID dynamically
-func (r groupQueryAsistantIDString) SetIfPresent(value *String) groupSetParam {
-	if value == nil {
-		return groupSetParam{}
-	}
-
-	return r.Set(*value)
-}
-
-func (r groupQueryAsistantIDString) Equals(value string) groupWithPrismaAsistantIDEqualsParam {
-
-	return groupWithPrismaAsistantIDEqualsParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "equals",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) EqualsIfPresent(value *string) groupWithPrismaAsistantIDEqualsParam {
-	if value == nil {
-		return groupWithPrismaAsistantIDEqualsParam{}
-	}
-	return r.Equals(*value)
-}
-
-func (r groupQueryAsistantIDString) Order(direction SortOrder) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name:  "asistantId",
-			Value: direction,
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) Cursor(cursor string) groupCursorParam {
-	return groupCursorParam{
-		data: builder.Field{
-			Name:  "asistantId",
-			Value: cursor,
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) In(value []string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "in",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) InIfPresent(value []string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.In(value)
-}
-
-func (r groupQueryAsistantIDString) NotIn(value []string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "notIn",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) NotInIfPresent(value []string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.NotIn(value)
-}
-
-func (r groupQueryAsistantIDString) Lt(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "lt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) LtIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Lt(*value)
-}
-
-func (r groupQueryAsistantIDString) Lte(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "lte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) LteIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Lte(*value)
-}
-
-func (r groupQueryAsistantIDString) Gt(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "gt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) GtIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Gt(*value)
-}
-
-func (r groupQueryAsistantIDString) Gte(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "gte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) GteIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Gte(*value)
-}
-
-func (r groupQueryAsistantIDString) Contains(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "contains",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) ContainsIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Contains(*value)
-}
-
-func (r groupQueryAsistantIDString) StartsWith(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "startsWith",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) StartsWithIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.StartsWith(*value)
-}
-
-func (r groupQueryAsistantIDString) EndsWith(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "endsWith",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) EndsWithIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.EndsWith(*value)
-}
-
-func (r groupQueryAsistantIDString) Mode(value QueryMode) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "mode",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) ModeIfPresent(value *QueryMode) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Mode(*value)
-}
-
-func (r groupQueryAsistantIDString) Not(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "not",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantIDString) NotIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.Not(*value)
-}
-
-// deprecated: Use StartsWith instead.
-
-func (r groupQueryAsistantIDString) HasPrefix(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "starts_with",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use StartsWithIfPresent instead.
-func (r groupQueryAsistantIDString) HasPrefixIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.HasPrefix(*value)
-}
-
-// deprecated: Use EndsWith instead.
-
-func (r groupQueryAsistantIDString) HasSuffix(value string) groupDefaultParam {
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistantId",
-			Fields: []builder.Field{
-				{
-					Name:  "ends_with",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use EndsWithIfPresent instead.
-func (r groupQueryAsistantIDString) HasSuffixIfPresent(value *string) groupDefaultParam {
-	if value == nil {
-		return groupDefaultParam{}
-	}
-	return r.HasSuffix(*value)
-}
-
-func (r groupQueryAsistantIDString) Field() groupPrismaFields {
-	return groupFieldAsistantID
-}
-
-// base struct
-type groupQueryPracticumPracticum struct{}
-
-type groupQueryPracticumRelations struct{}
-
-// Group -> Practicum
-//
-// @relation
-// @required
-func (groupQueryPracticumRelations) Where(
-	params ...PracticumWhereParam,
-) groupDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "practicum",
-			Fields: []builder.Field{
-				{
-					Name:   "is",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-func (groupQueryPracticumRelations) Fetch() groupToPracticumFindUnique {
-	var v groupToPracticumFindUnique
-
-	v.query.Operation = "query"
-	v.query.Method = "practicum"
-	v.query.Outputs = practicumOutput
-
-	return v
-}
-
-func (r groupQueryPracticumRelations) Link(
-	params PracticumWhereParam,
-) groupWithPrismaPracticumSetParam {
-	var fields []builder.Field
-
-	f := params.field()
-	if f.Fields == nil && f.Value == nil {
-		return groupWithPrismaPracticumSetParam{}
-	}
-
-	fields = append(fields, f)
-
-	return groupWithPrismaPracticumSetParam{
-		data: builder.Field{
-			Name: "practicum",
-			Fields: []builder.Field{
-				{
-					Name:   "connect",
-					Fields: builder.TransformEquals(fields),
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryPracticumRelations) Unlink() groupWithPrismaPracticumSetParam {
-	var v groupWithPrismaPracticumSetParam
-
-	v = groupWithPrismaPracticumSetParam{
-		data: builder.Field{
-			Name: "practicum",
-			Fields: []builder.Field{
-				{
-					Name:  "disconnect",
-					Value: true,
-				},
-			},
-		},
-	}
-
-	return v
-}
-
-func (r groupQueryPracticumPracticum) Field() groupPrismaFields {
-	return groupFieldPracticum
-}
-
-// base struct
-type groupQueryAsistantUser struct{}
-
-type groupQueryAsistantRelations struct{}
-
-// Group -> Asistant
-//
-// @relation
-// @required
-func (groupQueryAsistantRelations) Where(
-	params ...UserWhereParam,
-) groupDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return groupDefaultParam{
-		data: builder.Field{
-			Name: "asistant",
-			Fields: []builder.Field{
-				{
-					Name:   "is",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-func (groupQueryAsistantRelations) Fetch() groupToAsistantFindUnique {
-	var v groupToAsistantFindUnique
-
-	v.query.Operation = "query"
-	v.query.Method = "asistant"
-	v.query.Outputs = userOutput
-
-	return v
-}
-
-func (r groupQueryAsistantRelations) Link(
-	params UserWhereParam,
-) groupWithPrismaAsistantSetParam {
-	var fields []builder.Field
-
-	f := params.field()
-	if f.Fields == nil && f.Value == nil {
-		return groupWithPrismaAsistantSetParam{}
-	}
-
-	fields = append(fields, f)
-
-	return groupWithPrismaAsistantSetParam{
-		data: builder.Field{
-			Name: "asistant",
-			Fields: []builder.Field{
-				{
-					Name:   "connect",
-					Fields: builder.TransformEquals(fields),
-				},
-			},
-		},
-	}
-}
-
-func (r groupQueryAsistantRelations) Unlink() groupWithPrismaAsistantSetParam {
-	var v groupWithPrismaAsistantSetParam
-
-	v = groupWithPrismaAsistantSetParam{
-		data: builder.Field{
-			Name: "asistant",
-			Fields: []builder.Field{
-				{
-					Name:  "disconnect",
-					Value: true,
-				},
-			},
-		},
-	}
-
-	return v
-}
-
-func (r groupQueryAsistantUser) Field() groupPrismaFields {
-	return groupFieldAsistant
 }
 
 // base struct
@@ -7950,8 +6775,6 @@ type practicumQuery struct {
 	//
 	// @required
 	UpdatedAt practicumQueryUpdatedAtDateTime
-
-	Groups practicumQueryGroupsRelations
 
 	Schedules practicumQuerySchedulesRelations
 }
@@ -9768,178 +8591,6 @@ func (r practicumQueryUpdatedAtDateTime) Field() practicumPrismaFields {
 }
 
 // base struct
-type practicumQueryGroupsGroup struct{}
-
-type practicumQueryGroupsRelations struct{}
-
-// Practicum -> Groups
-//
-// @relation
-// @required
-func (practicumQueryGroupsRelations) Some(
-	params ...GroupWhereParam,
-) practicumDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return practicumDefaultParam{
-		data: builder.Field{
-			Name: "groups",
-			Fields: []builder.Field{
-				{
-					Name:   "some",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-// Practicum -> Groups
-//
-// @relation
-// @required
-func (practicumQueryGroupsRelations) Every(
-	params ...GroupWhereParam,
-) practicumDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return practicumDefaultParam{
-		data: builder.Field{
-			Name: "groups",
-			Fields: []builder.Field{
-				{
-					Name:   "every",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-// Practicum -> Groups
-//
-// @relation
-// @required
-func (practicumQueryGroupsRelations) None(
-	params ...GroupWhereParam,
-) practicumDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return practicumDefaultParam{
-		data: builder.Field{
-			Name: "groups",
-			Fields: []builder.Field{
-				{
-					Name:   "none",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-func (practicumQueryGroupsRelations) Fetch(
-
-	params ...GroupWhereParam,
-
-) practicumToGroupsFindMany {
-	var v practicumToGroupsFindMany
-
-	v.query.Operation = "query"
-	v.query.Method = "groups"
-	v.query.Outputs = groupOutput
-
-	var where []builder.Field
-	for _, q := range params {
-		if query := q.getQuery(); query.Operation != "" {
-			v.query.Outputs = append(v.query.Outputs, builder.Output{
-				Name:    query.Method,
-				Inputs:  query.Inputs,
-				Outputs: query.Outputs,
-			})
-		} else {
-			where = append(where, q.field())
-		}
-	}
-
-	if len(where) > 0 {
-		v.query.Inputs = append(v.query.Inputs, builder.Input{
-			Name:   "where",
-			Fields: where,
-		})
-	}
-
-	return v
-}
-
-func (r practicumQueryGroupsRelations) Link(
-	params ...GroupWhereParam,
-) practicumSetParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return practicumSetParam{
-		data: builder.Field{
-			Name: "groups",
-			Fields: []builder.Field{
-				{
-					Name:   "connect",
-					Fields: builder.TransformEquals(fields),
-
-					List:     true,
-					WrapList: true,
-				},
-			},
-		},
-	}
-}
-
-func (r practicumQueryGroupsRelations) Unlink(
-	params ...GroupWhereParam,
-) practicumSetParam {
-	var v practicumSetParam
-
-	var fields []builder.Field
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-	v = practicumSetParam{
-		data: builder.Field{
-			Name: "groups",
-			Fields: []builder.Field{
-				{
-					Name:     "disconnect",
-					List:     true,
-					WrapList: true,
-					Fields:   builder.TransformEquals(fields),
-				},
-			},
-		},
-	}
-
-	return v
-}
-
-func (r practicumQueryGroupsGroup) Field() practicumPrismaFields {
-	return practicumFieldGroups
-}
-
-// base struct
 type practicumQuerySchedulesSchedule struct{}
 
 type practicumQuerySchedulesRelations struct{}
@@ -10132,10 +8783,10 @@ type scheduleQuery struct {
 	// @required
 	GroupID scheduleQueryGroupIDString
 
-	// AsistantID
+	// AssistantID
 	//
 	// @required
-	AsistantID scheduleQueryAsistantIDString
+	AssistantID scheduleQueryAssistantIDString
 
 	// Date
 	//
@@ -10156,7 +8807,7 @@ type scheduleQuery struct {
 
 	Group scheduleQueryGroupRelations
 
-	Asistant scheduleQueryAsistantRelations
+	Assistant scheduleQueryAssistantRelations
 
 	Grades scheduleQueryGradesRelations
 }
@@ -11376,22 +10027,22 @@ func (r scheduleQueryGroupIDString) Field() schedulePrismaFields {
 }
 
 // base struct
-type scheduleQueryAsistantIDString struct{}
+type scheduleQueryAssistantIDString struct{}
 
-// Set the required value of AsistantID
-func (r scheduleQueryAsistantIDString) Set(value string) scheduleSetParam {
+// Set the required value of AssistantID
+func (r scheduleQueryAssistantIDString) Set(value string) scheduleSetParam {
 
 	return scheduleSetParam{
 		data: builder.Field{
-			Name:  "asistantId",
+			Name:  "assistantId",
 			Value: value,
 		},
 	}
 
 }
 
-// Set the optional value of AsistantID dynamically
-func (r scheduleQueryAsistantIDString) SetIfPresent(value *String) scheduleSetParam {
+// Set the optional value of AssistantID dynamically
+func (r scheduleQueryAssistantIDString) SetIfPresent(value *String) scheduleSetParam {
 	if value == nil {
 		return scheduleSetParam{}
 	}
@@ -11399,11 +10050,11 @@ func (r scheduleQueryAsistantIDString) SetIfPresent(value *String) scheduleSetPa
 	return r.Set(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Equals(value string) scheduleWithPrismaAsistantIDEqualsParam {
+func (r scheduleQueryAssistantIDString) Equals(value string) scheduleWithPrismaAssistantIDEqualsParam {
 
-	return scheduleWithPrismaAsistantIDEqualsParam{
+	return scheduleWithPrismaAssistantIDEqualsParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -11414,35 +10065,35 @@ func (r scheduleQueryAsistantIDString) Equals(value string) scheduleWithPrismaAs
 	}
 }
 
-func (r scheduleQueryAsistantIDString) EqualsIfPresent(value *string) scheduleWithPrismaAsistantIDEqualsParam {
+func (r scheduleQueryAssistantIDString) EqualsIfPresent(value *string) scheduleWithPrismaAssistantIDEqualsParam {
 	if value == nil {
-		return scheduleWithPrismaAsistantIDEqualsParam{}
+		return scheduleWithPrismaAssistantIDEqualsParam{}
 	}
 	return r.Equals(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Order(direction SortOrder) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Order(direction SortOrder) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name:  "asistantId",
+			Name:  "assistantId",
 			Value: direction,
 		},
 	}
 }
 
-func (r scheduleQueryAsistantIDString) Cursor(cursor string) scheduleCursorParam {
+func (r scheduleQueryAssistantIDString) Cursor(cursor string) scheduleCursorParam {
 	return scheduleCursorParam{
 		data: builder.Field{
-			Name:  "asistantId",
+			Name:  "assistantId",
 			Value: cursor,
 		},
 	}
 }
 
-func (r scheduleQueryAsistantIDString) In(value []string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) In(value []string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "in",
@@ -11453,17 +10104,17 @@ func (r scheduleQueryAsistantIDString) In(value []string) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryAsistantIDString) InIfPresent(value []string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) InIfPresent(value []string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.In(value)
 }
 
-func (r scheduleQueryAsistantIDString) NotIn(value []string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) NotIn(value []string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "notIn",
@@ -11474,17 +10125,17 @@ func (r scheduleQueryAsistantIDString) NotIn(value []string) scheduleDefaultPara
 	}
 }
 
-func (r scheduleQueryAsistantIDString) NotInIfPresent(value []string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) NotInIfPresent(value []string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.NotIn(value)
 }
 
-func (r scheduleQueryAsistantIDString) Lt(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Lt(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "lt",
@@ -11495,17 +10146,17 @@ func (r scheduleQueryAsistantIDString) Lt(value string) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryAsistantIDString) LtIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) LtIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Lt(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Lte(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Lte(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "lte",
@@ -11516,17 +10167,17 @@ func (r scheduleQueryAsistantIDString) Lte(value string) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryAsistantIDString) LteIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) LteIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Lte(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Gt(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Gt(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "gt",
@@ -11537,17 +10188,17 @@ func (r scheduleQueryAsistantIDString) Gt(value string) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryAsistantIDString) GtIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) GtIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Gt(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Gte(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Gte(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "gte",
@@ -11558,17 +10209,17 @@ func (r scheduleQueryAsistantIDString) Gte(value string) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryAsistantIDString) GteIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) GteIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Gte(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Contains(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Contains(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "contains",
@@ -11579,17 +10230,17 @@ func (r scheduleQueryAsistantIDString) Contains(value string) scheduleDefaultPar
 	}
 }
 
-func (r scheduleQueryAsistantIDString) ContainsIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) ContainsIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Contains(*value)
 }
 
-func (r scheduleQueryAsistantIDString) StartsWith(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) StartsWith(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "startsWith",
@@ -11600,17 +10251,17 @@ func (r scheduleQueryAsistantIDString) StartsWith(value string) scheduleDefaultP
 	}
 }
 
-func (r scheduleQueryAsistantIDString) StartsWithIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) StartsWithIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.StartsWith(*value)
 }
 
-func (r scheduleQueryAsistantIDString) EndsWith(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) EndsWith(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "endsWith",
@@ -11621,17 +10272,17 @@ func (r scheduleQueryAsistantIDString) EndsWith(value string) scheduleDefaultPar
 	}
 }
 
-func (r scheduleQueryAsistantIDString) EndsWithIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) EndsWithIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.EndsWith(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Mode(value QueryMode) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Mode(value QueryMode) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "mode",
@@ -11642,17 +10293,17 @@ func (r scheduleQueryAsistantIDString) Mode(value QueryMode) scheduleDefaultPara
 	}
 }
 
-func (r scheduleQueryAsistantIDString) ModeIfPresent(value *QueryMode) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) ModeIfPresent(value *QueryMode) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Mode(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Not(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) Not(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "not",
@@ -11663,7 +10314,7 @@ func (r scheduleQueryAsistantIDString) Not(value string) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryAsistantIDString) NotIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) NotIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
@@ -11672,10 +10323,10 @@ func (r scheduleQueryAsistantIDString) NotIfPresent(value *string) scheduleDefau
 
 // deprecated: Use StartsWith instead.
 
-func (r scheduleQueryAsistantIDString) HasPrefix(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) HasPrefix(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "starts_with",
@@ -11687,7 +10338,7 @@ func (r scheduleQueryAsistantIDString) HasPrefix(value string) scheduleDefaultPa
 }
 
 // deprecated: Use StartsWithIfPresent instead.
-func (r scheduleQueryAsistantIDString) HasPrefixIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) HasPrefixIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
@@ -11696,10 +10347,10 @@ func (r scheduleQueryAsistantIDString) HasPrefixIfPresent(value *string) schedul
 
 // deprecated: Use EndsWith instead.
 
-func (r scheduleQueryAsistantIDString) HasSuffix(value string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) HasSuffix(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistantId",
+			Name: "assistantId",
 			Fields: []builder.Field{
 				{
 					Name:  "ends_with",
@@ -11711,15 +10362,15 @@ func (r scheduleQueryAsistantIDString) HasSuffix(value string) scheduleDefaultPa
 }
 
 // deprecated: Use EndsWithIfPresent instead.
-func (r scheduleQueryAsistantIDString) HasSuffixIfPresent(value *string) scheduleDefaultParam {
+func (r scheduleQueryAssistantIDString) HasSuffixIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.HasSuffix(*value)
 }
 
-func (r scheduleQueryAsistantIDString) Field() schedulePrismaFields {
-	return scheduleFieldAsistantID
+func (r scheduleQueryAssistantIDString) Field() schedulePrismaFields {
+	return scheduleFieldAssistantID
 }
 
 // base struct
@@ -12652,15 +11303,15 @@ func (r scheduleQueryGroupGroup) Field() schedulePrismaFields {
 }
 
 // base struct
-type scheduleQueryAsistantUser struct{}
+type scheduleQueryAssistantUser struct{}
 
-type scheduleQueryAsistantRelations struct{}
+type scheduleQueryAssistantRelations struct{}
 
-// Schedule -> Asistant
+// Schedule -> Assistant
 //
 // @relation
 // @required
-func (scheduleQueryAsistantRelations) Where(
+func (scheduleQueryAssistantRelations) Where(
 	params ...UserWhereParam,
 ) scheduleDefaultParam {
 	var fields []builder.Field
@@ -12671,7 +11322,7 @@ func (scheduleQueryAsistantRelations) Where(
 
 	return scheduleDefaultParam{
 		data: builder.Field{
-			Name: "asistant",
+			Name: "assistant",
 			Fields: []builder.Field{
 				{
 					Name:   "is",
@@ -12682,31 +11333,31 @@ func (scheduleQueryAsistantRelations) Where(
 	}
 }
 
-func (scheduleQueryAsistantRelations) Fetch() scheduleToAsistantFindUnique {
-	var v scheduleToAsistantFindUnique
+func (scheduleQueryAssistantRelations) Fetch() scheduleToAssistantFindUnique {
+	var v scheduleToAssistantFindUnique
 
 	v.query.Operation = "query"
-	v.query.Method = "asistant"
+	v.query.Method = "assistant"
 	v.query.Outputs = userOutput
 
 	return v
 }
 
-func (r scheduleQueryAsistantRelations) Link(
+func (r scheduleQueryAssistantRelations) Link(
 	params UserWhereParam,
-) scheduleWithPrismaAsistantSetParam {
+) scheduleWithPrismaAssistantSetParam {
 	var fields []builder.Field
 
 	f := params.field()
 	if f.Fields == nil && f.Value == nil {
-		return scheduleWithPrismaAsistantSetParam{}
+		return scheduleWithPrismaAssistantSetParam{}
 	}
 
 	fields = append(fields, f)
 
-	return scheduleWithPrismaAsistantSetParam{
+	return scheduleWithPrismaAssistantSetParam{
 		data: builder.Field{
-			Name: "asistant",
+			Name: "assistant",
 			Fields: []builder.Field{
 				{
 					Name:   "connect",
@@ -12717,12 +11368,12 @@ func (r scheduleQueryAsistantRelations) Link(
 	}
 }
 
-func (r scheduleQueryAsistantRelations) Unlink() scheduleWithPrismaAsistantSetParam {
-	var v scheduleWithPrismaAsistantSetParam
+func (r scheduleQueryAssistantRelations) Unlink() scheduleWithPrismaAssistantSetParam {
+	var v scheduleWithPrismaAssistantSetParam
 
-	v = scheduleWithPrismaAsistantSetParam{
+	v = scheduleWithPrismaAssistantSetParam{
 		data: builder.Field{
-			Name: "asistant",
+			Name: "assistant",
 			Fields: []builder.Field{
 				{
 					Name:  "disconnect",
@@ -12735,8 +11386,8 @@ func (r scheduleQueryAsistantRelations) Unlink() scheduleWithPrismaAsistantSetPa
 	return v
 }
 
-func (r scheduleQueryAsistantUser) Field() schedulePrismaFields {
-	return scheduleFieldAsistant
+func (r scheduleQueryAssistantUser) Field() schedulePrismaFields {
+	return scheduleFieldAssistant
 }
 
 // base struct
@@ -22594,84 +21245,6 @@ func (p userWithPrismaUpdatedAtEqualsUniqueParam) updatedAtField() {}
 func (userWithPrismaUpdatedAtEqualsUniqueParam) unique() {}
 func (userWithPrismaUpdatedAtEqualsUniqueParam) equals() {}
 
-type UserWithPrismaAsistantGroupsEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	userModel()
-	asistantGroupsField()
-}
-
-type UserWithPrismaAsistantGroupsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	userModel()
-	asistantGroupsField()
-}
-
-type userWithPrismaAsistantGroupsSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p userWithPrismaAsistantGroupsSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p userWithPrismaAsistantGroupsSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p userWithPrismaAsistantGroupsSetParam) userModel() {}
-
-func (p userWithPrismaAsistantGroupsSetParam) asistantGroupsField() {}
-
-type UserWithPrismaAsistantGroupsWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	userModel()
-	asistantGroupsField()
-}
-
-type userWithPrismaAsistantGroupsEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p userWithPrismaAsistantGroupsEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p userWithPrismaAsistantGroupsEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p userWithPrismaAsistantGroupsEqualsParam) userModel() {}
-
-func (p userWithPrismaAsistantGroupsEqualsParam) asistantGroupsField() {}
-
-func (userWithPrismaAsistantGroupsSetParam) settable()  {}
-func (userWithPrismaAsistantGroupsEqualsParam) equals() {}
-
-type userWithPrismaAsistantGroupsEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p userWithPrismaAsistantGroupsEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p userWithPrismaAsistantGroupsEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p userWithPrismaAsistantGroupsEqualsUniqueParam) userModel()           {}
-func (p userWithPrismaAsistantGroupsEqualsUniqueParam) asistantGroupsField() {}
-
-func (userWithPrismaAsistantGroupsEqualsUniqueParam) unique() {}
-func (userWithPrismaAsistantGroupsEqualsUniqueParam) equals() {}
-
 type UserWithPrismaMemberGroupsEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
@@ -22906,83 +21479,83 @@ func (p userWithPrismaUserGradesEqualsUniqueParam) userGradesField() {}
 func (userWithPrismaUserGradesEqualsUniqueParam) unique() {}
 func (userWithPrismaUserGradesEqualsUniqueParam) equals() {}
 
-type UserWithPrismaAsistantSchedulesEqualsSetParam interface {
+type UserWithPrismaAssistantSchedulesEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	equals()
 	userModel()
-	asistantSchedulesField()
+	assistantSchedulesField()
 }
 
-type UserWithPrismaAsistantSchedulesSetParam interface {
+type UserWithPrismaAssistantSchedulesSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	userModel()
-	asistantSchedulesField()
+	assistantSchedulesField()
 }
 
-type userWithPrismaAsistantSchedulesSetParam struct {
+type userWithPrismaAssistantSchedulesSetParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p userWithPrismaAsistantSchedulesSetParam) field() builder.Field {
+func (p userWithPrismaAssistantSchedulesSetParam) field() builder.Field {
 	return p.data
 }
 
-func (p userWithPrismaAsistantSchedulesSetParam) getQuery() builder.Query {
+func (p userWithPrismaAssistantSchedulesSetParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p userWithPrismaAsistantSchedulesSetParam) userModel() {}
+func (p userWithPrismaAssistantSchedulesSetParam) userModel() {}
 
-func (p userWithPrismaAsistantSchedulesSetParam) asistantSchedulesField() {}
+func (p userWithPrismaAssistantSchedulesSetParam) assistantSchedulesField() {}
 
-type UserWithPrismaAsistantSchedulesWhereParam interface {
+type UserWithPrismaAssistantSchedulesWhereParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	userModel()
-	asistantSchedulesField()
+	assistantSchedulesField()
 }
 
-type userWithPrismaAsistantSchedulesEqualsParam struct {
+type userWithPrismaAssistantSchedulesEqualsParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p userWithPrismaAsistantSchedulesEqualsParam) field() builder.Field {
+func (p userWithPrismaAssistantSchedulesEqualsParam) field() builder.Field {
 	return p.data
 }
 
-func (p userWithPrismaAsistantSchedulesEqualsParam) getQuery() builder.Query {
+func (p userWithPrismaAssistantSchedulesEqualsParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p userWithPrismaAsistantSchedulesEqualsParam) userModel() {}
+func (p userWithPrismaAssistantSchedulesEqualsParam) userModel() {}
 
-func (p userWithPrismaAsistantSchedulesEqualsParam) asistantSchedulesField() {}
+func (p userWithPrismaAssistantSchedulesEqualsParam) assistantSchedulesField() {}
 
-func (userWithPrismaAsistantSchedulesSetParam) settable()  {}
-func (userWithPrismaAsistantSchedulesEqualsParam) equals() {}
+func (userWithPrismaAssistantSchedulesSetParam) settable()  {}
+func (userWithPrismaAssistantSchedulesEqualsParam) equals() {}
 
-type userWithPrismaAsistantSchedulesEqualsUniqueParam struct {
+type userWithPrismaAssistantSchedulesEqualsUniqueParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p userWithPrismaAsistantSchedulesEqualsUniqueParam) field() builder.Field {
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) field() builder.Field {
 	return p.data
 }
 
-func (p userWithPrismaAsistantSchedulesEqualsUniqueParam) getQuery() builder.Query {
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p userWithPrismaAsistantSchedulesEqualsUniqueParam) userModel()              {}
-func (p userWithPrismaAsistantSchedulesEqualsUniqueParam) asistantSchedulesField() {}
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) userModel()               {}
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) assistantSchedulesField() {}
 
-func (userWithPrismaAsistantSchedulesEqualsUniqueParam) unique() {}
-func (userWithPrismaAsistantSchedulesEqualsUniqueParam) equals() {}
+func (userWithPrismaAssistantSchedulesEqualsUniqueParam) unique() {}
+func (userWithPrismaAssistantSchedulesEqualsUniqueParam) equals() {}
 
 type UserWithPrismaAnnouncementsEqualsSetParam interface {
 	field() builder.Field
@@ -23068,10 +21641,8 @@ type groupActions struct {
 }
 
 var groupOutput = []builder.Output{
-	{Name: "groupId"},
+	{Name: "id"},
 	{Name: "name"},
-	{Name: "practicumId"},
-	{Name: "asistantId"},
 }
 
 type GroupRelationWith interface {
@@ -23238,83 +21809,83 @@ func (p groupSetParam) field() builder.Field {
 
 func (p groupSetParam) groupModel() {}
 
-type GroupWithPrismaGroupIDEqualsSetParam interface {
+type GroupWithPrismaIDEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	equals()
 	groupModel()
-	groupIDField()
+	idField()
 }
 
-type GroupWithPrismaGroupIDSetParam interface {
+type GroupWithPrismaIDSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	groupModel()
-	groupIDField()
+	idField()
 }
 
-type groupWithPrismaGroupIDSetParam struct {
+type groupWithPrismaIDSetParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p groupWithPrismaGroupIDSetParam) field() builder.Field {
+func (p groupWithPrismaIDSetParam) field() builder.Field {
 	return p.data
 }
 
-func (p groupWithPrismaGroupIDSetParam) getQuery() builder.Query {
+func (p groupWithPrismaIDSetParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p groupWithPrismaGroupIDSetParam) groupModel() {}
+func (p groupWithPrismaIDSetParam) groupModel() {}
 
-func (p groupWithPrismaGroupIDSetParam) groupIDField() {}
+func (p groupWithPrismaIDSetParam) idField() {}
 
-type GroupWithPrismaGroupIDWhereParam interface {
+type GroupWithPrismaIDWhereParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	groupModel()
-	groupIDField()
+	idField()
 }
 
-type groupWithPrismaGroupIDEqualsParam struct {
+type groupWithPrismaIDEqualsParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p groupWithPrismaGroupIDEqualsParam) field() builder.Field {
+func (p groupWithPrismaIDEqualsParam) field() builder.Field {
 	return p.data
 }
 
-func (p groupWithPrismaGroupIDEqualsParam) getQuery() builder.Query {
+func (p groupWithPrismaIDEqualsParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p groupWithPrismaGroupIDEqualsParam) groupModel() {}
+func (p groupWithPrismaIDEqualsParam) groupModel() {}
 
-func (p groupWithPrismaGroupIDEqualsParam) groupIDField() {}
+func (p groupWithPrismaIDEqualsParam) idField() {}
 
-func (groupWithPrismaGroupIDSetParam) settable()  {}
-func (groupWithPrismaGroupIDEqualsParam) equals() {}
+func (groupWithPrismaIDSetParam) settable()  {}
+func (groupWithPrismaIDEqualsParam) equals() {}
 
-type groupWithPrismaGroupIDEqualsUniqueParam struct {
+type groupWithPrismaIDEqualsUniqueParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p groupWithPrismaGroupIDEqualsUniqueParam) field() builder.Field {
+func (p groupWithPrismaIDEqualsUniqueParam) field() builder.Field {
 	return p.data
 }
 
-func (p groupWithPrismaGroupIDEqualsUniqueParam) getQuery() builder.Query {
+func (p groupWithPrismaIDEqualsUniqueParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p groupWithPrismaGroupIDEqualsUniqueParam) groupModel()   {}
-func (p groupWithPrismaGroupIDEqualsUniqueParam) groupIDField() {}
+func (p groupWithPrismaIDEqualsUniqueParam) groupModel() {}
+func (p groupWithPrismaIDEqualsUniqueParam) idField()    {}
 
-func (groupWithPrismaGroupIDEqualsUniqueParam) unique() {}
-func (groupWithPrismaGroupIDEqualsUniqueParam) equals() {}
+func (groupWithPrismaIDEqualsUniqueParam) unique() {}
+func (groupWithPrismaIDEqualsUniqueParam) equals() {}
 
 type GroupWithPrismaNameEqualsSetParam interface {
 	field() builder.Field
@@ -23393,318 +21964,6 @@ func (p groupWithPrismaNameEqualsUniqueParam) nameField()  {}
 
 func (groupWithPrismaNameEqualsUniqueParam) unique() {}
 func (groupWithPrismaNameEqualsUniqueParam) equals() {}
-
-type GroupWithPrismaPracticumIDEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	groupModel()
-	practicumIDField()
-}
-
-type GroupWithPrismaPracticumIDSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	practicumIDField()
-}
-
-type groupWithPrismaPracticumIDSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaPracticumIDSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaPracticumIDSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaPracticumIDSetParam) groupModel() {}
-
-func (p groupWithPrismaPracticumIDSetParam) practicumIDField() {}
-
-type GroupWithPrismaPracticumIDWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	practicumIDField()
-}
-
-type groupWithPrismaPracticumIDEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaPracticumIDEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaPracticumIDEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaPracticumIDEqualsParam) groupModel() {}
-
-func (p groupWithPrismaPracticumIDEqualsParam) practicumIDField() {}
-
-func (groupWithPrismaPracticumIDSetParam) settable()  {}
-func (groupWithPrismaPracticumIDEqualsParam) equals() {}
-
-type groupWithPrismaPracticumIDEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaPracticumIDEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaPracticumIDEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaPracticumIDEqualsUniqueParam) groupModel()       {}
-func (p groupWithPrismaPracticumIDEqualsUniqueParam) practicumIDField() {}
-
-func (groupWithPrismaPracticumIDEqualsUniqueParam) unique() {}
-func (groupWithPrismaPracticumIDEqualsUniqueParam) equals() {}
-
-type GroupWithPrismaAsistantIDEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	groupModel()
-	asistantIDField()
-}
-
-type GroupWithPrismaAsistantIDSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	asistantIDField()
-}
-
-type groupWithPrismaAsistantIDSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaAsistantIDSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaAsistantIDSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaAsistantIDSetParam) groupModel() {}
-
-func (p groupWithPrismaAsistantIDSetParam) asistantIDField() {}
-
-type GroupWithPrismaAsistantIDWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	asistantIDField()
-}
-
-type groupWithPrismaAsistantIDEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaAsistantIDEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaAsistantIDEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaAsistantIDEqualsParam) groupModel() {}
-
-func (p groupWithPrismaAsistantIDEqualsParam) asistantIDField() {}
-
-func (groupWithPrismaAsistantIDSetParam) settable()  {}
-func (groupWithPrismaAsistantIDEqualsParam) equals() {}
-
-type groupWithPrismaAsistantIDEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaAsistantIDEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaAsistantIDEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaAsistantIDEqualsUniqueParam) groupModel()      {}
-func (p groupWithPrismaAsistantIDEqualsUniqueParam) asistantIDField() {}
-
-func (groupWithPrismaAsistantIDEqualsUniqueParam) unique() {}
-func (groupWithPrismaAsistantIDEqualsUniqueParam) equals() {}
-
-type GroupWithPrismaPracticumEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	groupModel()
-	practicumField()
-}
-
-type GroupWithPrismaPracticumSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	practicumField()
-}
-
-type groupWithPrismaPracticumSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaPracticumSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaPracticumSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaPracticumSetParam) groupModel() {}
-
-func (p groupWithPrismaPracticumSetParam) practicumField() {}
-
-type GroupWithPrismaPracticumWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	practicumField()
-}
-
-type groupWithPrismaPracticumEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaPracticumEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaPracticumEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaPracticumEqualsParam) groupModel() {}
-
-func (p groupWithPrismaPracticumEqualsParam) practicumField() {}
-
-func (groupWithPrismaPracticumSetParam) settable()  {}
-func (groupWithPrismaPracticumEqualsParam) equals() {}
-
-type groupWithPrismaPracticumEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaPracticumEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaPracticumEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaPracticumEqualsUniqueParam) groupModel()     {}
-func (p groupWithPrismaPracticumEqualsUniqueParam) practicumField() {}
-
-func (groupWithPrismaPracticumEqualsUniqueParam) unique() {}
-func (groupWithPrismaPracticumEqualsUniqueParam) equals() {}
-
-type GroupWithPrismaAsistantEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	groupModel()
-	asistantField()
-}
-
-type GroupWithPrismaAsistantSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	asistantField()
-}
-
-type groupWithPrismaAsistantSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaAsistantSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaAsistantSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaAsistantSetParam) groupModel() {}
-
-func (p groupWithPrismaAsistantSetParam) asistantField() {}
-
-type GroupWithPrismaAsistantWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	groupModel()
-	asistantField()
-}
-
-type groupWithPrismaAsistantEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaAsistantEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaAsistantEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaAsistantEqualsParam) groupModel() {}
-
-func (p groupWithPrismaAsistantEqualsParam) asistantField() {}
-
-func (groupWithPrismaAsistantSetParam) settable()  {}
-func (groupWithPrismaAsistantEqualsParam) equals() {}
-
-type groupWithPrismaAsistantEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p groupWithPrismaAsistantEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p groupWithPrismaAsistantEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p groupWithPrismaAsistantEqualsUniqueParam) groupModel()    {}
-func (p groupWithPrismaAsistantEqualsUniqueParam) asistantField() {}
-
-func (groupWithPrismaAsistantEqualsUniqueParam) unique() {}
-func (groupWithPrismaAsistantEqualsUniqueParam) equals() {}
 
 type GroupWithPrismaMembersEqualsSetParam interface {
 	field() builder.Field
@@ -24429,84 +22688,6 @@ func (p practicumWithPrismaUpdatedAtEqualsUniqueParam) updatedAtField() {}
 func (practicumWithPrismaUpdatedAtEqualsUniqueParam) unique() {}
 func (practicumWithPrismaUpdatedAtEqualsUniqueParam) equals() {}
 
-type PracticumWithPrismaGroupsEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	practicumModel()
-	groupsField()
-}
-
-type PracticumWithPrismaGroupsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	practicumModel()
-	groupsField()
-}
-
-type practicumWithPrismaGroupsSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p practicumWithPrismaGroupsSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p practicumWithPrismaGroupsSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p practicumWithPrismaGroupsSetParam) practicumModel() {}
-
-func (p practicumWithPrismaGroupsSetParam) groupsField() {}
-
-type PracticumWithPrismaGroupsWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	practicumModel()
-	groupsField()
-}
-
-type practicumWithPrismaGroupsEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p practicumWithPrismaGroupsEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p practicumWithPrismaGroupsEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p practicumWithPrismaGroupsEqualsParam) practicumModel() {}
-
-func (p practicumWithPrismaGroupsEqualsParam) groupsField() {}
-
-func (practicumWithPrismaGroupsSetParam) settable()  {}
-func (practicumWithPrismaGroupsEqualsParam) equals() {}
-
-type practicumWithPrismaGroupsEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p practicumWithPrismaGroupsEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p practicumWithPrismaGroupsEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p practicumWithPrismaGroupsEqualsUniqueParam) practicumModel() {}
-func (p practicumWithPrismaGroupsEqualsUniqueParam) groupsField()    {}
-
-func (practicumWithPrismaGroupsEqualsUniqueParam) unique() {}
-func (practicumWithPrismaGroupsEqualsUniqueParam) equals() {}
-
 type PracticumWithPrismaSchedulesEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
@@ -24594,7 +22775,7 @@ var scheduleOutput = []builder.Output{
 	{Name: "id"},
 	{Name: "practicumId"},
 	{Name: "groupId"},
-	{Name: "asistantId"},
+	{Name: "assistantId"},
 	{Name: "date"},
 	{Name: "startTime"},
 	{Name: "status"},
@@ -24998,83 +23179,83 @@ func (p scheduleWithPrismaGroupIDEqualsUniqueParam) groupIDField()  {}
 func (scheduleWithPrismaGroupIDEqualsUniqueParam) unique() {}
 func (scheduleWithPrismaGroupIDEqualsUniqueParam) equals() {}
 
-type ScheduleWithPrismaAsistantIDEqualsSetParam interface {
+type ScheduleWithPrismaAssistantIDEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	equals()
 	scheduleModel()
-	asistantIDField()
+	assistantIDField()
 }
 
-type ScheduleWithPrismaAsistantIDSetParam interface {
+type ScheduleWithPrismaAssistantIDSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	scheduleModel()
-	asistantIDField()
+	assistantIDField()
 }
 
-type scheduleWithPrismaAsistantIDSetParam struct {
+type scheduleWithPrismaAssistantIDSetParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p scheduleWithPrismaAsistantIDSetParam) field() builder.Field {
+func (p scheduleWithPrismaAssistantIDSetParam) field() builder.Field {
 	return p.data
 }
 
-func (p scheduleWithPrismaAsistantIDSetParam) getQuery() builder.Query {
+func (p scheduleWithPrismaAssistantIDSetParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p scheduleWithPrismaAsistantIDSetParam) scheduleModel() {}
+func (p scheduleWithPrismaAssistantIDSetParam) scheduleModel() {}
 
-func (p scheduleWithPrismaAsistantIDSetParam) asistantIDField() {}
+func (p scheduleWithPrismaAssistantIDSetParam) assistantIDField() {}
 
-type ScheduleWithPrismaAsistantIDWhereParam interface {
+type ScheduleWithPrismaAssistantIDWhereParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	scheduleModel()
-	asistantIDField()
+	assistantIDField()
 }
 
-type scheduleWithPrismaAsistantIDEqualsParam struct {
+type scheduleWithPrismaAssistantIDEqualsParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p scheduleWithPrismaAsistantIDEqualsParam) field() builder.Field {
+func (p scheduleWithPrismaAssistantIDEqualsParam) field() builder.Field {
 	return p.data
 }
 
-func (p scheduleWithPrismaAsistantIDEqualsParam) getQuery() builder.Query {
+func (p scheduleWithPrismaAssistantIDEqualsParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p scheduleWithPrismaAsistantIDEqualsParam) scheduleModel() {}
+func (p scheduleWithPrismaAssistantIDEqualsParam) scheduleModel() {}
 
-func (p scheduleWithPrismaAsistantIDEqualsParam) asistantIDField() {}
+func (p scheduleWithPrismaAssistantIDEqualsParam) assistantIDField() {}
 
-func (scheduleWithPrismaAsistantIDSetParam) settable()  {}
-func (scheduleWithPrismaAsistantIDEqualsParam) equals() {}
+func (scheduleWithPrismaAssistantIDSetParam) settable()  {}
+func (scheduleWithPrismaAssistantIDEqualsParam) equals() {}
 
-type scheduleWithPrismaAsistantIDEqualsUniqueParam struct {
+type scheduleWithPrismaAssistantIDEqualsUniqueParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p scheduleWithPrismaAsistantIDEqualsUniqueParam) field() builder.Field {
+func (p scheduleWithPrismaAssistantIDEqualsUniqueParam) field() builder.Field {
 	return p.data
 }
 
-func (p scheduleWithPrismaAsistantIDEqualsUniqueParam) getQuery() builder.Query {
+func (p scheduleWithPrismaAssistantIDEqualsUniqueParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p scheduleWithPrismaAsistantIDEqualsUniqueParam) scheduleModel()   {}
-func (p scheduleWithPrismaAsistantIDEqualsUniqueParam) asistantIDField() {}
+func (p scheduleWithPrismaAssistantIDEqualsUniqueParam) scheduleModel()    {}
+func (p scheduleWithPrismaAssistantIDEqualsUniqueParam) assistantIDField() {}
 
-func (scheduleWithPrismaAsistantIDEqualsUniqueParam) unique() {}
-func (scheduleWithPrismaAsistantIDEqualsUniqueParam) equals() {}
+func (scheduleWithPrismaAssistantIDEqualsUniqueParam) unique() {}
+func (scheduleWithPrismaAssistantIDEqualsUniqueParam) equals() {}
 
 type ScheduleWithPrismaDateEqualsSetParam interface {
 	field() builder.Field
@@ -25466,83 +23647,83 @@ func (p scheduleWithPrismaGroupEqualsUniqueParam) groupField()    {}
 func (scheduleWithPrismaGroupEqualsUniqueParam) unique() {}
 func (scheduleWithPrismaGroupEqualsUniqueParam) equals() {}
 
-type ScheduleWithPrismaAsistantEqualsSetParam interface {
+type ScheduleWithPrismaAssistantEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	equals()
 	scheduleModel()
-	asistantField()
+	assistantField()
 }
 
-type ScheduleWithPrismaAsistantSetParam interface {
+type ScheduleWithPrismaAssistantSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	scheduleModel()
-	asistantField()
+	assistantField()
 }
 
-type scheduleWithPrismaAsistantSetParam struct {
+type scheduleWithPrismaAssistantSetParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p scheduleWithPrismaAsistantSetParam) field() builder.Field {
+func (p scheduleWithPrismaAssistantSetParam) field() builder.Field {
 	return p.data
 }
 
-func (p scheduleWithPrismaAsistantSetParam) getQuery() builder.Query {
+func (p scheduleWithPrismaAssistantSetParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p scheduleWithPrismaAsistantSetParam) scheduleModel() {}
+func (p scheduleWithPrismaAssistantSetParam) scheduleModel() {}
 
-func (p scheduleWithPrismaAsistantSetParam) asistantField() {}
+func (p scheduleWithPrismaAssistantSetParam) assistantField() {}
 
-type ScheduleWithPrismaAsistantWhereParam interface {
+type ScheduleWithPrismaAssistantWhereParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	scheduleModel()
-	asistantField()
+	assistantField()
 }
 
-type scheduleWithPrismaAsistantEqualsParam struct {
+type scheduleWithPrismaAssistantEqualsParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p scheduleWithPrismaAsistantEqualsParam) field() builder.Field {
+func (p scheduleWithPrismaAssistantEqualsParam) field() builder.Field {
 	return p.data
 }
 
-func (p scheduleWithPrismaAsistantEqualsParam) getQuery() builder.Query {
+func (p scheduleWithPrismaAssistantEqualsParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p scheduleWithPrismaAsistantEqualsParam) scheduleModel() {}
+func (p scheduleWithPrismaAssistantEqualsParam) scheduleModel() {}
 
-func (p scheduleWithPrismaAsistantEqualsParam) asistantField() {}
+func (p scheduleWithPrismaAssistantEqualsParam) assistantField() {}
 
-func (scheduleWithPrismaAsistantSetParam) settable()  {}
-func (scheduleWithPrismaAsistantEqualsParam) equals() {}
+func (scheduleWithPrismaAssistantSetParam) settable()  {}
+func (scheduleWithPrismaAssistantEqualsParam) equals() {}
 
-type scheduleWithPrismaAsistantEqualsUniqueParam struct {
+type scheduleWithPrismaAssistantEqualsUniqueParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p scheduleWithPrismaAsistantEqualsUniqueParam) field() builder.Field {
+func (p scheduleWithPrismaAssistantEqualsUniqueParam) field() builder.Field {
 	return p.data
 }
 
-func (p scheduleWithPrismaAsistantEqualsUniqueParam) getQuery() builder.Query {
+func (p scheduleWithPrismaAssistantEqualsUniqueParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p scheduleWithPrismaAsistantEqualsUniqueParam) scheduleModel() {}
-func (p scheduleWithPrismaAsistantEqualsUniqueParam) asistantField() {}
+func (p scheduleWithPrismaAssistantEqualsUniqueParam) scheduleModel()  {}
+func (p scheduleWithPrismaAssistantEqualsUniqueParam) assistantField() {}
 
-func (scheduleWithPrismaAsistantEqualsUniqueParam) unique() {}
-func (scheduleWithPrismaAsistantEqualsUniqueParam) equals() {}
+func (scheduleWithPrismaAssistantEqualsUniqueParam) unique() {}
+func (scheduleWithPrismaAssistantEqualsUniqueParam) equals() {}
 
 type ScheduleWithPrismaGradesEqualsSetParam interface {
 	field() builder.Field
@@ -28022,8 +26203,6 @@ func (r userCreateOne) Tx() UserUniqueTxResult {
 // Creates a single group.
 func (r groupActions) CreateOne(
 	_name GroupWithPrismaNameSetParam,
-	_practicum GroupWithPrismaPracticumSetParam,
-	_asistant GroupWithPrismaAsistantSetParam,
 
 	optional ...GroupSetParam,
 ) groupCreateOne {
@@ -28039,8 +26218,6 @@ func (r groupActions) CreateOne(
 	var fields []builder.Field
 
 	fields = append(fields, _name.field())
-	fields = append(fields, _practicum.field())
-	fields = append(fields, _asistant.field())
 
 	for _, q := range optional {
 		fields = append(fields, q.field())
@@ -28165,7 +26342,7 @@ func (r scheduleActions) CreateOne(
 	_startTime ScheduleWithPrismaStartTimeSetParam,
 	_practicum ScheduleWithPrismaPracticumSetParam,
 	_group ScheduleWithPrismaGroupSetParam,
-	_asistant ScheduleWithPrismaAsistantSetParam,
+	_assistant ScheduleWithPrismaAssistantSetParam,
 
 	optional ...ScheduleSetParam,
 ) scheduleCreateOne {
@@ -28184,7 +26361,7 @@ func (r scheduleActions) CreateOne(
 	fields = append(fields, _startTime.field())
 	fields = append(fields, _practicum.field())
 	fields = append(fields, _group.field())
-	fields = append(fields, _asistant.field())
+	fields = append(fields, _assistant.field())
 
 	for _, q := range optional {
 		fields = append(fields, q.field())
@@ -28380,560 +26557,6 @@ func (r announcementCreateOne) Tx() AnnouncementUniqueTxResult {
 }
 
 // --- template find.gotpl ---
-
-type userToAsistantGroupsFindUnique struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsFindUnique) getQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsFindUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsFindUnique) with()         {}
-func (r userToAsistantGroupsFindUnique) userModel()    {}
-func (r userToAsistantGroupsFindUnique) userRelation() {}
-
-func (r userToAsistantGroupsFindUnique) With(params ...GroupRelationWith) userToAsistantGroupsFindUnique {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r userToAsistantGroupsFindUnique) Select(params ...userPrismaFields) userToAsistantGroupsFindUnique {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAsistantGroupsFindUnique) Omit(params ...userPrismaFields) userToAsistantGroupsFindUnique {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range userOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAsistantGroupsFindUnique) Exec(ctx context.Context) (
-	*UserModel,
-	error,
-) {
-	var v *UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r userToAsistantGroupsFindUnique) ExecInner(ctx context.Context) (
-	*InnerUser,
-	error,
-) {
-	var v *InnerUser
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r userToAsistantGroupsFindUnique) Update(params ...UserSetParam) userToAsistantGroupsUpdateUnique {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateOne"
-	r.query.Model = "User"
-
-	var v userToAsistantGroupsUpdateUnique
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type userToAsistantGroupsUpdateUnique struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsUpdateUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsUpdateUnique) userModel() {}
-
-func (r userToAsistantGroupsUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
-	var v UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAsistantGroupsUpdateUnique) Tx() UserUniqueTxResult {
-	v := newUserUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r userToAsistantGroupsFindUnique) Delete() userToAsistantGroupsDeleteUnique {
-	var v userToAsistantGroupsDeleteUnique
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteOne"
-	v.query.Model = "User"
-
-	return v
-}
-
-type userToAsistantGroupsDeleteUnique struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsDeleteUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p userToAsistantGroupsDeleteUnique) userModel() {}
-
-func (r userToAsistantGroupsDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
-	var v UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAsistantGroupsDeleteUnique) Tx() UserUniqueTxResult {
-	v := newUserUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type userToAsistantGroupsFindFirst struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsFindFirst) getQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsFindFirst) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsFindFirst) with()         {}
-func (r userToAsistantGroupsFindFirst) userModel()    {}
-func (r userToAsistantGroupsFindFirst) userRelation() {}
-
-func (r userToAsistantGroupsFindFirst) With(params ...GroupRelationWith) userToAsistantGroupsFindFirst {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) Select(params ...userPrismaFields) userToAsistantGroupsFindFirst {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) Omit(params ...userPrismaFields) userToAsistantGroupsFindFirst {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range userOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) OrderBy(params ...GroupOrderByParam) userToAsistantGroupsFindFirst {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) Skip(count int) userToAsistantGroupsFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) Take(count int) userToAsistantGroupsFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) Cursor(cursor UserCursorParam) userToAsistantGroupsFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r userToAsistantGroupsFindFirst) Exec(ctx context.Context) (
-	*UserModel,
-	error,
-) {
-	var v *UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r userToAsistantGroupsFindFirst) ExecInner(ctx context.Context) (
-	*InnerUser,
-	error,
-) {
-	var v *InnerUser
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-type userToAsistantGroupsFindMany struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsFindMany) getQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsFindMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsFindMany) with()         {}
-func (r userToAsistantGroupsFindMany) userModel()    {}
-func (r userToAsistantGroupsFindMany) userRelation() {}
-
-func (r userToAsistantGroupsFindMany) With(params ...GroupRelationWith) userToAsistantGroupsFindMany {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) Select(params ...userPrismaFields) userToAsistantGroupsFindMany {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) Omit(params ...userPrismaFields) userToAsistantGroupsFindMany {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range userOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) OrderBy(params ...GroupOrderByParam) userToAsistantGroupsFindMany {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) Skip(count int) userToAsistantGroupsFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) Take(count int) userToAsistantGroupsFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) Cursor(cursor UserCursorParam) userToAsistantGroupsFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r userToAsistantGroupsFindMany) Exec(ctx context.Context) (
-	[]UserModel,
-	error,
-) {
-	var v []UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r userToAsistantGroupsFindMany) ExecInner(ctx context.Context) (
-	[]InnerUser,
-	error,
-) {
-	var v []InnerUser
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r userToAsistantGroupsFindMany) Update(params ...UserSetParam) userToAsistantGroupsUpdateMany {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateMany"
-	r.query.Model = "User"
-
-	r.query.Outputs = countOutput
-
-	var v userToAsistantGroupsUpdateMany
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type userToAsistantGroupsUpdateMany struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsUpdateMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAsistantGroupsUpdateMany) userModel() {}
-
-func (r userToAsistantGroupsUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAsistantGroupsUpdateMany) Tx() UserManyTxResult {
-	v := newUserManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r userToAsistantGroupsFindMany) Delete() userToAsistantGroupsDeleteMany {
-	var v userToAsistantGroupsDeleteMany
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteMany"
-	v.query.Model = "User"
-
-	v.query.Outputs = countOutput
-
-	return v
-}
-
-type userToAsistantGroupsDeleteMany struct {
-	query builder.Query
-}
-
-func (r userToAsistantGroupsDeleteMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p userToAsistantGroupsDeleteMany) userModel() {}
-
-func (r userToAsistantGroupsDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAsistantGroupsDeleteMany) Tx() UserManyTxResult {
-	v := newUserManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
 
 type userToMemberGroupsFindUnique struct {
 	query builder.Query
@@ -30597,23 +28220,23 @@ func (r userToUserGradesDeleteMany) Tx() UserManyTxResult {
 	return v
 }
 
-type userToAsistantSchedulesFindUnique struct {
+type userToAssistantSchedulesFindUnique struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesFindUnique) getQuery() builder.Query {
+func (r userToAssistantSchedulesFindUnique) getQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesFindUnique) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesFindUnique) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesFindUnique) with()         {}
-func (r userToAsistantSchedulesFindUnique) userModel()    {}
-func (r userToAsistantSchedulesFindUnique) userRelation() {}
+func (r userToAssistantSchedulesFindUnique) with()         {}
+func (r userToAssistantSchedulesFindUnique) userModel()    {}
+func (r userToAssistantSchedulesFindUnique) userRelation() {}
 
-func (r userToAsistantSchedulesFindUnique) With(params ...ScheduleRelationWith) userToAsistantSchedulesFindUnique {
+func (r userToAssistantSchedulesFindUnique) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindUnique {
 	for _, q := range params {
 		query := q.getQuery()
 		r.query.Outputs = append(r.query.Outputs, builder.Output{
@@ -30626,7 +28249,7 @@ func (r userToAsistantSchedulesFindUnique) With(params ...ScheduleRelationWith) 
 	return r
 }
 
-func (r userToAsistantSchedulesFindUnique) Select(params ...userPrismaFields) userToAsistantSchedulesFindUnique {
+func (r userToAssistantSchedulesFindUnique) Select(params ...userPrismaFields) userToAssistantSchedulesFindUnique {
 	var outputs []builder.Output
 
 	for _, param := range params {
@@ -30640,7 +28263,7 @@ func (r userToAsistantSchedulesFindUnique) Select(params ...userPrismaFields) us
 	return r
 }
 
-func (r userToAsistantSchedulesFindUnique) Omit(params ...userPrismaFields) userToAsistantSchedulesFindUnique {
+func (r userToAssistantSchedulesFindUnique) Omit(params ...userPrismaFields) userToAssistantSchedulesFindUnique {
 	var outputs []builder.Output
 
 	var raw []string
@@ -30659,7 +28282,7 @@ func (r userToAsistantSchedulesFindUnique) Omit(params ...userPrismaFields) user
 	return r
 }
 
-func (r userToAsistantSchedulesFindUnique) Exec(ctx context.Context) (
+func (r userToAssistantSchedulesFindUnique) Exec(ctx context.Context) (
 	*UserModel,
 	error,
 ) {
@@ -30675,7 +28298,7 @@ func (r userToAsistantSchedulesFindUnique) Exec(ctx context.Context) (
 	return v, nil
 }
 
-func (r userToAsistantSchedulesFindUnique) ExecInner(ctx context.Context) (
+func (r userToAssistantSchedulesFindUnique) ExecInner(ctx context.Context) (
 	*InnerUser,
 	error,
 ) {
@@ -30691,12 +28314,12 @@ func (r userToAsistantSchedulesFindUnique) ExecInner(ctx context.Context) (
 	return v, nil
 }
 
-func (r userToAsistantSchedulesFindUnique) Update(params ...UserSetParam) userToAsistantSchedulesUpdateUnique {
+func (r userToAssistantSchedulesFindUnique) Update(params ...UserSetParam) userToAssistantSchedulesUpdateUnique {
 	r.query.Operation = "mutation"
 	r.query.Method = "updateOne"
 	r.query.Model = "User"
 
-	var v userToAsistantSchedulesUpdateUnique
+	var v userToAssistantSchedulesUpdateUnique
 	v.query = r.query
 	var fields []builder.Field
 	for _, q := range params {
@@ -30725,17 +28348,17 @@ func (r userToAsistantSchedulesFindUnique) Update(params ...UserSetParam) userTo
 	return v
 }
 
-type userToAsistantSchedulesUpdateUnique struct {
+type userToAssistantSchedulesUpdateUnique struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesUpdateUnique) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesUpdateUnique) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesUpdateUnique) userModel() {}
+func (r userToAssistantSchedulesUpdateUnique) userModel() {}
 
-func (r userToAsistantSchedulesUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
+func (r userToAssistantSchedulesUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
 	var v UserModel
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -30743,15 +28366,15 @@ func (r userToAsistantSchedulesUpdateUnique) Exec(ctx context.Context) (*UserMod
 	return &v, nil
 }
 
-func (r userToAsistantSchedulesUpdateUnique) Tx() UserUniqueTxResult {
+func (r userToAssistantSchedulesUpdateUnique) Tx() UserUniqueTxResult {
 	v := newUserUniqueTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
 }
 
-func (r userToAsistantSchedulesFindUnique) Delete() userToAsistantSchedulesDeleteUnique {
-	var v userToAsistantSchedulesDeleteUnique
+func (r userToAssistantSchedulesFindUnique) Delete() userToAssistantSchedulesDeleteUnique {
+	var v userToAssistantSchedulesDeleteUnique
 	v.query = r.query
 	v.query.Operation = "mutation"
 	v.query.Method = "deleteOne"
@@ -30760,17 +28383,17 @@ func (r userToAsistantSchedulesFindUnique) Delete() userToAsistantSchedulesDelet
 	return v
 }
 
-type userToAsistantSchedulesDeleteUnique struct {
+type userToAssistantSchedulesDeleteUnique struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesDeleteUnique) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesDeleteUnique) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (p userToAsistantSchedulesDeleteUnique) userModel() {}
+func (p userToAssistantSchedulesDeleteUnique) userModel() {}
 
-func (r userToAsistantSchedulesDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
+func (r userToAssistantSchedulesDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
 	var v UserModel
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -30778,30 +28401,30 @@ func (r userToAsistantSchedulesDeleteUnique) Exec(ctx context.Context) (*UserMod
 	return &v, nil
 }
 
-func (r userToAsistantSchedulesDeleteUnique) Tx() UserUniqueTxResult {
+func (r userToAssistantSchedulesDeleteUnique) Tx() UserUniqueTxResult {
 	v := newUserUniqueTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
 }
 
-type userToAsistantSchedulesFindFirst struct {
+type userToAssistantSchedulesFindFirst struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesFindFirst) getQuery() builder.Query {
+func (r userToAssistantSchedulesFindFirst) getQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesFindFirst) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesFindFirst) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesFindFirst) with()         {}
-func (r userToAsistantSchedulesFindFirst) userModel()    {}
-func (r userToAsistantSchedulesFindFirst) userRelation() {}
+func (r userToAssistantSchedulesFindFirst) with()         {}
+func (r userToAssistantSchedulesFindFirst) userModel()    {}
+func (r userToAssistantSchedulesFindFirst) userRelation() {}
 
-func (r userToAsistantSchedulesFindFirst) With(params ...ScheduleRelationWith) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindFirst {
 	for _, q := range params {
 		query := q.getQuery()
 		r.query.Outputs = append(r.query.Outputs, builder.Output{
@@ -30814,7 +28437,7 @@ func (r userToAsistantSchedulesFindFirst) With(params ...ScheduleRelationWith) u
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) Select(params ...userPrismaFields) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) Select(params ...userPrismaFields) userToAssistantSchedulesFindFirst {
 	var outputs []builder.Output
 
 	for _, param := range params {
@@ -30828,7 +28451,7 @@ func (r userToAsistantSchedulesFindFirst) Select(params ...userPrismaFields) use
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) Omit(params ...userPrismaFields) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) Omit(params ...userPrismaFields) userToAssistantSchedulesFindFirst {
 	var outputs []builder.Output
 
 	var raw []string
@@ -30847,7 +28470,7 @@ func (r userToAsistantSchedulesFindFirst) Omit(params ...userPrismaFields) userT
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) OrderBy(params ...ScheduleOrderByParam) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) OrderBy(params ...ScheduleOrderByParam) userToAssistantSchedulesFindFirst {
 	var fields []builder.Field
 
 	for _, param := range params {
@@ -30867,7 +28490,7 @@ func (r userToAsistantSchedulesFindFirst) OrderBy(params ...ScheduleOrderByParam
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) Skip(count int) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) Skip(count int) userToAssistantSchedulesFindFirst {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "skip",
 		Value: count,
@@ -30875,7 +28498,7 @@ func (r userToAsistantSchedulesFindFirst) Skip(count int) userToAsistantSchedule
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) Take(count int) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) Take(count int) userToAssistantSchedulesFindFirst {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "take",
 		Value: count,
@@ -30883,7 +28506,7 @@ func (r userToAsistantSchedulesFindFirst) Take(count int) userToAsistantSchedule
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) Cursor(cursor UserCursorParam) userToAsistantSchedulesFindFirst {
+func (r userToAssistantSchedulesFindFirst) Cursor(cursor UserCursorParam) userToAssistantSchedulesFindFirst {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:   "cursor",
 		Fields: []builder.Field{cursor.field()},
@@ -30891,7 +28514,7 @@ func (r userToAsistantSchedulesFindFirst) Cursor(cursor UserCursorParam) userToA
 	return r
 }
 
-func (r userToAsistantSchedulesFindFirst) Exec(ctx context.Context) (
+func (r userToAssistantSchedulesFindFirst) Exec(ctx context.Context) (
 	*UserModel,
 	error,
 ) {
@@ -30907,7 +28530,7 @@ func (r userToAsistantSchedulesFindFirst) Exec(ctx context.Context) (
 	return v, nil
 }
 
-func (r userToAsistantSchedulesFindFirst) ExecInner(ctx context.Context) (
+func (r userToAssistantSchedulesFindFirst) ExecInner(ctx context.Context) (
 	*InnerUser,
 	error,
 ) {
@@ -30923,23 +28546,23 @@ func (r userToAsistantSchedulesFindFirst) ExecInner(ctx context.Context) (
 	return v, nil
 }
 
-type userToAsistantSchedulesFindMany struct {
+type userToAssistantSchedulesFindMany struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesFindMany) getQuery() builder.Query {
+func (r userToAssistantSchedulesFindMany) getQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesFindMany) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesFindMany) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesFindMany) with()         {}
-func (r userToAsistantSchedulesFindMany) userModel()    {}
-func (r userToAsistantSchedulesFindMany) userRelation() {}
+func (r userToAssistantSchedulesFindMany) with()         {}
+func (r userToAssistantSchedulesFindMany) userModel()    {}
+func (r userToAssistantSchedulesFindMany) userRelation() {}
 
-func (r userToAsistantSchedulesFindMany) With(params ...ScheduleRelationWith) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindMany {
 	for _, q := range params {
 		query := q.getQuery()
 		r.query.Outputs = append(r.query.Outputs, builder.Output{
@@ -30952,7 +28575,7 @@ func (r userToAsistantSchedulesFindMany) With(params ...ScheduleRelationWith) us
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) Select(params ...userPrismaFields) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) Select(params ...userPrismaFields) userToAssistantSchedulesFindMany {
 	var outputs []builder.Output
 
 	for _, param := range params {
@@ -30966,7 +28589,7 @@ func (r userToAsistantSchedulesFindMany) Select(params ...userPrismaFields) user
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) Omit(params ...userPrismaFields) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) Omit(params ...userPrismaFields) userToAssistantSchedulesFindMany {
 	var outputs []builder.Output
 
 	var raw []string
@@ -30985,7 +28608,7 @@ func (r userToAsistantSchedulesFindMany) Omit(params ...userPrismaFields) userTo
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) OrderBy(params ...ScheduleOrderByParam) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) OrderBy(params ...ScheduleOrderByParam) userToAssistantSchedulesFindMany {
 	var fields []builder.Field
 
 	for _, param := range params {
@@ -31005,7 +28628,7 @@ func (r userToAsistantSchedulesFindMany) OrderBy(params ...ScheduleOrderByParam)
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) Skip(count int) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) Skip(count int) userToAssistantSchedulesFindMany {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "skip",
 		Value: count,
@@ -31013,7 +28636,7 @@ func (r userToAsistantSchedulesFindMany) Skip(count int) userToAsistantSchedules
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) Take(count int) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) Take(count int) userToAssistantSchedulesFindMany {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "take",
 		Value: count,
@@ -31021,7 +28644,7 @@ func (r userToAsistantSchedulesFindMany) Take(count int) userToAsistantSchedules
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) Cursor(cursor UserCursorParam) userToAsistantSchedulesFindMany {
+func (r userToAssistantSchedulesFindMany) Cursor(cursor UserCursorParam) userToAssistantSchedulesFindMany {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:   "cursor",
 		Fields: []builder.Field{cursor.field()},
@@ -31029,7 +28652,7 @@ func (r userToAsistantSchedulesFindMany) Cursor(cursor UserCursorParam) userToAs
 	return r
 }
 
-func (r userToAsistantSchedulesFindMany) Exec(ctx context.Context) (
+func (r userToAssistantSchedulesFindMany) Exec(ctx context.Context) (
 	[]UserModel,
 	error,
 ) {
@@ -31041,7 +28664,7 @@ func (r userToAsistantSchedulesFindMany) Exec(ctx context.Context) (
 	return v, nil
 }
 
-func (r userToAsistantSchedulesFindMany) ExecInner(ctx context.Context) (
+func (r userToAssistantSchedulesFindMany) ExecInner(ctx context.Context) (
 	[]InnerUser,
 	error,
 ) {
@@ -31053,14 +28676,14 @@ func (r userToAsistantSchedulesFindMany) ExecInner(ctx context.Context) (
 	return v, nil
 }
 
-func (r userToAsistantSchedulesFindMany) Update(params ...UserSetParam) userToAsistantSchedulesUpdateMany {
+func (r userToAssistantSchedulesFindMany) Update(params ...UserSetParam) userToAssistantSchedulesUpdateMany {
 	r.query.Operation = "mutation"
 	r.query.Method = "updateMany"
 	r.query.Model = "User"
 
 	r.query.Outputs = countOutput
 
-	var v userToAsistantSchedulesUpdateMany
+	var v userToAssistantSchedulesUpdateMany
 	v.query = r.query
 	var fields []builder.Field
 	for _, q := range params {
@@ -31089,17 +28712,17 @@ func (r userToAsistantSchedulesFindMany) Update(params ...UserSetParam) userToAs
 	return v
 }
 
-type userToAsistantSchedulesUpdateMany struct {
+type userToAssistantSchedulesUpdateMany struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesUpdateMany) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesUpdateMany) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r userToAsistantSchedulesUpdateMany) userModel() {}
+func (r userToAssistantSchedulesUpdateMany) userModel() {}
 
-func (r userToAsistantSchedulesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+func (r userToAssistantSchedulesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
 	var v BatchResult
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -31107,15 +28730,15 @@ func (r userToAsistantSchedulesUpdateMany) Exec(ctx context.Context) (*BatchResu
 	return &v, nil
 }
 
-func (r userToAsistantSchedulesUpdateMany) Tx() UserManyTxResult {
+func (r userToAssistantSchedulesUpdateMany) Tx() UserManyTxResult {
 	v := newUserManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
 }
 
-func (r userToAsistantSchedulesFindMany) Delete() userToAsistantSchedulesDeleteMany {
-	var v userToAsistantSchedulesDeleteMany
+func (r userToAssistantSchedulesFindMany) Delete() userToAssistantSchedulesDeleteMany {
+	var v userToAssistantSchedulesDeleteMany
 	v.query = r.query
 	v.query.Operation = "mutation"
 	v.query.Method = "deleteMany"
@@ -31126,17 +28749,17 @@ func (r userToAsistantSchedulesFindMany) Delete() userToAsistantSchedulesDeleteM
 	return v
 }
 
-type userToAsistantSchedulesDeleteMany struct {
+type userToAssistantSchedulesDeleteMany struct {
 	query builder.Query
 }
 
-func (r userToAsistantSchedulesDeleteMany) ExtractQuery() builder.Query {
+func (r userToAssistantSchedulesDeleteMany) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (p userToAsistantSchedulesDeleteMany) userModel() {}
+func (p userToAssistantSchedulesDeleteMany) userModel() {}
 
-func (r userToAsistantSchedulesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+func (r userToAssistantSchedulesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
 	var v BatchResult
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -31144,7 +28767,7 @@ func (r userToAsistantSchedulesDeleteMany) Exec(ctx context.Context) (*BatchResu
 	return &v, nil
 }
 
-func (r userToAsistantSchedulesDeleteMany) Tx() UserManyTxResult {
+func (r userToAssistantSchedulesDeleteMany) Tx() UserManyTxResult {
 	v := newUserManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
@@ -32350,1114 +29973,6 @@ func (r userDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
 
 func (r userDeleteMany) Tx() UserManyTxResult {
 	v := newUserManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type groupToPracticumFindUnique struct {
-	query builder.Query
-}
-
-func (r groupToPracticumFindUnique) getQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumFindUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumFindUnique) with()          {}
-func (r groupToPracticumFindUnique) groupModel()    {}
-func (r groupToPracticumFindUnique) groupRelation() {}
-
-func (r groupToPracticumFindUnique) With(params ...PracticumRelationWith) groupToPracticumFindUnique {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r groupToPracticumFindUnique) Select(params ...groupPrismaFields) groupToPracticumFindUnique {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToPracticumFindUnique) Omit(params ...groupPrismaFields) groupToPracticumFindUnique {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range groupOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToPracticumFindUnique) Exec(ctx context.Context) (
-	*GroupModel,
-	error,
-) {
-	var v *GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r groupToPracticumFindUnique) ExecInner(ctx context.Context) (
-	*InnerGroup,
-	error,
-) {
-	var v *InnerGroup
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r groupToPracticumFindUnique) Update(params ...GroupSetParam) groupToPracticumUpdateUnique {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateOne"
-	r.query.Model = "Group"
-
-	var v groupToPracticumUpdateUnique
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type groupToPracticumUpdateUnique struct {
-	query builder.Query
-}
-
-func (r groupToPracticumUpdateUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumUpdateUnique) groupModel() {}
-
-func (r groupToPracticumUpdateUnique) Exec(ctx context.Context) (*GroupModel, error) {
-	var v GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToPracticumUpdateUnique) Tx() GroupUniqueTxResult {
-	v := newGroupUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r groupToPracticumFindUnique) Delete() groupToPracticumDeleteUnique {
-	var v groupToPracticumDeleteUnique
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteOne"
-	v.query.Model = "Group"
-
-	return v
-}
-
-type groupToPracticumDeleteUnique struct {
-	query builder.Query
-}
-
-func (r groupToPracticumDeleteUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p groupToPracticumDeleteUnique) groupModel() {}
-
-func (r groupToPracticumDeleteUnique) Exec(ctx context.Context) (*GroupModel, error) {
-	var v GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToPracticumDeleteUnique) Tx() GroupUniqueTxResult {
-	v := newGroupUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type groupToPracticumFindFirst struct {
-	query builder.Query
-}
-
-func (r groupToPracticumFindFirst) getQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumFindFirst) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumFindFirst) with()          {}
-func (r groupToPracticumFindFirst) groupModel()    {}
-func (r groupToPracticumFindFirst) groupRelation() {}
-
-func (r groupToPracticumFindFirst) With(params ...PracticumRelationWith) groupToPracticumFindFirst {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r groupToPracticumFindFirst) Select(params ...groupPrismaFields) groupToPracticumFindFirst {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToPracticumFindFirst) Omit(params ...groupPrismaFields) groupToPracticumFindFirst {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range groupOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToPracticumFindFirst) OrderBy(params ...PracticumOrderByParam) groupToPracticumFindFirst {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r groupToPracticumFindFirst) Skip(count int) groupToPracticumFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToPracticumFindFirst) Take(count int) groupToPracticumFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToPracticumFindFirst) Cursor(cursor GroupCursorParam) groupToPracticumFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r groupToPracticumFindFirst) Exec(ctx context.Context) (
-	*GroupModel,
-	error,
-) {
-	var v *GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r groupToPracticumFindFirst) ExecInner(ctx context.Context) (
-	*InnerGroup,
-	error,
-) {
-	var v *InnerGroup
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-type groupToPracticumFindMany struct {
-	query builder.Query
-}
-
-func (r groupToPracticumFindMany) getQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumFindMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumFindMany) with()          {}
-func (r groupToPracticumFindMany) groupModel()    {}
-func (r groupToPracticumFindMany) groupRelation() {}
-
-func (r groupToPracticumFindMany) With(params ...PracticumRelationWith) groupToPracticumFindMany {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r groupToPracticumFindMany) Select(params ...groupPrismaFields) groupToPracticumFindMany {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToPracticumFindMany) Omit(params ...groupPrismaFields) groupToPracticumFindMany {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range groupOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToPracticumFindMany) OrderBy(params ...PracticumOrderByParam) groupToPracticumFindMany {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r groupToPracticumFindMany) Skip(count int) groupToPracticumFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToPracticumFindMany) Take(count int) groupToPracticumFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToPracticumFindMany) Cursor(cursor GroupCursorParam) groupToPracticumFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r groupToPracticumFindMany) Exec(ctx context.Context) (
-	[]GroupModel,
-	error,
-) {
-	var v []GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r groupToPracticumFindMany) ExecInner(ctx context.Context) (
-	[]InnerGroup,
-	error,
-) {
-	var v []InnerGroup
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r groupToPracticumFindMany) Update(params ...GroupSetParam) groupToPracticumUpdateMany {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateMany"
-	r.query.Model = "Group"
-
-	r.query.Outputs = countOutput
-
-	var v groupToPracticumUpdateMany
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type groupToPracticumUpdateMany struct {
-	query builder.Query
-}
-
-func (r groupToPracticumUpdateMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToPracticumUpdateMany) groupModel() {}
-
-func (r groupToPracticumUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToPracticumUpdateMany) Tx() GroupManyTxResult {
-	v := newGroupManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r groupToPracticumFindMany) Delete() groupToPracticumDeleteMany {
-	var v groupToPracticumDeleteMany
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteMany"
-	v.query.Model = "Group"
-
-	v.query.Outputs = countOutput
-
-	return v
-}
-
-type groupToPracticumDeleteMany struct {
-	query builder.Query
-}
-
-func (r groupToPracticumDeleteMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p groupToPracticumDeleteMany) groupModel() {}
-
-func (r groupToPracticumDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToPracticumDeleteMany) Tx() GroupManyTxResult {
-	v := newGroupManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type groupToAsistantFindUnique struct {
-	query builder.Query
-}
-
-func (r groupToAsistantFindUnique) getQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantFindUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantFindUnique) with()          {}
-func (r groupToAsistantFindUnique) groupModel()    {}
-func (r groupToAsistantFindUnique) groupRelation() {}
-
-func (r groupToAsistantFindUnique) With(params ...UserRelationWith) groupToAsistantFindUnique {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r groupToAsistantFindUnique) Select(params ...groupPrismaFields) groupToAsistantFindUnique {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToAsistantFindUnique) Omit(params ...groupPrismaFields) groupToAsistantFindUnique {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range groupOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToAsistantFindUnique) Exec(ctx context.Context) (
-	*GroupModel,
-	error,
-) {
-	var v *GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r groupToAsistantFindUnique) ExecInner(ctx context.Context) (
-	*InnerGroup,
-	error,
-) {
-	var v *InnerGroup
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r groupToAsistantFindUnique) Update(params ...GroupSetParam) groupToAsistantUpdateUnique {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateOne"
-	r.query.Model = "Group"
-
-	var v groupToAsistantUpdateUnique
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type groupToAsistantUpdateUnique struct {
-	query builder.Query
-}
-
-func (r groupToAsistantUpdateUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantUpdateUnique) groupModel() {}
-
-func (r groupToAsistantUpdateUnique) Exec(ctx context.Context) (*GroupModel, error) {
-	var v GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToAsistantUpdateUnique) Tx() GroupUniqueTxResult {
-	v := newGroupUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r groupToAsistantFindUnique) Delete() groupToAsistantDeleteUnique {
-	var v groupToAsistantDeleteUnique
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteOne"
-	v.query.Model = "Group"
-
-	return v
-}
-
-type groupToAsistantDeleteUnique struct {
-	query builder.Query
-}
-
-func (r groupToAsistantDeleteUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p groupToAsistantDeleteUnique) groupModel() {}
-
-func (r groupToAsistantDeleteUnique) Exec(ctx context.Context) (*GroupModel, error) {
-	var v GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToAsistantDeleteUnique) Tx() GroupUniqueTxResult {
-	v := newGroupUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type groupToAsistantFindFirst struct {
-	query builder.Query
-}
-
-func (r groupToAsistantFindFirst) getQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantFindFirst) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantFindFirst) with()          {}
-func (r groupToAsistantFindFirst) groupModel()    {}
-func (r groupToAsistantFindFirst) groupRelation() {}
-
-func (r groupToAsistantFindFirst) With(params ...UserRelationWith) groupToAsistantFindFirst {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r groupToAsistantFindFirst) Select(params ...groupPrismaFields) groupToAsistantFindFirst {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToAsistantFindFirst) Omit(params ...groupPrismaFields) groupToAsistantFindFirst {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range groupOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToAsistantFindFirst) OrderBy(params ...UserOrderByParam) groupToAsistantFindFirst {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r groupToAsistantFindFirst) Skip(count int) groupToAsistantFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToAsistantFindFirst) Take(count int) groupToAsistantFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToAsistantFindFirst) Cursor(cursor GroupCursorParam) groupToAsistantFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r groupToAsistantFindFirst) Exec(ctx context.Context) (
-	*GroupModel,
-	error,
-) {
-	var v *GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r groupToAsistantFindFirst) ExecInner(ctx context.Context) (
-	*InnerGroup,
-	error,
-) {
-	var v *InnerGroup
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-type groupToAsistantFindMany struct {
-	query builder.Query
-}
-
-func (r groupToAsistantFindMany) getQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantFindMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantFindMany) with()          {}
-func (r groupToAsistantFindMany) groupModel()    {}
-func (r groupToAsistantFindMany) groupRelation() {}
-
-func (r groupToAsistantFindMany) With(params ...UserRelationWith) groupToAsistantFindMany {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r groupToAsistantFindMany) Select(params ...groupPrismaFields) groupToAsistantFindMany {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToAsistantFindMany) Omit(params ...groupPrismaFields) groupToAsistantFindMany {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range groupOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r groupToAsistantFindMany) OrderBy(params ...UserOrderByParam) groupToAsistantFindMany {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r groupToAsistantFindMany) Skip(count int) groupToAsistantFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToAsistantFindMany) Take(count int) groupToAsistantFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r groupToAsistantFindMany) Cursor(cursor GroupCursorParam) groupToAsistantFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r groupToAsistantFindMany) Exec(ctx context.Context) (
-	[]GroupModel,
-	error,
-) {
-	var v []GroupModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r groupToAsistantFindMany) ExecInner(ctx context.Context) (
-	[]InnerGroup,
-	error,
-) {
-	var v []InnerGroup
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r groupToAsistantFindMany) Update(params ...GroupSetParam) groupToAsistantUpdateMany {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateMany"
-	r.query.Model = "Group"
-
-	r.query.Outputs = countOutput
-
-	var v groupToAsistantUpdateMany
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type groupToAsistantUpdateMany struct {
-	query builder.Query
-}
-
-func (r groupToAsistantUpdateMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r groupToAsistantUpdateMany) groupModel() {}
-
-func (r groupToAsistantUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToAsistantUpdateMany) Tx() GroupManyTxResult {
-	v := newGroupManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r groupToAsistantFindMany) Delete() groupToAsistantDeleteMany {
-	var v groupToAsistantDeleteMany
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteMany"
-	v.query.Model = "Group"
-
-	v.query.Outputs = countOutput
-
-	return v
-}
-
-type groupToAsistantDeleteMany struct {
-	query builder.Query
-}
-
-func (r groupToAsistantDeleteMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p groupToAsistantDeleteMany) groupModel() {}
-
-func (r groupToAsistantDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r groupToAsistantDeleteMany) Tx() GroupManyTxResult {
-	v := newGroupManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
@@ -35216,560 +31731,6 @@ func (r groupDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
 
 func (r groupDeleteMany) Tx() GroupManyTxResult {
 	v := newGroupManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type practicumToGroupsFindUnique struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsFindUnique) getQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsFindUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsFindUnique) with()              {}
-func (r practicumToGroupsFindUnique) practicumModel()    {}
-func (r practicumToGroupsFindUnique) practicumRelation() {}
-
-func (r practicumToGroupsFindUnique) With(params ...GroupRelationWith) practicumToGroupsFindUnique {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r practicumToGroupsFindUnique) Select(params ...practicumPrismaFields) practicumToGroupsFindUnique {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r practicumToGroupsFindUnique) Omit(params ...practicumPrismaFields) practicumToGroupsFindUnique {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range practicumOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r practicumToGroupsFindUnique) Exec(ctx context.Context) (
-	*PracticumModel,
-	error,
-) {
-	var v *PracticumModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r practicumToGroupsFindUnique) ExecInner(ctx context.Context) (
-	*InnerPracticum,
-	error,
-) {
-	var v *InnerPracticum
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r practicumToGroupsFindUnique) Update(params ...PracticumSetParam) practicumToGroupsUpdateUnique {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateOne"
-	r.query.Model = "Practicum"
-
-	var v practicumToGroupsUpdateUnique
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type practicumToGroupsUpdateUnique struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsUpdateUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsUpdateUnique) practicumModel() {}
-
-func (r practicumToGroupsUpdateUnique) Exec(ctx context.Context) (*PracticumModel, error) {
-	var v PracticumModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r practicumToGroupsUpdateUnique) Tx() PracticumUniqueTxResult {
-	v := newPracticumUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r practicumToGroupsFindUnique) Delete() practicumToGroupsDeleteUnique {
-	var v practicumToGroupsDeleteUnique
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteOne"
-	v.query.Model = "Practicum"
-
-	return v
-}
-
-type practicumToGroupsDeleteUnique struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsDeleteUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p practicumToGroupsDeleteUnique) practicumModel() {}
-
-func (r practicumToGroupsDeleteUnique) Exec(ctx context.Context) (*PracticumModel, error) {
-	var v PracticumModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r practicumToGroupsDeleteUnique) Tx() PracticumUniqueTxResult {
-	v := newPracticumUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type practicumToGroupsFindFirst struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsFindFirst) getQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsFindFirst) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsFindFirst) with()              {}
-func (r practicumToGroupsFindFirst) practicumModel()    {}
-func (r practicumToGroupsFindFirst) practicumRelation() {}
-
-func (r practicumToGroupsFindFirst) With(params ...GroupRelationWith) practicumToGroupsFindFirst {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r practicumToGroupsFindFirst) Select(params ...practicumPrismaFields) practicumToGroupsFindFirst {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r practicumToGroupsFindFirst) Omit(params ...practicumPrismaFields) practicumToGroupsFindFirst {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range practicumOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r practicumToGroupsFindFirst) OrderBy(params ...GroupOrderByParam) practicumToGroupsFindFirst {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r practicumToGroupsFindFirst) Skip(count int) practicumToGroupsFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r practicumToGroupsFindFirst) Take(count int) practicumToGroupsFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r practicumToGroupsFindFirst) Cursor(cursor PracticumCursorParam) practicumToGroupsFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r practicumToGroupsFindFirst) Exec(ctx context.Context) (
-	*PracticumModel,
-	error,
-) {
-	var v *PracticumModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r practicumToGroupsFindFirst) ExecInner(ctx context.Context) (
-	*InnerPracticum,
-	error,
-) {
-	var v *InnerPracticum
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-type practicumToGroupsFindMany struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsFindMany) getQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsFindMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsFindMany) with()              {}
-func (r practicumToGroupsFindMany) practicumModel()    {}
-func (r practicumToGroupsFindMany) practicumRelation() {}
-
-func (r practicumToGroupsFindMany) With(params ...GroupRelationWith) practicumToGroupsFindMany {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r practicumToGroupsFindMany) Select(params ...practicumPrismaFields) practicumToGroupsFindMany {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r practicumToGroupsFindMany) Omit(params ...practicumPrismaFields) practicumToGroupsFindMany {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range practicumOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r practicumToGroupsFindMany) OrderBy(params ...GroupOrderByParam) practicumToGroupsFindMany {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r practicumToGroupsFindMany) Skip(count int) practicumToGroupsFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r practicumToGroupsFindMany) Take(count int) practicumToGroupsFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r practicumToGroupsFindMany) Cursor(cursor PracticumCursorParam) practicumToGroupsFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r practicumToGroupsFindMany) Exec(ctx context.Context) (
-	[]PracticumModel,
-	error,
-) {
-	var v []PracticumModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r practicumToGroupsFindMany) ExecInner(ctx context.Context) (
-	[]InnerPracticum,
-	error,
-) {
-	var v []InnerPracticum
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r practicumToGroupsFindMany) Update(params ...PracticumSetParam) practicumToGroupsUpdateMany {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateMany"
-	r.query.Model = "Practicum"
-
-	r.query.Outputs = countOutput
-
-	var v practicumToGroupsUpdateMany
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type practicumToGroupsUpdateMany struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsUpdateMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r practicumToGroupsUpdateMany) practicumModel() {}
-
-func (r practicumToGroupsUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r practicumToGroupsUpdateMany) Tx() PracticumManyTxResult {
-	v := newPracticumManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r practicumToGroupsFindMany) Delete() practicumToGroupsDeleteMany {
-	var v practicumToGroupsDeleteMany
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteMany"
-	v.query.Model = "Practicum"
-
-	v.query.Outputs = countOutput
-
-	return v
-}
-
-type practicumToGroupsDeleteMany struct {
-	query builder.Query
-}
-
-func (r practicumToGroupsDeleteMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p practicumToGroupsDeleteMany) practicumModel() {}
-
-func (r practicumToGroupsDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r practicumToGroupsDeleteMany) Tx() PracticumManyTxResult {
-	v := newPracticumManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
@@ -38087,23 +34048,23 @@ func (r scheduleToGroupDeleteMany) Tx() ScheduleManyTxResult {
 	return v
 }
 
-type scheduleToAsistantFindUnique struct {
+type scheduleToAssistantFindUnique struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantFindUnique) getQuery() builder.Query {
+func (r scheduleToAssistantFindUnique) getQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantFindUnique) ExtractQuery() builder.Query {
+func (r scheduleToAssistantFindUnique) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantFindUnique) with()             {}
-func (r scheduleToAsistantFindUnique) scheduleModel()    {}
-func (r scheduleToAsistantFindUnique) scheduleRelation() {}
+func (r scheduleToAssistantFindUnique) with()             {}
+func (r scheduleToAssistantFindUnique) scheduleModel()    {}
+func (r scheduleToAssistantFindUnique) scheduleRelation() {}
 
-func (r scheduleToAsistantFindUnique) With(params ...UserRelationWith) scheduleToAsistantFindUnique {
+func (r scheduleToAssistantFindUnique) With(params ...UserRelationWith) scheduleToAssistantFindUnique {
 	for _, q := range params {
 		query := q.getQuery()
 		r.query.Outputs = append(r.query.Outputs, builder.Output{
@@ -38116,7 +34077,7 @@ func (r scheduleToAsistantFindUnique) With(params ...UserRelationWith) scheduleT
 	return r
 }
 
-func (r scheduleToAsistantFindUnique) Select(params ...schedulePrismaFields) scheduleToAsistantFindUnique {
+func (r scheduleToAssistantFindUnique) Select(params ...schedulePrismaFields) scheduleToAssistantFindUnique {
 	var outputs []builder.Output
 
 	for _, param := range params {
@@ -38130,7 +34091,7 @@ func (r scheduleToAsistantFindUnique) Select(params ...schedulePrismaFields) sch
 	return r
 }
 
-func (r scheduleToAsistantFindUnique) Omit(params ...schedulePrismaFields) scheduleToAsistantFindUnique {
+func (r scheduleToAssistantFindUnique) Omit(params ...schedulePrismaFields) scheduleToAssistantFindUnique {
 	var outputs []builder.Output
 
 	var raw []string
@@ -38149,7 +34110,7 @@ func (r scheduleToAsistantFindUnique) Omit(params ...schedulePrismaFields) sched
 	return r
 }
 
-func (r scheduleToAsistantFindUnique) Exec(ctx context.Context) (
+func (r scheduleToAssistantFindUnique) Exec(ctx context.Context) (
 	*ScheduleModel,
 	error,
 ) {
@@ -38165,7 +34126,7 @@ func (r scheduleToAsistantFindUnique) Exec(ctx context.Context) (
 	return v, nil
 }
 
-func (r scheduleToAsistantFindUnique) ExecInner(ctx context.Context) (
+func (r scheduleToAssistantFindUnique) ExecInner(ctx context.Context) (
 	*InnerSchedule,
 	error,
 ) {
@@ -38181,12 +34142,12 @@ func (r scheduleToAsistantFindUnique) ExecInner(ctx context.Context) (
 	return v, nil
 }
 
-func (r scheduleToAsistantFindUnique) Update(params ...ScheduleSetParam) scheduleToAsistantUpdateUnique {
+func (r scheduleToAssistantFindUnique) Update(params ...ScheduleSetParam) scheduleToAssistantUpdateUnique {
 	r.query.Operation = "mutation"
 	r.query.Method = "updateOne"
 	r.query.Model = "Schedule"
 
-	var v scheduleToAsistantUpdateUnique
+	var v scheduleToAssistantUpdateUnique
 	v.query = r.query
 	var fields []builder.Field
 	for _, q := range params {
@@ -38215,17 +34176,17 @@ func (r scheduleToAsistantFindUnique) Update(params ...ScheduleSetParam) schedul
 	return v
 }
 
-type scheduleToAsistantUpdateUnique struct {
+type scheduleToAssistantUpdateUnique struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantUpdateUnique) ExtractQuery() builder.Query {
+func (r scheduleToAssistantUpdateUnique) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantUpdateUnique) scheduleModel() {}
+func (r scheduleToAssistantUpdateUnique) scheduleModel() {}
 
-func (r scheduleToAsistantUpdateUnique) Exec(ctx context.Context) (*ScheduleModel, error) {
+func (r scheduleToAssistantUpdateUnique) Exec(ctx context.Context) (*ScheduleModel, error) {
 	var v ScheduleModel
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -38233,15 +34194,15 @@ func (r scheduleToAsistantUpdateUnique) Exec(ctx context.Context) (*ScheduleMode
 	return &v, nil
 }
 
-func (r scheduleToAsistantUpdateUnique) Tx() ScheduleUniqueTxResult {
+func (r scheduleToAssistantUpdateUnique) Tx() ScheduleUniqueTxResult {
 	v := newScheduleUniqueTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
 }
 
-func (r scheduleToAsistantFindUnique) Delete() scheduleToAsistantDeleteUnique {
-	var v scheduleToAsistantDeleteUnique
+func (r scheduleToAssistantFindUnique) Delete() scheduleToAssistantDeleteUnique {
+	var v scheduleToAssistantDeleteUnique
 	v.query = r.query
 	v.query.Operation = "mutation"
 	v.query.Method = "deleteOne"
@@ -38250,17 +34211,17 @@ func (r scheduleToAsistantFindUnique) Delete() scheduleToAsistantDeleteUnique {
 	return v
 }
 
-type scheduleToAsistantDeleteUnique struct {
+type scheduleToAssistantDeleteUnique struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantDeleteUnique) ExtractQuery() builder.Query {
+func (r scheduleToAssistantDeleteUnique) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (p scheduleToAsistantDeleteUnique) scheduleModel() {}
+func (p scheduleToAssistantDeleteUnique) scheduleModel() {}
 
-func (r scheduleToAsistantDeleteUnique) Exec(ctx context.Context) (*ScheduleModel, error) {
+func (r scheduleToAssistantDeleteUnique) Exec(ctx context.Context) (*ScheduleModel, error) {
 	var v ScheduleModel
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -38268,30 +34229,30 @@ func (r scheduleToAsistantDeleteUnique) Exec(ctx context.Context) (*ScheduleMode
 	return &v, nil
 }
 
-func (r scheduleToAsistantDeleteUnique) Tx() ScheduleUniqueTxResult {
+func (r scheduleToAssistantDeleteUnique) Tx() ScheduleUniqueTxResult {
 	v := newScheduleUniqueTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
 }
 
-type scheduleToAsistantFindFirst struct {
+type scheduleToAssistantFindFirst struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantFindFirst) getQuery() builder.Query {
+func (r scheduleToAssistantFindFirst) getQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantFindFirst) ExtractQuery() builder.Query {
+func (r scheduleToAssistantFindFirst) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantFindFirst) with()             {}
-func (r scheduleToAsistantFindFirst) scheduleModel()    {}
-func (r scheduleToAsistantFindFirst) scheduleRelation() {}
+func (r scheduleToAssistantFindFirst) with()             {}
+func (r scheduleToAssistantFindFirst) scheduleModel()    {}
+func (r scheduleToAssistantFindFirst) scheduleRelation() {}
 
-func (r scheduleToAsistantFindFirst) With(params ...UserRelationWith) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) With(params ...UserRelationWith) scheduleToAssistantFindFirst {
 	for _, q := range params {
 		query := q.getQuery()
 		r.query.Outputs = append(r.query.Outputs, builder.Output{
@@ -38304,7 +34265,7 @@ func (r scheduleToAsistantFindFirst) With(params ...UserRelationWith) scheduleTo
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) Select(params ...schedulePrismaFields) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) Select(params ...schedulePrismaFields) scheduleToAssistantFindFirst {
 	var outputs []builder.Output
 
 	for _, param := range params {
@@ -38318,7 +34279,7 @@ func (r scheduleToAsistantFindFirst) Select(params ...schedulePrismaFields) sche
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) Omit(params ...schedulePrismaFields) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) Omit(params ...schedulePrismaFields) scheduleToAssistantFindFirst {
 	var outputs []builder.Output
 
 	var raw []string
@@ -38337,7 +34298,7 @@ func (r scheduleToAsistantFindFirst) Omit(params ...schedulePrismaFields) schedu
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) OrderBy(params ...UserOrderByParam) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) OrderBy(params ...UserOrderByParam) scheduleToAssistantFindFirst {
 	var fields []builder.Field
 
 	for _, param := range params {
@@ -38357,7 +34318,7 @@ func (r scheduleToAsistantFindFirst) OrderBy(params ...UserOrderByParam) schedul
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) Skip(count int) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) Skip(count int) scheduleToAssistantFindFirst {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "skip",
 		Value: count,
@@ -38365,7 +34326,7 @@ func (r scheduleToAsistantFindFirst) Skip(count int) scheduleToAsistantFindFirst
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) Take(count int) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) Take(count int) scheduleToAssistantFindFirst {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "take",
 		Value: count,
@@ -38373,7 +34334,7 @@ func (r scheduleToAsistantFindFirst) Take(count int) scheduleToAsistantFindFirst
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) Cursor(cursor ScheduleCursorParam) scheduleToAsistantFindFirst {
+func (r scheduleToAssistantFindFirst) Cursor(cursor ScheduleCursorParam) scheduleToAssistantFindFirst {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:   "cursor",
 		Fields: []builder.Field{cursor.field()},
@@ -38381,7 +34342,7 @@ func (r scheduleToAsistantFindFirst) Cursor(cursor ScheduleCursorParam) schedule
 	return r
 }
 
-func (r scheduleToAsistantFindFirst) Exec(ctx context.Context) (
+func (r scheduleToAssistantFindFirst) Exec(ctx context.Context) (
 	*ScheduleModel,
 	error,
 ) {
@@ -38397,7 +34358,7 @@ func (r scheduleToAsistantFindFirst) Exec(ctx context.Context) (
 	return v, nil
 }
 
-func (r scheduleToAsistantFindFirst) ExecInner(ctx context.Context) (
+func (r scheduleToAssistantFindFirst) ExecInner(ctx context.Context) (
 	*InnerSchedule,
 	error,
 ) {
@@ -38413,23 +34374,23 @@ func (r scheduleToAsistantFindFirst) ExecInner(ctx context.Context) (
 	return v, nil
 }
 
-type scheduleToAsistantFindMany struct {
+type scheduleToAssistantFindMany struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantFindMany) getQuery() builder.Query {
+func (r scheduleToAssistantFindMany) getQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantFindMany) ExtractQuery() builder.Query {
+func (r scheduleToAssistantFindMany) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantFindMany) with()             {}
-func (r scheduleToAsistantFindMany) scheduleModel()    {}
-func (r scheduleToAsistantFindMany) scheduleRelation() {}
+func (r scheduleToAssistantFindMany) with()             {}
+func (r scheduleToAssistantFindMany) scheduleModel()    {}
+func (r scheduleToAssistantFindMany) scheduleRelation() {}
 
-func (r scheduleToAsistantFindMany) With(params ...UserRelationWith) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) With(params ...UserRelationWith) scheduleToAssistantFindMany {
 	for _, q := range params {
 		query := q.getQuery()
 		r.query.Outputs = append(r.query.Outputs, builder.Output{
@@ -38442,7 +34403,7 @@ func (r scheduleToAsistantFindMany) With(params ...UserRelationWith) scheduleToA
 	return r
 }
 
-func (r scheduleToAsistantFindMany) Select(params ...schedulePrismaFields) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) Select(params ...schedulePrismaFields) scheduleToAssistantFindMany {
 	var outputs []builder.Output
 
 	for _, param := range params {
@@ -38456,7 +34417,7 @@ func (r scheduleToAsistantFindMany) Select(params ...schedulePrismaFields) sched
 	return r
 }
 
-func (r scheduleToAsistantFindMany) Omit(params ...schedulePrismaFields) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) Omit(params ...schedulePrismaFields) scheduleToAssistantFindMany {
 	var outputs []builder.Output
 
 	var raw []string
@@ -38475,7 +34436,7 @@ func (r scheduleToAsistantFindMany) Omit(params ...schedulePrismaFields) schedul
 	return r
 }
 
-func (r scheduleToAsistantFindMany) OrderBy(params ...UserOrderByParam) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) OrderBy(params ...UserOrderByParam) scheduleToAssistantFindMany {
 	var fields []builder.Field
 
 	for _, param := range params {
@@ -38495,7 +34456,7 @@ func (r scheduleToAsistantFindMany) OrderBy(params ...UserOrderByParam) schedule
 	return r
 }
 
-func (r scheduleToAsistantFindMany) Skip(count int) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) Skip(count int) scheduleToAssistantFindMany {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "skip",
 		Value: count,
@@ -38503,7 +34464,7 @@ func (r scheduleToAsistantFindMany) Skip(count int) scheduleToAsistantFindMany {
 	return r
 }
 
-func (r scheduleToAsistantFindMany) Take(count int) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) Take(count int) scheduleToAssistantFindMany {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:  "take",
 		Value: count,
@@ -38511,7 +34472,7 @@ func (r scheduleToAsistantFindMany) Take(count int) scheduleToAsistantFindMany {
 	return r
 }
 
-func (r scheduleToAsistantFindMany) Cursor(cursor ScheduleCursorParam) scheduleToAsistantFindMany {
+func (r scheduleToAssistantFindMany) Cursor(cursor ScheduleCursorParam) scheduleToAssistantFindMany {
 	r.query.Inputs = append(r.query.Inputs, builder.Input{
 		Name:   "cursor",
 		Fields: []builder.Field{cursor.field()},
@@ -38519,7 +34480,7 @@ func (r scheduleToAsistantFindMany) Cursor(cursor ScheduleCursorParam) scheduleT
 	return r
 }
 
-func (r scheduleToAsistantFindMany) Exec(ctx context.Context) (
+func (r scheduleToAssistantFindMany) Exec(ctx context.Context) (
 	[]ScheduleModel,
 	error,
 ) {
@@ -38531,7 +34492,7 @@ func (r scheduleToAsistantFindMany) Exec(ctx context.Context) (
 	return v, nil
 }
 
-func (r scheduleToAsistantFindMany) ExecInner(ctx context.Context) (
+func (r scheduleToAssistantFindMany) ExecInner(ctx context.Context) (
 	[]InnerSchedule,
 	error,
 ) {
@@ -38543,14 +34504,14 @@ func (r scheduleToAsistantFindMany) ExecInner(ctx context.Context) (
 	return v, nil
 }
 
-func (r scheduleToAsistantFindMany) Update(params ...ScheduleSetParam) scheduleToAsistantUpdateMany {
+func (r scheduleToAssistantFindMany) Update(params ...ScheduleSetParam) scheduleToAssistantUpdateMany {
 	r.query.Operation = "mutation"
 	r.query.Method = "updateMany"
 	r.query.Model = "Schedule"
 
 	r.query.Outputs = countOutput
 
-	var v scheduleToAsistantUpdateMany
+	var v scheduleToAssistantUpdateMany
 	v.query = r.query
 	var fields []builder.Field
 	for _, q := range params {
@@ -38579,17 +34540,17 @@ func (r scheduleToAsistantFindMany) Update(params ...ScheduleSetParam) scheduleT
 	return v
 }
 
-type scheduleToAsistantUpdateMany struct {
+type scheduleToAssistantUpdateMany struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantUpdateMany) ExtractQuery() builder.Query {
+func (r scheduleToAssistantUpdateMany) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (r scheduleToAsistantUpdateMany) scheduleModel() {}
+func (r scheduleToAssistantUpdateMany) scheduleModel() {}
 
-func (r scheduleToAsistantUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+func (r scheduleToAssistantUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
 	var v BatchResult
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -38597,15 +34558,15 @@ func (r scheduleToAsistantUpdateMany) Exec(ctx context.Context) (*BatchResult, e
 	return &v, nil
 }
 
-func (r scheduleToAsistantUpdateMany) Tx() ScheduleManyTxResult {
+func (r scheduleToAssistantUpdateMany) Tx() ScheduleManyTxResult {
 	v := newScheduleManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
 }
 
-func (r scheduleToAsistantFindMany) Delete() scheduleToAsistantDeleteMany {
-	var v scheduleToAsistantDeleteMany
+func (r scheduleToAssistantFindMany) Delete() scheduleToAssistantDeleteMany {
+	var v scheduleToAssistantDeleteMany
 	v.query = r.query
 	v.query.Operation = "mutation"
 	v.query.Method = "deleteMany"
@@ -38616,17 +34577,17 @@ func (r scheduleToAsistantFindMany) Delete() scheduleToAsistantDeleteMany {
 	return v
 }
 
-type scheduleToAsistantDeleteMany struct {
+type scheduleToAssistantDeleteMany struct {
 	query builder.Query
 }
 
-func (r scheduleToAsistantDeleteMany) ExtractQuery() builder.Query {
+func (r scheduleToAssistantDeleteMany) ExtractQuery() builder.Query {
 	return r.query
 }
 
-func (p scheduleToAsistantDeleteMany) scheduleModel() {}
+func (p scheduleToAssistantDeleteMany) scheduleModel() {}
 
-func (r scheduleToAsistantDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+func (r scheduleToAssistantDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
 	var v BatchResult
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
@@ -38634,7 +34595,7 @@ func (r scheduleToAsistantDeleteMany) Exec(ctx context.Context) (*BatchResult, e
 	return &v, nil
 }
 
-func (r scheduleToAsistantDeleteMany) Tx() ScheduleManyTxResult {
+func (r scheduleToAssistantDeleteMany) Tx() ScheduleManyTxResult {
 	v := newScheduleManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
@@ -43814,8 +39775,6 @@ func (r groupActions) UpsertOne(
 func (r groupUpsertOne) Create(
 
 	_name GroupWithPrismaNameSetParam,
-	_practicum GroupWithPrismaPracticumSetParam,
-	_asistant GroupWithPrismaAsistantSetParam,
 
 	optional ...GroupSetParam,
 ) groupUpsertOne {
@@ -43824,8 +39783,6 @@ func (r groupUpsertOne) Create(
 
 	var fields []builder.Field
 	fields = append(fields, _name.field())
-	fields = append(fields, _practicum.field())
-	fields = append(fields, _asistant.field())
 
 	for _, q := range optional {
 		fields = append(fields, q.field())
@@ -44041,7 +39998,7 @@ func (r scheduleUpsertOne) Create(
 	_startTime ScheduleWithPrismaStartTimeSetParam,
 	_practicum ScheduleWithPrismaPracticumSetParam,
 	_group ScheduleWithPrismaGroupSetParam,
-	_asistant ScheduleWithPrismaAsistantSetParam,
+	_assistant ScheduleWithPrismaAssistantSetParam,
 
 	optional ...ScheduleSetParam,
 ) scheduleUpsertOne {
@@ -44053,7 +40010,7 @@ func (r scheduleUpsertOne) Create(
 	fields = append(fields, _startTime.field())
 	fields = append(fields, _practicum.field())
 	fields = append(fields, _group.field())
-	fields = append(fields, _asistant.field())
+	fields = append(fields, _assistant.field())
 
 	for _, q := range optional {
 		fields = append(fields, q.field())
