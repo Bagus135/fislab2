@@ -10,7 +10,7 @@ import (
 func NewRouter(
 	authHandler *handler.AuthHandler,
 	announcementHandler *handler.AnnouncementHandler,
-	userHandler *handler.UserProfile,
+	userHandler *handler.UserHandler,
 	groupHandler *handler.GroupHandler,
 	practicumHandler *handler.PracticumHandler,
 	assistantHandler *handler.AssistantHandler,
@@ -32,14 +32,16 @@ func NewRouter(
 
 	// Public routes
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
-	r.HandleFunc("/api/announcement", announcementHandler.GetAnnouncements).Methods("GET") // Semua user bisa akses
+	r.HandleFunc("/api/announcement", announcementHandler.GetAnnouncements).Methods("GET")
 
 	// Announcement routes
 	api.HandleFunc("/announcement", announcementHandler.CreateAnnouncement).Methods("POST")
 	api.HandleFunc("/announcement", announcementHandler.UpdateAnnouncement).Methods("PUT")
 	api.HandleFunc("/announcement", announcementHandler.DeleteAnnouncement).Methods("DELETE")
 
-	// Change password & profile routes
+	// User routes
+	adminAPI.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
+	adminAPI.HandleFunc("/users/{role}", userHandler.GetUsersByRole).Methods("GET")
 	api.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
 	api.HandleFunc("/profile", userHandler.GetMyProfile).Methods("GET")
 	api.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")

@@ -9,16 +9,16 @@ import (
 	"strings"
 )
 
-type UserProfile struct {
+type UserHandler struct {
 	client *db.PrismaClient
 }
 
-func NewUserProfile(client *db.PrismaClient) *UserProfile {
-	return &UserProfile{client}
+func NewUserHandler(client *db.PrismaClient) *UserHandler {
+	return &UserHandler{client}
 }
 
 // GetMyProfile - Ambil profile sendiri
-func (h *UserProfile) GetMyProfile(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -49,7 +49,7 @@ func (h *UserProfile) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (h *UserProfile) GetUserProfile(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	requestedUserID := vars["id"]
 
@@ -90,7 +90,7 @@ func (h *UserProfile) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (h *UserProfile) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -161,4 +161,124 @@ func (h *UserProfile) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	// Kirim response sukses
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	// Validasi role
+	userRole := ctx.Value("role").(string)
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view all users"})
+		return
+	}
+
+	// Ambil semua user
+	users, err := h.client.User.FindMany().OrderBy(
+		db.User.Role.Order(db.SortOrderAsc),
+		db.User.Name.Order(db.SortOrderAsc),
+	).Exec(ctx)
+
+	if err != nil {
+		fmt.Printf("Error fetching users: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
+		return
+	}
+
+	// Format response
+	var response []map[string]interface{}
+	for _, user := range users {
+		userData := map[string]interface{}{
+			"id":   user.ID,
+			"name": user.Name,
+			"nrp":  user.Nrp,
+			"role": user.Role,
+		}
+		response = append(response, userData)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"total": len(users),
+		"users": response,
+	})
+}
+
+func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	// Validasi role admin
+	userRole := ctx.Value("role").(string)
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view users"})
+		return
+	}
+
+	// Ambil role dari URL path parameter dan konversi ke uppercase
+	vars := mux.Vars(r)
+	requestedRole := strings.ToUpper(vars["role"])
+
+	// Validasi role yang diminta
+	validRoles := map[string]bool{
+		"SUPER_ADMIN": true,
+		"ADMIN":       true,
+		"ASISTEN":     true,
+		"PRAKTIKAN":   true,
+	}
+
+	roleMapping := map[string]string{
+		"super_admin": "SUPER_ADMIN",
+		"admin":       "ADMIN",
+		"asisten":     "ASISTEN",
+		"praktikan":   "PRAKTIKAN",
+	}
+
+	// Konversi role dari lowercase ke UPPERCASE yang valid
+	if mappedRole, exists := roleMapping[strings.ToLower(vars["role"])]; exists {
+		requestedRole = mappedRole
+	}
+
+	if !validRoles[requestedRole] {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid role"})
+		return
+	}
+
+	// Ambil user berdasarkan role
+	users, err := h.client.User.FindMany(
+		db.User.Role.Equals(db.Role(requestedRole)),
+	).OrderBy(
+		db.User.Name.Order(db.SortOrderAsc),
+	).Exec(ctx)
+
+	if err != nil {
+		fmt.Printf("Error fetching users: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
+		return
+	}
+
+	// Format response
+	var response []map[string]interface{}
+	for _, user := range users {
+		userData := map[string]interface{}{
+			"id":   user.ID,
+			"name": user.Name,
+			"nrp":  user.Nrp,
+			"role": strings.ToLower(string(user.Role)), // konversi role ke lowercase di response
+		}
+		response = append(response, userData)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"role":  strings.ToLower(requestedRole), // konversi role ke lowercase di response
+		"total": len(users),
+		"users": response,
+	})
 }

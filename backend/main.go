@@ -15,7 +15,7 @@ func main() {
 	// Instance handler
 	authHandler := handler.NewAuthHandler(client)
 	announcementHandler := handler.NewAnnouncementHandler(client)
-	userHandler := handler.NewUserProfile(client)
+	userHandler := handler.NewUserHandler(client)
 	groupHandler := handler.NewGroupHandler(client)
 	practicumHandler := handler.NewPracticumHandler(client)
 	assistantHandler := handler.NewAssistantHandler(client)
