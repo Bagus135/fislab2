@@ -55,7 +55,7 @@ func (h *AnnouncementHandler) CreateAnnouncement(w http.ResponseWriter, r *http.
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
@@ -70,13 +70,13 @@ func (h *AnnouncementHandler) CreateAnnouncement(w http.ResponseWriter, r *http.
 	if err != nil {
 		fmt.Printf("Error creating announcement: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create announcement"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create announcement"})
 		return
 	}
 
 	// Kirim response sukses
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "announcement created"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "announcement created"})
 }
 
 func (h *AnnouncementHandler) GetAnnouncements(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +106,7 @@ func (h *AnnouncementHandler) GetAnnouncements(w http.ResponseWriter, r *http.Re
 		})
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *AnnouncementHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +126,7 @@ func (h *AnnouncementHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	// update announcement
@@ -143,8 +143,8 @@ func (h *AnnouncementHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "announcement updated"})
-	json.NewEncoder(w).Encode(announcement)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "announcement updated"})
+	_ = json.NewEncoder(w).Encode(announcement)
 }
 
 func (h *AnnouncementHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request) {
@@ -162,7 +162,7 @@ func (h *AnnouncementHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
@@ -172,7 +172,7 @@ func (h *AnnouncementHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.
 	if err != nil {
 		log.Println("Error fetching announcement:", err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "announcement not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "announcement not found"})
 		return
 	}
 	_, err = h.client.Announcement.FindUnique(
@@ -185,6 +185,6 @@ func (h *AnnouncementHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "announcement deleted"})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "announcement deleted"})
 
 }

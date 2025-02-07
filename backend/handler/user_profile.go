@@ -22,7 +22,7 @@ func (h *UserProfile) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 
@@ -32,7 +32,7 @@ func (h *UserProfile) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *UserProfile) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *UserProfile) GetUserProfile(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func (h *UserProfile) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("userID").(string)
 		if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 			return
 		}
 		requestedUserID = userID
@@ -74,7 +74,7 @@ func (h *UserProfile) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
@@ -87,14 +87,14 @@ func (h *UserProfile) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *UserProfile) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "userID not found in context"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "userID not found in context"})
 		return
 	}
 
@@ -108,28 +108,28 @@ func (h *UserProfile) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
 	// Validasi email
 	if req.Email != "" && !strings.Contains(req.Email, "@") {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "email must contain @"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "email must contain @"})
 		return
 	}
 
 	// Validasi phone
 	if req.Phone != "" && !strings.HasPrefix(req.Phone, "+62") {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "phone must start with +62"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "phone must start with +62"})
 		return
 	}
 
 	// Validasi about
 	if len(req.About) > 500 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "about must be less than 500 characters"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "about must be less than 500 characters"})
 		return
 	}
 
@@ -145,7 +145,7 @@ func (h *UserProfile) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error updating profile: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to update profile"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update profile"})
 		return
 	}
 
@@ -160,5 +160,5 @@ func (h *UserProfile) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 
 	// Kirim response sukses
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

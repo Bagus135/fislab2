@@ -72,13 +72,13 @@ model Practicum {
 
 // jadwal
 model Schedule {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   practicumId Int
   groupId     String
   assistantId String
-  date        DateTime
-  startTime   DateTime
-  status      Status   @default(SCHEDULED)
+  date        DateTime?
+  startTime   DateTime?
+  status      Status    @default(UNSCHEDULED)
 
   practicum Practicum @relation(fields: [practicumId], references: [id])
   group     Group     @relation("GroupSchedules", fields: [groupId], references: [id])
@@ -87,6 +87,8 @@ model Schedule {
   grades Grade[]
 
   @@unique([groupId, startTime])
+  @@unique([practicumId, groupId])
+  @@unique([practicumId, assistantId])
 }
 
 // penilaian
@@ -114,6 +116,7 @@ model Grade {
 
 // status praktikum yang diambil
 enum Status {
+  UNSCHEDULED
   SCHEDULED
   COMPLETED
   CANCELLED

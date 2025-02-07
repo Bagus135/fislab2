@@ -28,7 +28,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error decoding request: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
 		return
 	}
 
@@ -55,7 +55,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Password mismatch\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error getting JWT_SECRET environment variable\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(types.ErrorResponse("server error"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("server error"))
 		return
 	}
 
@@ -73,13 +73,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error generating JWT: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(types.ErrorResponse("could not generating token"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("could not generating token"))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"token": token})
+	_ = json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +87,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if existingUser != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(types.ErrorResponse("nrp already exists"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp already exists"))
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
 		return
 	}
 
@@ -128,13 +128,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(types.ErrorResponse("failed to create user"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to create user"))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(types.SuccessResponse("user created"))
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("user created"))
 }
 
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +142,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "userID not found in context"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "userID not found in context"})
 		return
 	}
 
@@ -150,21 +150,27 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	// Decode request body
 	var req struct {
-		OldPassword string `json:"old_password"`
-		NewPassword string `json:"new_password"`
+		OldPassword        string `json:"old_password"`
+		NewPassword        string `json:"new_password"`
+		ConfirmNewPassword string `json:"confirm_new_password"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
 	// Validasi input
 	if req.OldPassword == "" || req.NewPassword == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "old_password and new_password are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "old_password and new_password are required"})
 		return
+	}
+
+	if req.ConfirmNewPassword != req.NewPassword {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "new_password and confirm_new_password are not matching"})
 	}
 
 	// Ambil user dari database
@@ -174,7 +180,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
@@ -186,7 +192,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "old password is incorrect"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "old password is incorrect"})
 		return
 	}
 
@@ -195,7 +201,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error hashing new password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to hash password"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to hash password"})
 		return
 	}
 
@@ -208,7 +214,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error updating password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to update password"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update password"})
 		return
 	}
 
@@ -216,5 +222,5 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	// Kirim response sukses
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "password updated"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "password updated"})
 }
