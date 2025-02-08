@@ -15,6 +15,7 @@ func NewRouter(
 	practicumHandler *handler.PracticumHandler,
 	assistantHandler *handler.AssistantHandler,
 	scheduleHandler *handler.ScheduleHandler,
+	gradeHandler *handler.GradeHandler,
 ) *mux.Router {
 	r := mux.NewRouter()
 
@@ -62,6 +63,10 @@ func NewRouter(
 	// Assistant routes
 	adminAPI.HandleFunc("/assistant", assistantHandler.SetAssistant).Methods("POST")
 	adminAPI.HandleFunc("/assistant", assistantHandler.GetAssistants).Methods("GET")
+
+	assistantAPI.HandleFunc("/grade", gradeHandler.CreateGrade).Methods("POST")
+	api.HandleFunc("/grade", gradeHandler.GetGrades).Methods("GET")
+	api.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
 
 	api.HandleFunc("/schedule", scheduleHandler.GetSchedules).Methods("GET")
 	assistantAPI.HandleFunc("/set-schedule", scheduleHandler.SetSchedule).Methods("PUT")

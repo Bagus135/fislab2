@@ -20,6 +20,7 @@ func main() {
 	practicumHandler := handler.NewPracticumHandler(client)
 	assistantHandler := handler.NewAssistantHandler(client)
 	scheduleHandler := handler.NewScheduleHandler(client)
+	gradeHandler := handler.NewGradeHandler(client)
 
 	// Initializing router
 	r := router.NewRouter(
@@ -30,6 +31,7 @@ func main() {
 		practicumHandler,
 		assistantHandler,
 		scheduleHandler,
+		gradeHandler,
 	)
 
 	// Running server
