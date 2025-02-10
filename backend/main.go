@@ -15,11 +15,24 @@ func main() {
 	// Instance handler
 	authHandler := handler.NewAuthHandler(client)
 	announcementHandler := handler.NewAnnouncementHandler(client)
-	userHandler := handler.NewUserProfile(client)
+	userHandler := handler.NewUserHandler(client)
 	groupHandler := handler.NewGroupHandler(client)
+	practicumHandler := handler.NewPracticumHandler(client)
+	assistantHandler := handler.NewAssistantHandler(client)
+	scheduleHandler := handler.NewScheduleHandler(client)
+	gradeHandler := handler.NewGradeHandler(client)
 
 	// Initializing router
-	r := router.NewRouter(authHandler, announcementHandler, userHandler, groupHandler)
+	r := router.NewRouter(
+		authHandler,
+		announcementHandler,
+		userHandler,
+		groupHandler,
+		practicumHandler,
+		assistantHandler,
+		scheduleHandler,
+		gradeHandler,
+	)
 
 	// Running server
 	server.StartServer("8080", r)

@@ -24,7 +24,6 @@ func RoleCheck(roles ...string) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Lanjut ke handler berikutnya
 			next.ServeHTTP(w, r)
 		})
 	}

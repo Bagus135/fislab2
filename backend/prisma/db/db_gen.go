@@ -147,13 +147,13 @@ model Practicum {
 
 // jadwal
 model Schedule {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   practicumId Int
   groupId     String
   assistantId String
-  date        DateTime
-  startTime   DateTime
-  status      Status   @default(SCHEDULED)
+  date        DateTime?
+  startTime   DateTime?
+  status      Status    @default(UNSCHEDULED)
 
   practicum Practicum @relation(fields: [practicumId], references: [id])
   group     Group     @relation("GroupSchedules", fields: [groupId], references: [id])
@@ -162,6 +162,8 @@ model Schedule {
   grades Grade[]
 
   @@unique([groupId, startTime])
+  @@unique([practicumId, groupId])
+  @@unique([practicumId, assistantId])
 }
 
 // penilaian
@@ -189,6 +191,7 @@ model Grade {
 
 // status praktikum yang diambil
 enum Status {
+  UNSCHEDULED
   SCHEDULED
   COMPLETED
   CANCELLED
@@ -335,9 +338,10 @@ type RawRole Role
 type Status string
 
 const (
-	StatusScheduled Status = "SCHEDULED"
-	StatusCompleted Status = "COMPLETED"
-	StatusCancelled Status = "CANCELLED"
+	StatusUnscheduled Status = "UNSCHEDULED"
+	StatusScheduled   Status = "SCHEDULED"
+	StatusCompleted   Status = "COMPLETED"
+	StatusCancelled   Status = "CANCELLED"
 )
 
 type RawStatus Status
@@ -1100,24 +1104,24 @@ type ScheduleModel struct {
 
 // InnerSchedule holds the actual data
 type InnerSchedule struct {
-	ID          int      `json:"id"`
-	PracticumID int      `json:"practicumId"`
-	GroupID     string   `json:"groupId"`
-	AssistantID string   `json:"assistantId"`
-	Date        DateTime `json:"date"`
-	StartTime   DateTime `json:"startTime"`
-	Status      Status   `json:"status"`
+	ID          int       `json:"id"`
+	PracticumID int       `json:"practicumId"`
+	GroupID     string    `json:"groupId"`
+	AssistantID string    `json:"assistantId"`
+	Date        *DateTime `json:"date,omitempty"`
+	StartTime   *DateTime `json:"startTime,omitempty"`
+	Status      Status    `json:"status"`
 }
 
 // RawScheduleModel is a struct for Schedule when used in raw queries
 type RawScheduleModel struct {
-	ID          RawInt      `json:"id"`
-	PracticumID RawInt      `json:"practicumId"`
-	GroupID     RawString   `json:"groupId"`
-	AssistantID RawString   `json:"assistantId"`
-	Date        RawDateTime `json:"date"`
-	StartTime   RawDateTime `json:"startTime"`
-	Status      RawStatus   `json:"status"`
+	ID          RawInt       `json:"id"`
+	PracticumID RawInt       `json:"practicumId"`
+	GroupID     RawString    `json:"groupId"`
+	AssistantID RawString    `json:"assistantId"`
+	Date        *RawDateTime `json:"date,omitempty"`
+	StartTime   *RawDateTime `json:"startTime,omitempty"`
+	Status      RawStatus    `json:"status"`
 }
 
 // RelationsSchedule holds the relation data separately
@@ -1126,6 +1130,20 @@ type RelationsSchedule struct {
 	Group     *GroupModel     `json:"group,omitempty"`
 	Assistant *UserModel      `json:"assistant,omitempty"`
 	Grades    []GradeModel    `json:"grades,omitempty"`
+}
+
+func (r ScheduleModel) Date() (value DateTime, ok bool) {
+	if r.InnerSchedule.Date == nil {
+		return value, false
+	}
+	return *r.InnerSchedule.Date, true
+}
+
+func (r ScheduleModel) StartTime() (value DateTime, ok bool) {
+	if r.InnerSchedule.StartTime == nil {
+		return value, false
+	}
+	return *r.InnerSchedule.StartTime, true
 }
 
 func (r ScheduleModel) Practicum() (value *PracticumModel) {
@@ -8790,12 +8808,12 @@ type scheduleQuery struct {
 
 	// Date
 	//
-	// @required
+	// @optional
 	Date scheduleQueryDateDateTime
 
 	// StartTime
 	//
-	// @required
+	// @optional
 	StartTime scheduleQueryStartTimeDateTime
 
 	// Status
@@ -8876,6 +8894,42 @@ func (scheduleQuery) GroupIDStartTime(
 	return scheduleEqualsUniqueParam{
 		data: builder.Field{
 			Name:   "groupId_startTime",
+			Fields: builder.TransformEquals(fields),
+		},
+	}
+}
+
+func (scheduleQuery) PracticumIDGroupID(
+	_practicumID ScheduleWithPrismaPracticumIDWhereParam,
+
+	_groupID ScheduleWithPrismaGroupIDWhereParam,
+) ScheduleEqualsUniqueWhereParam {
+	var fields []builder.Field
+
+	fields = append(fields, _practicumID.field())
+	fields = append(fields, _groupID.field())
+
+	return scheduleEqualsUniqueParam{
+		data: builder.Field{
+			Name:   "practicumId_groupId",
+			Fields: builder.TransformEquals(fields),
+		},
+	}
+}
+
+func (scheduleQuery) PracticumIDAssistantID(
+	_practicumID ScheduleWithPrismaPracticumIDWhereParam,
+
+	_assistantID ScheduleWithPrismaAssistantIDWhereParam,
+) ScheduleEqualsUniqueWhereParam {
+	var fields []builder.Field
+
+	fields = append(fields, _practicumID.field())
+	fields = append(fields, _assistantID.field())
+
+	return scheduleEqualsUniqueParam{
+		data: builder.Field{
+			Name:   "practicumId_assistantId",
 			Fields: builder.TransformEquals(fields),
 		},
 	}
@@ -10376,10 +10430,10 @@ func (r scheduleQueryAssistantIDString) Field() schedulePrismaFields {
 // base struct
 type scheduleQueryDateDateTime struct{}
 
-// Set the required value of Date
-func (r scheduleQueryDateDateTime) Set(value DateTime) scheduleWithPrismaDateSetParam {
+// Set the optional value of Date
+func (r scheduleQueryDateDateTime) Set(value DateTime) scheduleSetParam {
 
-	return scheduleWithPrismaDateSetParam{
+	return scheduleSetParam{
 		data: builder.Field{
 			Name:  "date",
 			Value: value,
@@ -10389,9 +10443,25 @@ func (r scheduleQueryDateDateTime) Set(value DateTime) scheduleWithPrismaDateSet
 }
 
 // Set the optional value of Date dynamically
-func (r scheduleQueryDateDateTime) SetIfPresent(value *DateTime) scheduleWithPrismaDateSetParam {
+func (r scheduleQueryDateDateTime) SetIfPresent(value *DateTime) scheduleSetParam {
 	if value == nil {
-		return scheduleWithPrismaDateSetParam{}
+		return scheduleSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of Date dynamically
+func (r scheduleQueryDateDateTime) SetOptional(value *DateTime) scheduleSetParam {
+	if value == nil {
+
+		var v *DateTime
+		return scheduleSetParam{
+			data: builder.Field{
+				Name:  "date",
+				Value: v,
+			},
+		}
 	}
 
 	return r.Set(*value)
@@ -10417,6 +10487,35 @@ func (r scheduleQueryDateDateTime) EqualsIfPresent(value *DateTime) scheduleWith
 		return scheduleWithPrismaDateEqualsParam{}
 	}
 	return r.Equals(*value)
+}
+
+func (r scheduleQueryDateDateTime) EqualsOptional(value *DateTime) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "date",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryDateDateTime) IsNull() scheduleDefaultParam {
+	var str *string = nil
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "date",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
 }
 
 func (r scheduleQueryDateDateTime) Order(direction SortOrder) scheduleDefaultParam {
@@ -10687,10 +10786,10 @@ func (r scheduleQueryDateDateTime) Field() schedulePrismaFields {
 // base struct
 type scheduleQueryStartTimeDateTime struct{}
 
-// Set the required value of StartTime
-func (r scheduleQueryStartTimeDateTime) Set(value DateTime) scheduleWithPrismaStartTimeSetParam {
+// Set the optional value of StartTime
+func (r scheduleQueryStartTimeDateTime) Set(value DateTime) scheduleSetParam {
 
-	return scheduleWithPrismaStartTimeSetParam{
+	return scheduleSetParam{
 		data: builder.Field{
 			Name:  "startTime",
 			Value: value,
@@ -10700,9 +10799,25 @@ func (r scheduleQueryStartTimeDateTime) Set(value DateTime) scheduleWithPrismaSt
 }
 
 // Set the optional value of StartTime dynamically
-func (r scheduleQueryStartTimeDateTime) SetIfPresent(value *DateTime) scheduleWithPrismaStartTimeSetParam {
+func (r scheduleQueryStartTimeDateTime) SetIfPresent(value *DateTime) scheduleSetParam {
 	if value == nil {
-		return scheduleWithPrismaStartTimeSetParam{}
+		return scheduleSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of StartTime dynamically
+func (r scheduleQueryStartTimeDateTime) SetOptional(value *DateTime) scheduleSetParam {
+	if value == nil {
+
+		var v *DateTime
+		return scheduleSetParam{
+			data: builder.Field{
+				Name:  "startTime",
+				Value: v,
+			},
+		}
 	}
 
 	return r.Set(*value)
@@ -10728,6 +10843,35 @@ func (r scheduleQueryStartTimeDateTime) EqualsIfPresent(value *DateTime) schedul
 		return scheduleWithPrismaStartTimeEqualsParam{}
 	}
 	return r.Equals(*value)
+}
+
+func (r scheduleQueryStartTimeDateTime) EqualsOptional(value *DateTime) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "startTime",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryStartTimeDateTime) IsNull() scheduleDefaultParam {
+	var str *string = nil
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "startTime",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
 }
 
 func (r scheduleQueryStartTimeDateTime) Order(direction SortOrder) scheduleDefaultParam {
@@ -22937,6 +23081,26 @@ type scheduleSetParam struct {
 	data builder.Field
 }
 
+func (p scheduleSetParam) assistantField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p scheduleSetParam) practicumField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p scheduleSetParam) getQuery() builder.Query {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p scheduleSetParam) groupField() {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (scheduleSetParam) settable() {}
 
 func (p scheduleSetParam) field() builder.Field {
@@ -26338,8 +26502,6 @@ func (r practicumCreateOne) Tx() PracticumUniqueTxResult {
 
 // Creates a single schedule.
 func (r scheduleActions) CreateOne(
-	_date ScheduleWithPrismaDateSetParam,
-	_startTime ScheduleWithPrismaStartTimeSetParam,
 	_practicum ScheduleWithPrismaPracticumSetParam,
 	_group ScheduleWithPrismaGroupSetParam,
 	_assistant ScheduleWithPrismaAssistantSetParam,
@@ -26357,8 +26519,6 @@ func (r scheduleActions) CreateOne(
 
 	var fields []builder.Field
 
-	fields = append(fields, _date.field())
-	fields = append(fields, _startTime.field())
 	fields = append(fields, _practicum.field())
 	fields = append(fields, _group.field())
 	fields = append(fields, _assistant.field())
@@ -26886,6 +27046,16 @@ func (r userToMemberGroupsFindFirst) ExecInner(ctx context.Context) (
 
 type userToMemberGroupsFindMany struct {
 	query builder.Query
+}
+
+func (r userToMemberGroupsFindMany) field() builder.Field {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r userToMemberGroupsFindMany) groupModel() {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (r userToMemberGroupsFindMany) getQuery() builder.Query {
@@ -39994,8 +40164,6 @@ func (r scheduleActions) UpsertOne(
 
 func (r scheduleUpsertOne) Create(
 
-	_date ScheduleWithPrismaDateSetParam,
-	_startTime ScheduleWithPrismaStartTimeSetParam,
 	_practicum ScheduleWithPrismaPracticumSetParam,
 	_group ScheduleWithPrismaGroupSetParam,
 	_assistant ScheduleWithPrismaAssistantSetParam,
@@ -40006,8 +40174,6 @@ func (r scheduleUpsertOne) Create(
 	v.query = r.query
 
 	var fields []builder.Field
-	fields = append(fields, _date.field())
-	fields = append(fields, _startTime.field())
 	fields = append(fields, _practicum.field())
 	fields = append(fields, _group.field())
 	fields = append(fields, _assistant.field())
