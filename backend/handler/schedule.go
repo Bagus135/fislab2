@@ -2,6 +2,7 @@ package handler
 
 import (
 	"backend/prisma/db"
+	"backend/types"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,16 +29,11 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	assistantId := r.Context().Value("userID").(string)
 
-	var req struct {
-		PracticumID int    `json:"practicumId"`
-		GroupID     string `json:"groupId"`
-		Date        string `json:"date"`
-		StartTime   string `json:"startTime"`
-	}
+	var req types.SetScheduleRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
@@ -58,13 +54,13 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	hour, err := strconv.Atoi(timeArr[0])
 	if err != nil || hour < 0 || hour > 23 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid hour"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid hour"})
 	}
 
 	minute, err := strconv.Atoi(timeArr[1])
 	if err != nil || minute < 0 || minute > 59 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid minute"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid minute"})
 		return
 	}
 
@@ -82,7 +78,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	if scheduleTime.Before(now) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "cannot schedule for past time"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "cannot schedule for past time"})
 		return
 	}
 
@@ -97,11 +93,11 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, db.ErrNotFound) {
 
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "no unscheduled practicum found for this group"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "no unscheduled practicum found for this group"})
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing schedule"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing schedule"})
 		return
 	}
 
@@ -115,13 +111,13 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
 		return
 	}
 
 	if conflictGroupSchedule != nil {
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{"error": "group already has a schedule at this time"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "group already has a schedule at this time"})
 		return
 	}
 
@@ -135,13 +131,13 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
 		return
 	}
 
 	if conflictAssistantSchedule != nil {
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{"error": "you already have a schedule at this time"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you already have a schedule at this time"})
 		return
 	}
 
@@ -156,7 +152,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to update schedule"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update schedule"})
 		return
 	}
 
@@ -180,7 +176,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
@@ -276,5 +272,88 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userRole := r.Context().Value("role").(string)
+	assistantID := r.Context().Value("userID").(string)
+
+	if userRole != "ASISTEN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		ScheduleID int `json:"scheduleId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	// Validasi input
+	if req.ScheduleID == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "scheduleId is required"})
+		return
+	}
+
+	schedule, err := h.client.Schedule.FindUnique(
+		db.Schedule.ID.Equals(req.ScheduleID),
+	).With(
+		db.Schedule.Assistant.Fetch(),
+		db.Schedule.Practicum.Fetch(),
+		db.Schedule.Group.Fetch(),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule not found"})
+		return
+	}
+
+	if schedule.Assistant().ID != assistantID {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// Validasi bahwa waktu jadwal sudah dilewati
+	startTime, hasStartTime := schedule.StartTime()
+	if !hasStartTime {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule time not set"})
+		return
+	}
+
+	if time.Now().Before(startTime) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule has not yet passed"})
+		return
+	}
+
+	// Ubah status praktikum menjadi COMPLETED (sesuai enum di schema)
+	updatedSchedule, err := h.client.Schedule.FindUnique(
+		db.Schedule.ID.Equals(req.ScheduleID),
+	).Update(
+		db.Schedule.Status.Set("COMPLETED"),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update status"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":          updatedSchedule.ID,
+		"practicumId": updatedSchedule.PracticumID,
+		"groupId":     updatedSchedule.GroupID,
+		"status":      updatedSchedule.Status,
+	})
 }

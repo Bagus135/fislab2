@@ -16,7 +16,9 @@ func NewRouter(
 	assistantHandler *handler.AssistantHandler,
 	scheduleHandler *handler.ScheduleHandler,
 	gradeHandler *handler.GradeHandler,
+	attendanceHandler *handler.AttendanceHandler,
 ) *mux.Router {
+
 	r := mux.NewRouter()
 
 	// admin route
@@ -64,12 +66,24 @@ func NewRouter(
 	adminAPI.HandleFunc("/assistant", assistantHandler.SetAssistant).Methods("POST")
 	adminAPI.HandleFunc("/assistant", assistantHandler.GetAssistants).Methods("GET")
 
+	// Grading routes
 	assistantAPI.HandleFunc("/grade", gradeHandler.CreateGrade).Methods("POST")
 	api.HandleFunc("/grade", gradeHandler.GetGrades).Methods("GET")
 	api.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
 
+	// Schedule routes
 	api.HandleFunc("/schedule", scheduleHandler.GetSchedules).Methods("GET")
 	assistantAPI.HandleFunc("/set-schedule", scheduleHandler.SetSchedule).Methods("PUT")
+	assistantAPI.HandleFunc("/schedule/mark-finished", scheduleHandler.SetFinished).Methods("POST")
+
+	// Attendance routes
+	assistantAPI.HandleFunc("/attendance/status/{id}", attendanceHandler.GetAttendanceStatus).Methods("GET")
+	assistantAPI.HandleFunc("/attendance/generate", attendanceHandler.GenerateCode).Methods("POST")
+	assistantAPI.HandleFunc("/attendance/update", attendanceHandler.UpdateAttendance).Methods("PUT")
+	api.HandleFunc("/attendance", attendanceHandler.SubmitAttendance).Methods("POST")
+
+	// Assistant status routes
+	adminAPI.HandleFunc("/assistant/status", assistantHandler.GetAssistantStatus).Methods("GET")
 
 	return r
 }

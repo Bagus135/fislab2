@@ -24,13 +24,13 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	userRole, ok := r.Context().Value("role").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "only admin can create groups"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only admin can create groups"})
 		return
 	}
 
@@ -41,19 +41,19 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
 		return
 	}
 
 	if req.Name == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "group number is required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "group number is required"})
 		return
 	}
 
 	if len(req.MemberIDs) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "member_ids cannot be empty"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "member_ids cannot be empty"})
 		return
 	}
 
@@ -64,13 +64,13 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing group"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing group"})
 		return
 	}
 
 	if existingGroup != nil {
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("group with number %d already exists", req.Name)})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("group with number %d already exists", req.Name)})
 		return
 	}
 
@@ -86,25 +86,25 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with id %s not found", memberID)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with id %s not found", memberID)})
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "failed to validate user"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to validate user"})
 			return
 		}
 
 		// Cek role user (harus PRAKTIKAN)
 		if user.Role != "PRAKTIKAN" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberID)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberID)})
 			return
 		}
 
 		// Cek apakah user sudah terdaftar di kelompok lain
 		if len(user.MemberGroups()) > 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberID)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberID)})
 			return
 		}
 
@@ -118,7 +118,7 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create group"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create group"})
 		return
 	}
 
@@ -147,7 +147,7 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch created group"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch created group"})
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":       createdGroup.ID,
 		"kelompok": createdGroup.Name,
 		"members":  filteredMembers,
@@ -294,13 +294,13 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	userRole, ok := r.Context().Value("role").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "role not found in context"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "role not found in context"})
 		return
 	}
 
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "only SUPER_ADMIN and ADMIN can update groups"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only SUPER_ADMIN and ADMIN can update groups"})
 		return
 	}
 
@@ -312,13 +312,13 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
 	if req.Name == 0 || req.Id == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "name and id are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "name and id are required"})
 		return
 	}
 
@@ -334,18 +334,18 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with id %s not found", memberID)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with id %s not found", memberID)})
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "failed to validate user"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to validate user"})
 			return
 		}
 
 		// Cek role user (harus PRAKTIKAN)
 		if user.Role != "PRAKTIKAN" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberID)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberID)})
 			return
 		}
 
@@ -354,7 +354,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 			for _, group := range user.MemberGroups() {
 				if group.ID != req.Id {
 					w.WriteHeader(http.StatusBadRequest)
-					json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberID)})
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberID)})
 					return
 				}
 			}
@@ -372,7 +372,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch existing group"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch existing group"})
 		return
 	}
 
@@ -400,7 +400,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to update group"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update group"})
 		return
 	}
 
@@ -428,7 +428,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch updated group"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch updated group"})
 		return
 	}
 
@@ -441,7 +441,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":       updatedGroup.ID,
 		"kelompok": updatedGroup.Name,
 		"members":  members,

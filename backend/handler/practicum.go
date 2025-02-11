@@ -32,7 +32,7 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
@@ -43,11 +43,11 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		fmt.Printf("Error creating practicum: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create practicum"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create practicum"})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(practicum)
+	_ = json.NewEncoder(w).Encode(practicum)
 
 }
 
@@ -57,13 +57,13 @@ func (h *PracticumHandler) GetPracticum(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		fmt.Printf("Error getting practicums: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to find practicum"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to find practicum"})
 		return
 	}
 
 	// Langsung encode hasil practicums
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(practicums)
+	_ = json.NewEncoder(w).Encode(practicums)
 }
 
 func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
@@ -97,11 +97,11 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		fmt.Printf("Error updating practicum: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to update practicum"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update practicum"})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(practicum)
+	_ = json.NewEncoder(w).Encode(practicum)
 }
 
 func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +119,7 @@ func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Reques
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	_, err := h.client.Practicum.FindUnique(
@@ -129,9 +129,9 @@ func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		fmt.Printf("Error deleting practicum: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to delete practicum"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to delete practicum"})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "practicum deleted successfully"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "practicum deleted successfully"})
 }

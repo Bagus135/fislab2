@@ -171,7 +171,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	userRole := ctx.Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view all users"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view all users"})
 		return
 	}
 
@@ -184,7 +184,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error fetching users: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"total": len(users),
 		"users": response,
 	})
@@ -215,7 +215,7 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 	userRole := ctx.Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view users"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view users"})
 		return
 	}
 
@@ -245,7 +245,7 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 
 	if !validRoles[requestedRole] {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid role"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid role"})
 		return
 	}
 
@@ -259,7 +259,7 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error fetching users: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
 		return
 	}
 
@@ -270,13 +270,12 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 			"id":   user.ID,
 			"name": user.Name,
 			"nrp":  user.Nrp,
-			"role": strings.ToLower(string(user.Role)), // konversi role ke lowercase di response
 		}
 		response = append(response, userData)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"role":  strings.ToLower(requestedRole), // konversi role ke lowercase di response
 		"total": len(users),
 		"users": response,

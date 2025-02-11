@@ -82,7 +82,7 @@ generator client {
   provider = "go run github.com/steebchen/prisma-client-go"
 }
 
-// role user
+// role
 enum Role {
   SUPER_ADMIN
   ADMIN
@@ -90,7 +90,24 @@ enum Role {
   PRAKTIKAN
 }
 
-// user
+// status praktikum
+enum Status {
+  UNSCHEDULED
+  SCHEDULED
+  FINISHED
+  COMPLETED
+  CANCELLED
+}
+
+// status presensi
+enum AttendanceStatus {
+  HADIR
+  SAKIT
+  IZIN
+  TIDAK_HADIR
+}
+
+// User
 model User {
   id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp       String    @unique
@@ -106,14 +123,17 @@ model User {
   // Relasi untuk anggota kelompok
   memberGroups Group[] @relation("MemberGroups")
 
+  // Relasi presensi
+  attendances Attendance[] @relation("UserAttendance")
+
+  // Relasi ke jadwal asisten
+  assistantSchedules Schedule[] @relation("AssistantSchedules")
+
   // Relasi untuk asisten yang memberi nilai
   gradedGrades Grade[] @relation("GradedBy")
 
   // Relasi untuk praktikan yang menerima nilai
   userGrades Grade[] @relation("UserGrades")
-
-  // Relasi ke jadwal asisten
-  assistantSchedules Schedule[] @relation("AssistantSchedules")
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
@@ -145,7 +165,7 @@ model Practicum {
   @@map("practicums")
 }
 
-// jadwal
+// Jadwal
 model Schedule {
   id          Int       @id @default(autoincrement())
   practicumId Int
@@ -159,11 +179,10 @@ model Schedule {
   group     Group     @relation("GroupSchedules", fields: [groupId], references: [id])
   assistant User      @relation("AssistantSchedules", fields: [assistantId], references: [id])
 
-  grades Grade[]
+  attendanceCodes AttendanceCode[]
+  grades          Grade[]
 
-  @@unique([groupId, startTime])
-  @@unique([practicumId, groupId])
-  @@unique([practicumId, assistantId])
+  @@unique([practicumId, assistantId, groupId])
 }
 
 // penilaian
@@ -189,14 +208,6 @@ model Grade {
   grader   User     @relation("GradedBy", fields: [gradedBy], references: [id])
 }
 
-// status praktikum yang diambil
-enum Status {
-  UNSCHEDULED
-  SCHEDULED
-  COMPLETED
-  CANCELLED
-}
-
 // pengumuman
 model Announcement {
   id        Int      @id @default(autoincrement())
@@ -207,6 +218,34 @@ model Announcement {
   authorId  String
 
   author User @relation(fields: [authorId], references: [id])
+}
+
+// Kode absensi
+model AttendanceCode {
+  id         Int      @id @default(autoincrement())
+  scheduleId Int
+  code       String   @unique
+  expiredAt  DateTime
+  createdAt  DateTime @default(now())
+
+  schedule    Schedule     @relation(fields: [scheduleId], references: [id])
+  attendances Attendance[]
+
+  @@unique([scheduleId, expiredAt])
+}
+
+// Absensi
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  codeId    Int
+  userId    String
+  status    AttendanceStatus @default(TIDAK_HADIR)
+  createdAt DateTime         @default(now())
+
+  code AttendanceCode @relation(fields: [codeId], references: [id])
+  user User           @relation("UserAttendance", fields: [userId], references: [id])
+
+  @@unique([codeId, userId])
 }
 `
 const schemaDatasourceURL = ""
@@ -285,6 +324,8 @@ func newClient() *PrismaClient {
 	c.Schedule = scheduleActions{client: c}
 	c.Grade = gradeActions{client: c}
 	c.Announcement = announcementActions{client: c}
+	c.AttendanceCode = attendanceCodeActions{client: c}
+	c.Attendance = attendanceActions{client: c}
 
 	c.Prisma = &PrismaActions{
 		Raw: &raw.Raw{Engine: c},
@@ -321,6 +362,10 @@ type PrismaClient struct {
 	Grade gradeActions
 	// Announcement provides access to CRUD methods.
 	Announcement announcementActions
+	// AttendanceCode provides access to CRUD methods.
+	AttendanceCode attendanceCodeActions
+	// Attendance provides access to CRUD methods.
+	Attendance attendanceActions
 }
 
 // --- template enums.gotpl ---
@@ -340,11 +385,22 @@ type Status string
 const (
 	StatusUnscheduled Status = "UNSCHEDULED"
 	StatusScheduled   Status = "SCHEDULED"
+	StatusFinished    Status = "FINISHED"
 	StatusCompleted   Status = "COMPLETED"
 	StatusCancelled   Status = "CANCELLED"
 )
 
 type RawStatus Status
+type AttendanceStatus string
+
+const (
+	AttendanceStatusHadir      AttendanceStatus = "HADIR"
+	AttendanceStatusSakit      AttendanceStatus = "SAKIT"
+	AttendanceStatusIzin       AttendanceStatus = "IZIN"
+	AttendanceStatusTidakHadir AttendanceStatus = "TIDAK_HADIR"
+)
+
+type RawAttendanceStatus AttendanceStatus
 
 type TransactionIsolationLevel string
 
@@ -430,6 +486,26 @@ const (
 	AnnouncementScalarFieldEnumAuthorID  AnnouncementScalarFieldEnum = "authorId"
 )
 
+type AttendanceCodeScalarFieldEnum string
+
+const (
+	AttendanceCodeScalarFieldEnumID         AttendanceCodeScalarFieldEnum = "id"
+	AttendanceCodeScalarFieldEnumScheduleID AttendanceCodeScalarFieldEnum = "scheduleId"
+	AttendanceCodeScalarFieldEnumCode       AttendanceCodeScalarFieldEnum = "code"
+	AttendanceCodeScalarFieldEnumExpiredAt  AttendanceCodeScalarFieldEnum = "expiredAt"
+	AttendanceCodeScalarFieldEnumCreatedAt  AttendanceCodeScalarFieldEnum = "createdAt"
+)
+
+type AttendanceScalarFieldEnum string
+
+const (
+	AttendanceScalarFieldEnumID        AttendanceScalarFieldEnum = "id"
+	AttendanceScalarFieldEnumCodeID    AttendanceScalarFieldEnum = "codeId"
+	AttendanceScalarFieldEnumUserID    AttendanceScalarFieldEnum = "userId"
+	AttendanceScalarFieldEnumStatus    AttendanceScalarFieldEnum = "status"
+	AttendanceScalarFieldEnumCreatedAt AttendanceScalarFieldEnum = "createdAt"
+)
+
 type SortOrder string
 
 const (
@@ -506,11 +582,13 @@ const userFieldUpdatedAt userPrismaFields = "updatedAt"
 
 const userFieldMemberGroups userPrismaFields = "memberGroups"
 
+const userFieldAttendances userPrismaFields = "attendances"
+
+const userFieldAssistantSchedules userPrismaFields = "assistantSchedules"
+
 const userFieldGradedGrades userPrismaFields = "gradedGrades"
 
 const userFieldUserGrades userPrismaFields = "userGrades"
-
-const userFieldAssistantSchedules userPrismaFields = "assistantSchedules"
 
 const userFieldAnnouncements userPrismaFields = "announcements"
 
@@ -559,6 +637,8 @@ const scheduleFieldPracticum schedulePrismaFields = "practicum"
 const scheduleFieldGroup schedulePrismaFields = "group"
 
 const scheduleFieldAssistant schedulePrismaFields = "assistant"
+
+const scheduleFieldAttendanceCodes schedulePrismaFields = "attendanceCodes"
 
 const scheduleFieldGrades schedulePrismaFields = "grades"
 
@@ -616,6 +696,38 @@ const announcementFieldAuthorID announcementPrismaFields = "authorId"
 
 const announcementFieldAuthor announcementPrismaFields = "author"
 
+type attendanceCodePrismaFields = prismaFields
+
+const attendanceCodeFieldID attendanceCodePrismaFields = "id"
+
+const attendanceCodeFieldScheduleID attendanceCodePrismaFields = "scheduleId"
+
+const attendanceCodeFieldCode attendanceCodePrismaFields = "code"
+
+const attendanceCodeFieldExpiredAt attendanceCodePrismaFields = "expiredAt"
+
+const attendanceCodeFieldCreatedAt attendanceCodePrismaFields = "createdAt"
+
+const attendanceCodeFieldSchedule attendanceCodePrismaFields = "schedule"
+
+const attendanceCodeFieldAttendances attendanceCodePrismaFields = "attendances"
+
+type attendancePrismaFields = prismaFields
+
+const attendanceFieldID attendancePrismaFields = "id"
+
+const attendanceFieldCodeID attendancePrismaFields = "codeId"
+
+const attendanceFieldUserID attendancePrismaFields = "userId"
+
+const attendanceFieldStatus attendancePrismaFields = "status"
+
+const attendanceFieldCreatedAt attendancePrismaFields = "createdAt"
+
+const attendanceFieldCode attendancePrismaFields = "code"
+
+const attendanceFieldUser attendancePrismaFields = "user"
+
 // --- template mock.gotpl ---
 func NewMock() (*PrismaClient, *Mock, func(t *testing.T)) {
 	expectations := new([]mock.Expectation)
@@ -650,6 +762,14 @@ func NewMock() (*PrismaClient, *Mock, func(t *testing.T)) {
 		mock: m,
 	}
 
+	m.AttendanceCode = attendanceCodeMock{
+		mock: m,
+	}
+
+	m.Attendance = attendanceMock{
+		mock: m,
+	}
+
 	return pc, m, m.Ensure
 }
 
@@ -667,6 +787,10 @@ type Mock struct {
 	Grade gradeMock
 
 	Announcement announcementMock
+
+	AttendanceCode attendanceCodeMock
+
+	Attendance attendanceMock
 }
 
 type userMock struct {
@@ -921,6 +1045,90 @@ func (m *announcementMockExec) Errors(err error) {
 	})
 }
 
+type attendanceCodeMock struct {
+	mock *Mock
+}
+
+type AttendanceCodeMockExpectParam interface {
+	ExtractQuery() builder.Query
+	attendanceCodeModel()
+}
+
+func (m *attendanceCodeMock) Expect(query AttendanceCodeMockExpectParam) *attendanceCodeMockExec {
+	return &attendanceCodeMockExec{
+		mock:  m.mock,
+		query: query.ExtractQuery(),
+	}
+}
+
+type attendanceCodeMockExec struct {
+	mock  *Mock
+	query builder.Query
+}
+
+func (m *attendanceCodeMockExec) Returns(v AttendanceCodeModel) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query: m.query,
+		Want:  &v,
+	})
+}
+
+func (m *attendanceCodeMockExec) ReturnsMany(v []AttendanceCodeModel) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query: m.query,
+		Want:  &v,
+	})
+}
+
+func (m *attendanceCodeMockExec) Errors(err error) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query:   m.query,
+		WantErr: err,
+	})
+}
+
+type attendanceMock struct {
+	mock *Mock
+}
+
+type AttendanceMockExpectParam interface {
+	ExtractQuery() builder.Query
+	attendanceModel()
+}
+
+func (m *attendanceMock) Expect(query AttendanceMockExpectParam) *attendanceMockExec {
+	return &attendanceMockExec{
+		mock:  m.mock,
+		query: query.ExtractQuery(),
+	}
+}
+
+type attendanceMockExec struct {
+	mock  *Mock
+	query builder.Query
+}
+
+func (m *attendanceMockExec) Returns(v AttendanceModel) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query: m.query,
+		Want:  &v,
+	})
+}
+
+func (m *attendanceMockExec) ReturnsMany(v []AttendanceModel) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query: m.query,
+		Want:  &v,
+	})
+}
+
+func (m *attendanceMockExec) Errors(err error) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query:   m.query,
+		WantErr: err,
+	})
+}
+
 // --- template models.gotpl ---
 
 // UserModel represents the User model and is a wrapper for accessing fields and methods
@@ -960,9 +1168,10 @@ type RawUserModel struct {
 // RelationsUser holds the relation data separately
 type RelationsUser struct {
 	MemberGroups       []GroupModel        `json:"memberGroups,omitempty"`
+	Attendances        []AttendanceModel   `json:"attendances,omitempty"`
+	AssistantSchedules []ScheduleModel     `json:"assistantSchedules,omitempty"`
 	GradedGrades       []GradeModel        `json:"gradedGrades,omitempty"`
 	UserGrades         []GradeModel        `json:"userGrades,omitempty"`
-	AssistantSchedules []ScheduleModel     `json:"assistantSchedules,omitempty"`
 	Announcements      []AnnouncementModel `json:"announcements,omitempty"`
 }
 
@@ -987,6 +1196,20 @@ func (r UserModel) MemberGroups() (value []GroupModel) {
 	return r.RelationsUser.MemberGroups
 }
 
+func (r UserModel) Attendances() (value []AttendanceModel) {
+	if r.RelationsUser.Attendances == nil {
+		panic("attempted to access attendances but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsUser.Attendances
+}
+
+func (r UserModel) AssistantSchedules() (value []ScheduleModel) {
+	if r.RelationsUser.AssistantSchedules == nil {
+		panic("attempted to access assistantSchedules but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsUser.AssistantSchedules
+}
+
 func (r UserModel) GradedGrades() (value []GradeModel) {
 	if r.RelationsUser.GradedGrades == nil {
 		panic("attempted to access gradedGrades but did not fetch it using the .With() syntax")
@@ -999,13 +1222,6 @@ func (r UserModel) UserGrades() (value []GradeModel) {
 		panic("attempted to access userGrades but did not fetch it using the .With() syntax")
 	}
 	return r.RelationsUser.UserGrades
-}
-
-func (r UserModel) AssistantSchedules() (value []ScheduleModel) {
-	if r.RelationsUser.AssistantSchedules == nil {
-		panic("attempted to access assistantSchedules but did not fetch it using the .With() syntax")
-	}
-	return r.RelationsUser.AssistantSchedules
 }
 
 func (r UserModel) Announcements() (value []AnnouncementModel) {
@@ -1126,10 +1342,11 @@ type RawScheduleModel struct {
 
 // RelationsSchedule holds the relation data separately
 type RelationsSchedule struct {
-	Practicum *PracticumModel `json:"practicum,omitempty"`
-	Group     *GroupModel     `json:"group,omitempty"`
-	Assistant *UserModel      `json:"assistant,omitempty"`
-	Grades    []GradeModel    `json:"grades,omitempty"`
+	Practicum       *PracticumModel       `json:"practicum,omitempty"`
+	Group           *GroupModel           `json:"group,omitempty"`
+	Assistant       *UserModel            `json:"assistant,omitempty"`
+	AttendanceCodes []AttendanceCodeModel `json:"attendanceCodes,omitempty"`
+	Grades          []GradeModel          `json:"grades,omitempty"`
 }
 
 func (r ScheduleModel) Date() (value DateTime, ok bool) {
@@ -1165,6 +1382,13 @@ func (r ScheduleModel) Assistant() (value *UserModel) {
 		panic("attempted to access assistant but did not fetch it using the .With() syntax")
 	}
 	return r.RelationsSchedule.Assistant
+}
+
+func (r ScheduleModel) AttendanceCodes() (value []AttendanceCodeModel) {
+	if r.RelationsSchedule.AttendanceCodes == nil {
+		panic("attempted to access attendanceCodes but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsSchedule.AttendanceCodes
 }
 
 func (r ScheduleModel) Grades() (value []GradeModel) {
@@ -1347,6 +1571,94 @@ func (r AnnouncementModel) Author() (value *UserModel) {
 	return r.RelationsAnnouncement.Author
 }
 
+// AttendanceCodeModel represents the AttendanceCode model and is a wrapper for accessing fields and methods
+type AttendanceCodeModel struct {
+	InnerAttendanceCode
+	RelationsAttendanceCode
+}
+
+// InnerAttendanceCode holds the actual data
+type InnerAttendanceCode struct {
+	ID         int      `json:"id"`
+	ScheduleID int      `json:"scheduleId"`
+	Code       string   `json:"code"`
+	ExpiredAt  DateTime `json:"expiredAt"`
+	CreatedAt  DateTime `json:"createdAt"`
+}
+
+// RawAttendanceCodeModel is a struct for AttendanceCode when used in raw queries
+type RawAttendanceCodeModel struct {
+	ID         RawInt      `json:"id"`
+	ScheduleID RawInt      `json:"scheduleId"`
+	Code       RawString   `json:"code"`
+	ExpiredAt  RawDateTime `json:"expiredAt"`
+	CreatedAt  RawDateTime `json:"createdAt"`
+}
+
+// RelationsAttendanceCode holds the relation data separately
+type RelationsAttendanceCode struct {
+	Schedule    *ScheduleModel    `json:"schedule,omitempty"`
+	Attendances []AttendanceModel `json:"attendances,omitempty"`
+}
+
+func (r AttendanceCodeModel) Schedule() (value *ScheduleModel) {
+	if r.RelationsAttendanceCode.Schedule == nil {
+		panic("attempted to access schedule but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsAttendanceCode.Schedule
+}
+
+func (r AttendanceCodeModel) Attendances() (value []AttendanceModel) {
+	if r.RelationsAttendanceCode.Attendances == nil {
+		panic("attempted to access attendances but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsAttendanceCode.Attendances
+}
+
+// AttendanceModel represents the Attendance model and is a wrapper for accessing fields and methods
+type AttendanceModel struct {
+	InnerAttendance
+	RelationsAttendance
+}
+
+// InnerAttendance holds the actual data
+type InnerAttendance struct {
+	ID        int              `json:"id"`
+	CodeID    int              `json:"codeId"`
+	UserID    string           `json:"userId"`
+	Status    AttendanceStatus `json:"status"`
+	CreatedAt DateTime         `json:"createdAt"`
+}
+
+// RawAttendanceModel is a struct for Attendance when used in raw queries
+type RawAttendanceModel struct {
+	ID        RawInt              `json:"id"`
+	CodeID    RawInt              `json:"codeId"`
+	UserID    RawString           `json:"userId"`
+	Status    RawAttendanceStatus `json:"status"`
+	CreatedAt RawDateTime         `json:"createdAt"`
+}
+
+// RelationsAttendance holds the relation data separately
+type RelationsAttendance struct {
+	Code *AttendanceCodeModel `json:"code,omitempty"`
+	User *UserModel           `json:"user,omitempty"`
+}
+
+func (r AttendanceModel) Code() (value *AttendanceCodeModel) {
+	if r.RelationsAttendance.Code == nil {
+		panic("attempted to access code but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsAttendance.Code
+}
+
+func (r AttendanceModel) User() (value *UserModel) {
+	if r.RelationsAttendance.User == nil {
+		panic("attempted to access user but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsAttendance.User
+}
+
 // --- template query.gotpl ---
 
 // User acts as a namespaces to access query methods for the User model
@@ -1408,11 +1720,13 @@ type userQuery struct {
 
 	MemberGroups userQueryMemberGroupsRelations
 
+	Attendances userQueryAttendancesRelations
+
+	AssistantSchedules userQueryAssistantSchedulesRelations
+
 	GradedGrades userQueryGradedGradesRelations
 
 	UserGrades userQueryUserGradesRelations
-
-	AssistantSchedules userQueryAssistantSchedulesRelations
 
 	Announcements userQueryAnnouncementsRelations
 }
@@ -4913,6 +5227,350 @@ func (r userQueryMemberGroupsGroup) Field() userPrismaFields {
 }
 
 // base struct
+type userQueryAttendancesAttendance struct{}
+
+type userQueryAttendancesRelations struct{}
+
+// User -> Attendances
+//
+// @relation
+// @required
+func (userQueryAttendancesRelations) Some(
+	params ...AttendanceWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "some",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// User -> Attendances
+//
+// @relation
+// @required
+func (userQueryAttendancesRelations) Every(
+	params ...AttendanceWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "every",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// User -> Attendances
+//
+// @relation
+// @required
+func (userQueryAttendancesRelations) None(
+	params ...AttendanceWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "none",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (userQueryAttendancesRelations) Fetch(
+
+	params ...AttendanceWhereParam,
+
+) userToAttendancesFindMany {
+	var v userToAttendancesFindMany
+
+	v.query.Operation = "query"
+	v.query.Method = "attendances"
+	v.query.Outputs = attendanceOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r userQueryAttendancesRelations) Link(
+	params ...AttendanceWhereParam,
+) userSetParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userSetParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+
+					List:     true,
+					WrapList: true,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAttendancesRelations) Unlink(
+	params ...AttendanceWhereParam,
+) userSetParam {
+	var v userSetParam
+
+	var fields []builder.Field
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+	v = userSetParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:     "disconnect",
+					List:     true,
+					WrapList: true,
+					Fields:   builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r userQueryAttendancesAttendance) Field() userPrismaFields {
+	return userFieldAttendances
+}
+
+// base struct
+type userQueryAssistantSchedulesSchedule struct{}
+
+type userQueryAssistantSchedulesRelations struct{}
+
+// User -> AssistantSchedules
+//
+// @relation
+// @required
+func (userQueryAssistantSchedulesRelations) Some(
+	params ...ScheduleWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "assistantSchedules",
+			Fields: []builder.Field{
+				{
+					Name:   "some",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// User -> AssistantSchedules
+//
+// @relation
+// @required
+func (userQueryAssistantSchedulesRelations) Every(
+	params ...ScheduleWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "assistantSchedules",
+			Fields: []builder.Field{
+				{
+					Name:   "every",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// User -> AssistantSchedules
+//
+// @relation
+// @required
+func (userQueryAssistantSchedulesRelations) None(
+	params ...ScheduleWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "assistantSchedules",
+			Fields: []builder.Field{
+				{
+					Name:   "none",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (userQueryAssistantSchedulesRelations) Fetch(
+
+	params ...ScheduleWhereParam,
+
+) userToAssistantSchedulesFindMany {
+	var v userToAssistantSchedulesFindMany
+
+	v.query.Operation = "query"
+	v.query.Method = "assistantSchedules"
+	v.query.Outputs = scheduleOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r userQueryAssistantSchedulesRelations) Link(
+	params ...ScheduleWhereParam,
+) userSetParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userSetParam{
+		data: builder.Field{
+			Name: "assistantSchedules",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+
+					List:     true,
+					WrapList: true,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAssistantSchedulesRelations) Unlink(
+	params ...ScheduleWhereParam,
+) userSetParam {
+	var v userSetParam
+
+	var fields []builder.Field
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+	v = userSetParam{
+		data: builder.Field{
+			Name: "assistantSchedules",
+			Fields: []builder.Field{
+				{
+					Name:     "disconnect",
+					List:     true,
+					WrapList: true,
+					Fields:   builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r userQueryAssistantSchedulesSchedule) Field() userPrismaFields {
+	return userFieldAssistantSchedules
+}
+
+// base struct
 type userQueryGradedGradesGrade struct{}
 
 type userQueryGradedGradesRelations struct{}
@@ -5254,178 +5912,6 @@ func (r userQueryUserGradesRelations) Unlink(
 
 func (r userQueryUserGradesGrade) Field() userPrismaFields {
 	return userFieldUserGrades
-}
-
-// base struct
-type userQueryAssistantSchedulesSchedule struct{}
-
-type userQueryAssistantSchedulesRelations struct{}
-
-// User -> AssistantSchedules
-//
-// @relation
-// @required
-func (userQueryAssistantSchedulesRelations) Some(
-	params ...ScheduleWhereParam,
-) userDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userDefaultParam{
-		data: builder.Field{
-			Name: "assistantSchedules",
-			Fields: []builder.Field{
-				{
-					Name:   "some",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-// User -> AssistantSchedules
-//
-// @relation
-// @required
-func (userQueryAssistantSchedulesRelations) Every(
-	params ...ScheduleWhereParam,
-) userDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userDefaultParam{
-		data: builder.Field{
-			Name: "assistantSchedules",
-			Fields: []builder.Field{
-				{
-					Name:   "every",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-// User -> AssistantSchedules
-//
-// @relation
-// @required
-func (userQueryAssistantSchedulesRelations) None(
-	params ...ScheduleWhereParam,
-) userDefaultParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userDefaultParam{
-		data: builder.Field{
-			Name: "assistantSchedules",
-			Fields: []builder.Field{
-				{
-					Name:   "none",
-					Fields: fields,
-				},
-			},
-		},
-	}
-}
-
-func (userQueryAssistantSchedulesRelations) Fetch(
-
-	params ...ScheduleWhereParam,
-
-) userToAssistantSchedulesFindMany {
-	var v userToAssistantSchedulesFindMany
-
-	v.query.Operation = "query"
-	v.query.Method = "assistantSchedules"
-	v.query.Outputs = scheduleOutput
-
-	var where []builder.Field
-	for _, q := range params {
-		if query := q.getQuery(); query.Operation != "" {
-			v.query.Outputs = append(v.query.Outputs, builder.Output{
-				Name:    query.Method,
-				Inputs:  query.Inputs,
-				Outputs: query.Outputs,
-			})
-		} else {
-			where = append(where, q.field())
-		}
-	}
-
-	if len(where) > 0 {
-		v.query.Inputs = append(v.query.Inputs, builder.Input{
-			Name:   "where",
-			Fields: where,
-		})
-	}
-
-	return v
-}
-
-func (r userQueryAssistantSchedulesRelations) Link(
-	params ...ScheduleWhereParam,
-) userSetParam {
-	var fields []builder.Field
-
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-
-	return userSetParam{
-		data: builder.Field{
-			Name: "assistantSchedules",
-			Fields: []builder.Field{
-				{
-					Name:   "connect",
-					Fields: builder.TransformEquals(fields),
-
-					List:     true,
-					WrapList: true,
-				},
-			},
-		},
-	}
-}
-
-func (r userQueryAssistantSchedulesRelations) Unlink(
-	params ...ScheduleWhereParam,
-) userSetParam {
-	var v userSetParam
-
-	var fields []builder.Field
-	for _, q := range params {
-		fields = append(fields, q.field())
-	}
-	v = userSetParam{
-		data: builder.Field{
-			Name: "assistantSchedules",
-			Fields: []builder.Field{
-				{
-					Name:     "disconnect",
-					List:     true,
-					WrapList: true,
-					Fields:   builder.TransformEquals(fields),
-				},
-			},
-		},
-	}
-
-	return v
-}
-
-func (r userQueryAssistantSchedulesSchedule) Field() userPrismaFields {
-	return userFieldAssistantSchedules
 }
 
 // base struct
@@ -8827,6 +9313,8 @@ type scheduleQuery struct {
 
 	Assistant scheduleQueryAssistantRelations
 
+	AttendanceCodes scheduleQueryAttendanceCodesRelations
+
 	Grades scheduleQueryGradesRelations
 }
 
@@ -8881,55 +9369,22 @@ func (scheduleQuery) And(params ...ScheduleWhereParam) scheduleDefaultParam {
 	}
 }
 
-func (scheduleQuery) GroupIDStartTime(
-	_groupID ScheduleWithPrismaGroupIDWhereParam,
-
-	_startTime ScheduleWithPrismaStartTimeWhereParam,
-) ScheduleEqualsUniqueWhereParam {
-	var fields []builder.Field
-
-	fields = append(fields, _groupID.field())
-	fields = append(fields, _startTime.field())
-
-	return scheduleEqualsUniqueParam{
-		data: builder.Field{
-			Name:   "groupId_startTime",
-			Fields: builder.TransformEquals(fields),
-		},
-	}
-}
-
-func (scheduleQuery) PracticumIDGroupID(
-	_practicumID ScheduleWithPrismaPracticumIDWhereParam,
-
-	_groupID ScheduleWithPrismaGroupIDWhereParam,
-) ScheduleEqualsUniqueWhereParam {
-	var fields []builder.Field
-
-	fields = append(fields, _practicumID.field())
-	fields = append(fields, _groupID.field())
-
-	return scheduleEqualsUniqueParam{
-		data: builder.Field{
-			Name:   "practicumId_groupId",
-			Fields: builder.TransformEquals(fields),
-		},
-	}
-}
-
-func (scheduleQuery) PracticumIDAssistantID(
+func (scheduleQuery) PracticumIDAssistantIDGroupID(
 	_practicumID ScheduleWithPrismaPracticumIDWhereParam,
 
 	_assistantID ScheduleWithPrismaAssistantIDWhereParam,
+
+	_groupID ScheduleWithPrismaGroupIDWhereParam,
 ) ScheduleEqualsUniqueWhereParam {
 	var fields []builder.Field
 
 	fields = append(fields, _practicumID.field())
 	fields = append(fields, _assistantID.field())
+	fields = append(fields, _groupID.field())
 
 	return scheduleEqualsUniqueParam{
 		data: builder.Field{
-			Name:   "practicumId_assistantId",
+			Name:   "practicumId_assistantId_groupId",
 			Fields: builder.TransformEquals(fields),
 		},
 	}
@@ -11532,6 +11987,178 @@ func (r scheduleQueryAssistantRelations) Unlink() scheduleWithPrismaAssistantSet
 
 func (r scheduleQueryAssistantUser) Field() schedulePrismaFields {
 	return scheduleFieldAssistant
+}
+
+// base struct
+type scheduleQueryAttendanceCodesAttendanceCode struct{}
+
+type scheduleQueryAttendanceCodesRelations struct{}
+
+// Schedule -> AttendanceCodes
+//
+// @relation
+// @required
+func (scheduleQueryAttendanceCodesRelations) Some(
+	params ...AttendanceCodeWhereParam,
+) scheduleDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "attendanceCodes",
+			Fields: []builder.Field{
+				{
+					Name:   "some",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// Schedule -> AttendanceCodes
+//
+// @relation
+// @required
+func (scheduleQueryAttendanceCodesRelations) Every(
+	params ...AttendanceCodeWhereParam,
+) scheduleDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "attendanceCodes",
+			Fields: []builder.Field{
+				{
+					Name:   "every",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// Schedule -> AttendanceCodes
+//
+// @relation
+// @required
+func (scheduleQueryAttendanceCodesRelations) None(
+	params ...AttendanceCodeWhereParam,
+) scheduleDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "attendanceCodes",
+			Fields: []builder.Field{
+				{
+					Name:   "none",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (scheduleQueryAttendanceCodesRelations) Fetch(
+
+	params ...AttendanceCodeWhereParam,
+
+) scheduleToAttendanceCodesFindMany {
+	var v scheduleToAttendanceCodesFindMany
+
+	v.query.Operation = "query"
+	v.query.Method = "attendanceCodes"
+	v.query.Outputs = attendanceCodeOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r scheduleQueryAttendanceCodesRelations) Link(
+	params ...AttendanceCodeWhereParam,
+) scheduleSetParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return scheduleSetParam{
+		data: builder.Field{
+			Name: "attendanceCodes",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+
+					List:     true,
+					WrapList: true,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryAttendanceCodesRelations) Unlink(
+	params ...AttendanceCodeWhereParam,
+) scheduleSetParam {
+	var v scheduleSetParam
+
+	var fields []builder.Field
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+	v = scheduleSetParam{
+		data: builder.Field{
+			Name: "attendanceCodes",
+			Fields: []builder.Field{
+				{
+					Name:     "disconnect",
+					List:     true,
+					WrapList: true,
+					Fields:   builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r scheduleQueryAttendanceCodesAttendanceCode) Field() schedulePrismaFields {
+	return scheduleFieldAttendanceCodes
 }
 
 // base struct
@@ -20407,6 +21034,4007 @@ func (r announcementQueryAuthorUser) Field() announcementPrismaFields {
 	return announcementFieldAuthor
 }
 
+// AttendanceCode acts as a namespaces to access query methods for the AttendanceCode model
+var AttendanceCode = attendanceCodeQuery{}
+
+// attendanceCodeQuery exposes query functions for the attendanceCode model
+type attendanceCodeQuery struct {
+
+	// ID
+	//
+	// @required
+	ID attendanceCodeQueryIDInt
+
+	// ScheduleID
+	//
+	// @required
+	ScheduleID attendanceCodeQueryScheduleIDInt
+
+	// Code
+	//
+	// @required
+	// @unique
+	Code attendanceCodeQueryCodeString
+
+	// ExpiredAt
+	//
+	// @required
+	ExpiredAt attendanceCodeQueryExpiredAtDateTime
+
+	// CreatedAt
+	//
+	// @required
+	CreatedAt attendanceCodeQueryCreatedAtDateTime
+
+	Schedule attendanceCodeQueryScheduleRelations
+
+	Attendances attendanceCodeQueryAttendancesRelations
+}
+
+func (attendanceCodeQuery) Not(params ...AttendanceCodeWhereParam) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:     "NOT",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (attendanceCodeQuery) Or(params ...AttendanceCodeWhereParam) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:     "OR",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (attendanceCodeQuery) And(params ...AttendanceCodeWhereParam) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:     "AND",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (attendanceCodeQuery) ScheduleIDExpiredAt(
+	_scheduleID AttendanceCodeWithPrismaScheduleIDWhereParam,
+
+	_expiredAt AttendanceCodeWithPrismaExpiredAtWhereParam,
+) AttendanceCodeEqualsUniqueWhereParam {
+	var fields []builder.Field
+
+	fields = append(fields, _scheduleID.field())
+	fields = append(fields, _expiredAt.field())
+
+	return attendanceCodeEqualsUniqueParam{
+		data: builder.Field{
+			Name:   "scheduleId_expiredAt",
+			Fields: builder.TransformEquals(fields),
+		},
+	}
+}
+
+// base struct
+type attendanceCodeQueryIDInt struct{}
+
+// Set the required value of ID
+func (r attendanceCodeQueryIDInt) Set(value int) attendanceCodeSetParam {
+
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of ID dynamically
+func (r attendanceCodeQueryIDInt) SetIfPresent(value *Int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the required value of ID
+func (r attendanceCodeQueryIDInt) Increment(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) IncrementIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the required value of ID
+func (r attendanceCodeQueryIDInt) Decrement(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) DecrementIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the required value of ID
+func (r attendanceCodeQueryIDInt) Multiply(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) MultiplyIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the required value of ID
+func (r attendanceCodeQueryIDInt) Divide(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) DivideIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Equals(value int) attendanceCodeWithPrismaIDEqualsUniqueParam {
+
+	return attendanceCodeWithPrismaIDEqualsUniqueParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) EqualsIfPresent(value *int) attendanceCodeWithPrismaIDEqualsUniqueParam {
+	if value == nil {
+		return attendanceCodeWithPrismaIDEqualsUniqueParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Order(direction SortOrder) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) Cursor(cursor int) attendanceCodeCursorParam {
+	return attendanceCodeCursorParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) In(value []int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) InIfPresent(value []int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceCodeQueryIDInt) NotIn(value []int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) NotInIfPresent(value []int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceCodeQueryIDInt) Lt(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) LtIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Lte(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) LteIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Gt(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) GtIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Gte(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) GteIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Not(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryIDInt) NotIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceCodeQueryIDInt) LT(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceCodeQueryIDInt) LTIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceCodeQueryIDInt) LTE(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceCodeQueryIDInt) LTEIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceCodeQueryIDInt) GT(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceCodeQueryIDInt) GTIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceCodeQueryIDInt) GTE(value int) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceCodeQueryIDInt) GTEIfPresent(value *int) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.GTE(*value)
+}
+
+func (r attendanceCodeQueryIDInt) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldID
+}
+
+// base struct
+type attendanceCodeQueryScheduleIDInt struct{}
+
+// Set the required value of ScheduleID
+func (r attendanceCodeQueryScheduleIDInt) Set(value int) attendanceCodeSetParam {
+
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name:  "scheduleId",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of ScheduleID dynamically
+func (r attendanceCodeQueryScheduleIDInt) SetIfPresent(value *Int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the required value of ScheduleID
+func (r attendanceCodeQueryScheduleIDInt) Increment(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) IncrementIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the required value of ScheduleID
+func (r attendanceCodeQueryScheduleIDInt) Decrement(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) DecrementIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the required value of ScheduleID
+func (r attendanceCodeQueryScheduleIDInt) Multiply(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) MultiplyIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the required value of ScheduleID
+func (r attendanceCodeQueryScheduleIDInt) Divide(value int) attendanceCodeSetParam {
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) DivideIfPresent(value *int) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Equals(value int) attendanceCodeWithPrismaScheduleIDEqualsParam {
+
+	return attendanceCodeWithPrismaScheduleIDEqualsParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) EqualsIfPresent(value *int) attendanceCodeWithPrismaScheduleIDEqualsParam {
+	if value == nil {
+		return attendanceCodeWithPrismaScheduleIDEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Order(direction SortOrder) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:  "scheduleId",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Cursor(cursor int) attendanceCodeCursorParam {
+	return attendanceCodeCursorParam{
+		data: builder.Field{
+			Name:  "scheduleId",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) In(value []int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) InIfPresent(value []int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) NotIn(value []int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) NotInIfPresent(value []int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Lt(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) LtIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Lte(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) LteIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Gt(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) GtIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Gte(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) GteIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Not(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleIDInt) NotIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceCodeQueryScheduleIDInt) LT(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceCodeQueryScheduleIDInt) LTIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceCodeQueryScheduleIDInt) LTE(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceCodeQueryScheduleIDInt) LTEIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceCodeQueryScheduleIDInt) GT(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceCodeQueryScheduleIDInt) GTIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceCodeQueryScheduleIDInt) GTE(value int) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "scheduleId",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceCodeQueryScheduleIDInt) GTEIfPresent(value *int) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.GTE(*value)
+}
+
+func (r attendanceCodeQueryScheduleIDInt) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldScheduleID
+}
+
+// base struct
+type attendanceCodeQueryCodeString struct{}
+
+// Set the required value of Code
+func (r attendanceCodeQueryCodeString) Set(value string) attendanceCodeWithPrismaCodeSetParam {
+
+	return attendanceCodeWithPrismaCodeSetParam{
+		data: builder.Field{
+			Name:  "code",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Code dynamically
+func (r attendanceCodeQueryCodeString) SetIfPresent(value *String) attendanceCodeWithPrismaCodeSetParam {
+	if value == nil {
+		return attendanceCodeWithPrismaCodeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Equals(value string) attendanceCodeWithPrismaCodeEqualsUniqueParam {
+
+	return attendanceCodeWithPrismaCodeEqualsUniqueParam{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) EqualsIfPresent(value *string) attendanceCodeWithPrismaCodeEqualsUniqueParam {
+	if value == nil {
+		return attendanceCodeWithPrismaCodeEqualsUniqueParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Order(direction SortOrder) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:  "code",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) Cursor(cursor string) attendanceCodeCursorParam {
+	return attendanceCodeCursorParam{
+		data: builder.Field{
+			Name:  "code",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) In(value []string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) InIfPresent(value []string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceCodeQueryCodeString) NotIn(value []string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) NotInIfPresent(value []string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceCodeQueryCodeString) Lt(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) LtIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Lte(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) LteIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Gt(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) GtIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Gte(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) GteIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Contains(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) ContainsIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Contains(*value)
+}
+
+func (r attendanceCodeQueryCodeString) StartsWith(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) StartsWithIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r attendanceCodeQueryCodeString) EndsWith(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) EndsWithIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Mode(value QueryMode) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) ModeIfPresent(value *QueryMode) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Mode(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Not(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCodeString) NotIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r attendanceCodeQueryCodeString) HasPrefix(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r attendanceCodeQueryCodeString) HasPrefixIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r attendanceCodeQueryCodeString) HasSuffix(value string) attendanceCodeParamUnique {
+	return attendanceCodeParamUnique{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r attendanceCodeQueryCodeString) HasSuffixIfPresent(value *string) attendanceCodeParamUnique {
+	if value == nil {
+		return attendanceCodeParamUnique{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r attendanceCodeQueryCodeString) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldCode
+}
+
+// base struct
+type attendanceCodeQueryExpiredAtDateTime struct{}
+
+// Set the required value of ExpiredAt
+func (r attendanceCodeQueryExpiredAtDateTime) Set(value DateTime) attendanceCodeWithPrismaExpiredAtSetParam {
+
+	return attendanceCodeWithPrismaExpiredAtSetParam{
+		data: builder.Field{
+			Name:  "expiredAt",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of ExpiredAt dynamically
+func (r attendanceCodeQueryExpiredAtDateTime) SetIfPresent(value *DateTime) attendanceCodeWithPrismaExpiredAtSetParam {
+	if value == nil {
+		return attendanceCodeWithPrismaExpiredAtSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Equals(value DateTime) attendanceCodeWithPrismaExpiredAtEqualsParam {
+
+	return attendanceCodeWithPrismaExpiredAtEqualsParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) EqualsIfPresent(value *DateTime) attendanceCodeWithPrismaExpiredAtEqualsParam {
+	if value == nil {
+		return attendanceCodeWithPrismaExpiredAtEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Order(direction SortOrder) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:  "expiredAt",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Cursor(cursor DateTime) attendanceCodeCursorParam {
+	return attendanceCodeCursorParam{
+		data: builder.Field{
+			Name:  "expiredAt",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) In(value []DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) InIfPresent(value []DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) NotIn(value []DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) NotInIfPresent(value []DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Lt(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) LtIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Lte(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) LteIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Gt(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) GtIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Gte(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) GteIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Not(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) NotIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceCodeQueryExpiredAtDateTime) Before(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceCodeQueryExpiredAtDateTime) BeforeIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Before(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceCodeQueryExpiredAtDateTime) After(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceCodeQueryExpiredAtDateTime) AfterIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.After(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceCodeQueryExpiredAtDateTime) BeforeEquals(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceCodeQueryExpiredAtDateTime) BeforeEqualsIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.BeforeEquals(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceCodeQueryExpiredAtDateTime) AfterEquals(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceCodeQueryExpiredAtDateTime) AfterEqualsIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.AfterEquals(*value)
+}
+
+func (r attendanceCodeQueryExpiredAtDateTime) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldExpiredAt
+}
+
+// base struct
+type attendanceCodeQueryCreatedAtDateTime struct{}
+
+// Set the required value of CreatedAt
+func (r attendanceCodeQueryCreatedAtDateTime) Set(value DateTime) attendanceCodeSetParam {
+
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of CreatedAt dynamically
+func (r attendanceCodeQueryCreatedAtDateTime) SetIfPresent(value *DateTime) attendanceCodeSetParam {
+	if value == nil {
+		return attendanceCodeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Equals(value DateTime) attendanceCodeWithPrismaCreatedAtEqualsParam {
+
+	return attendanceCodeWithPrismaCreatedAtEqualsParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) EqualsIfPresent(value *DateTime) attendanceCodeWithPrismaCreatedAtEqualsParam {
+	if value == nil {
+		return attendanceCodeWithPrismaCreatedAtEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Order(direction SortOrder) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Cursor(cursor DateTime) attendanceCodeCursorParam {
+	return attendanceCodeCursorParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) In(value []DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) InIfPresent(value []DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) NotIn(value []DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) NotInIfPresent(value []DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Lt(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) LtIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Lte(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) LteIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Gt(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) GtIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Gte(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) GteIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Not(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) NotIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceCodeQueryCreatedAtDateTime) Before(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceCodeQueryCreatedAtDateTime) BeforeIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.Before(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceCodeQueryCreatedAtDateTime) After(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceCodeQueryCreatedAtDateTime) AfterIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.After(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceCodeQueryCreatedAtDateTime) BeforeEquals(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceCodeQueryCreatedAtDateTime) BeforeEqualsIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.BeforeEquals(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceCodeQueryCreatedAtDateTime) AfterEquals(value DateTime) attendanceCodeDefaultParam {
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceCodeQueryCreatedAtDateTime) AfterEqualsIfPresent(value *DateTime) attendanceCodeDefaultParam {
+	if value == nil {
+		return attendanceCodeDefaultParam{}
+	}
+	return r.AfterEquals(*value)
+}
+
+func (r attendanceCodeQueryCreatedAtDateTime) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldCreatedAt
+}
+
+// base struct
+type attendanceCodeQueryScheduleSchedule struct{}
+
+type attendanceCodeQueryScheduleRelations struct{}
+
+// AttendanceCode -> Schedule
+//
+// @relation
+// @required
+func (attendanceCodeQueryScheduleRelations) Where(
+	params ...ScheduleWhereParam,
+) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "schedule",
+			Fields: []builder.Field{
+				{
+					Name:   "is",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (attendanceCodeQueryScheduleRelations) Fetch() attendanceCodeToScheduleFindUnique {
+	var v attendanceCodeToScheduleFindUnique
+
+	v.query.Operation = "query"
+	v.query.Method = "schedule"
+	v.query.Outputs = scheduleOutput
+
+	return v
+}
+
+func (r attendanceCodeQueryScheduleRelations) Link(
+	params ScheduleWhereParam,
+) attendanceCodeWithPrismaScheduleSetParam {
+	var fields []builder.Field
+
+	f := params.field()
+	if f.Fields == nil && f.Value == nil {
+		return attendanceCodeWithPrismaScheduleSetParam{}
+	}
+
+	fields = append(fields, f)
+
+	return attendanceCodeWithPrismaScheduleSetParam{
+		data: builder.Field{
+			Name: "schedule",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryScheduleRelations) Unlink() attendanceCodeWithPrismaScheduleSetParam {
+	var v attendanceCodeWithPrismaScheduleSetParam
+
+	v = attendanceCodeWithPrismaScheduleSetParam{
+		data: builder.Field{
+			Name: "schedule",
+			Fields: []builder.Field{
+				{
+					Name:  "disconnect",
+					Value: true,
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r attendanceCodeQueryScheduleSchedule) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldSchedule
+}
+
+// base struct
+type attendanceCodeQueryAttendancesAttendance struct{}
+
+type attendanceCodeQueryAttendancesRelations struct{}
+
+// AttendanceCode -> Attendances
+//
+// @relation
+// @required
+func (attendanceCodeQueryAttendancesRelations) Some(
+	params ...AttendanceWhereParam,
+) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "some",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// AttendanceCode -> Attendances
+//
+// @relation
+// @required
+func (attendanceCodeQueryAttendancesRelations) Every(
+	params ...AttendanceWhereParam,
+) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "every",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// AttendanceCode -> Attendances
+//
+// @relation
+// @required
+func (attendanceCodeQueryAttendancesRelations) None(
+	params ...AttendanceWhereParam,
+) attendanceCodeDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeDefaultParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "none",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (attendanceCodeQueryAttendancesRelations) Fetch(
+
+	params ...AttendanceWhereParam,
+
+) attendanceCodeToAttendancesFindMany {
+	var v attendanceCodeToAttendancesFindMany
+
+	v.query.Operation = "query"
+	v.query.Method = "attendances"
+	v.query.Outputs = attendanceOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r attendanceCodeQueryAttendancesRelations) Link(
+	params ...AttendanceWhereParam,
+) attendanceCodeSetParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+
+					List:     true,
+					WrapList: true,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceCodeQueryAttendancesRelations) Unlink(
+	params ...AttendanceWhereParam,
+) attendanceCodeSetParam {
+	var v attendanceCodeSetParam
+
+	var fields []builder.Field
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+	v = attendanceCodeSetParam{
+		data: builder.Field{
+			Name: "attendances",
+			Fields: []builder.Field{
+				{
+					Name:     "disconnect",
+					List:     true,
+					WrapList: true,
+					Fields:   builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r attendanceCodeQueryAttendancesAttendance) Field() attendanceCodePrismaFields {
+	return attendanceCodeFieldAttendances
+}
+
+// Attendance acts as a namespaces to access query methods for the Attendance model
+var Attendance = attendanceQuery{}
+
+// attendanceQuery exposes query functions for the attendance model
+type attendanceQuery struct {
+
+	// ID
+	//
+	// @required
+	ID attendanceQueryIDInt
+
+	// CodeID
+	//
+	// @required
+	CodeID attendanceQueryCodeIDInt
+
+	// UserID
+	//
+	// @required
+	UserID attendanceQueryUserIDString
+
+	// Status
+	//
+	// @required
+	Status attendanceQueryStatusAttendanceStatus
+
+	// CreatedAt
+	//
+	// @required
+	CreatedAt attendanceQueryCreatedAtDateTime
+
+	Code attendanceQueryCodeRelations
+
+	User attendanceQueryUserRelations
+}
+
+func (attendanceQuery) Not(params ...AttendanceWhereParam) attendanceDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:     "NOT",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (attendanceQuery) Or(params ...AttendanceWhereParam) attendanceDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:     "OR",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (attendanceQuery) And(params ...AttendanceWhereParam) attendanceDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:     "AND",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (attendanceQuery) CodeIDUserID(
+	_codeID AttendanceWithPrismaCodeIDWhereParam,
+
+	_userID AttendanceWithPrismaUserIDWhereParam,
+) AttendanceEqualsUniqueWhereParam {
+	var fields []builder.Field
+
+	fields = append(fields, _codeID.field())
+	fields = append(fields, _userID.field())
+
+	return attendanceEqualsUniqueParam{
+		data: builder.Field{
+			Name:   "codeId_userId",
+			Fields: builder.TransformEquals(fields),
+		},
+	}
+}
+
+// base struct
+type attendanceQueryIDInt struct{}
+
+// Set the required value of ID
+func (r attendanceQueryIDInt) Set(value int) attendanceSetParam {
+
+	return attendanceSetParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of ID dynamically
+func (r attendanceQueryIDInt) SetIfPresent(value *Int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the required value of ID
+func (r attendanceQueryIDInt) Increment(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) IncrementIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the required value of ID
+func (r attendanceQueryIDInt) Decrement(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) DecrementIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the required value of ID
+func (r attendanceQueryIDInt) Multiply(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) MultiplyIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the required value of ID
+func (r attendanceQueryIDInt) Divide(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) DivideIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r attendanceQueryIDInt) Equals(value int) attendanceWithPrismaIDEqualsUniqueParam {
+
+	return attendanceWithPrismaIDEqualsUniqueParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) EqualsIfPresent(value *int) attendanceWithPrismaIDEqualsUniqueParam {
+	if value == nil {
+		return attendanceWithPrismaIDEqualsUniqueParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceQueryIDInt) Order(direction SortOrder) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) Cursor(cursor int) attendanceCursorParam {
+	return attendanceCursorParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) In(value []int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) InIfPresent(value []int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceQueryIDInt) NotIn(value []int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) NotInIfPresent(value []int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceQueryIDInt) Lt(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) LtIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceQueryIDInt) Lte(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) LteIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceQueryIDInt) Gt(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) GtIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceQueryIDInt) Gte(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) GteIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceQueryIDInt) Not(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryIDInt) NotIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceQueryIDInt) LT(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceQueryIDInt) LTIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceQueryIDInt) LTE(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceQueryIDInt) LTEIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceQueryIDInt) GT(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceQueryIDInt) GTIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceQueryIDInt) GTE(value int) attendanceParamUnique {
+	return attendanceParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceQueryIDInt) GTEIfPresent(value *int) attendanceParamUnique {
+	if value == nil {
+		return attendanceParamUnique{}
+	}
+	return r.GTE(*value)
+}
+
+func (r attendanceQueryIDInt) Field() attendancePrismaFields {
+	return attendanceFieldID
+}
+
+// base struct
+type attendanceQueryCodeIDInt struct{}
+
+// Set the required value of CodeID
+func (r attendanceQueryCodeIDInt) Set(value int) attendanceSetParam {
+
+	return attendanceSetParam{
+		data: builder.Field{
+			Name:  "codeId",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of CodeID dynamically
+func (r attendanceQueryCodeIDInt) SetIfPresent(value *Int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the required value of CodeID
+func (r attendanceQueryCodeIDInt) Increment(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) IncrementIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the required value of CodeID
+func (r attendanceQueryCodeIDInt) Decrement(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) DecrementIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the required value of CodeID
+func (r attendanceQueryCodeIDInt) Multiply(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) MultiplyIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the required value of CodeID
+func (r attendanceQueryCodeIDInt) Divide(value int) attendanceSetParam {
+	return attendanceSetParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) DivideIfPresent(value *int) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Equals(value int) attendanceWithPrismaCodeIDEqualsParam {
+
+	return attendanceWithPrismaCodeIDEqualsParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) EqualsIfPresent(value *int) attendanceWithPrismaCodeIDEqualsParam {
+	if value == nil {
+		return attendanceWithPrismaCodeIDEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Order(direction SortOrder) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:  "codeId",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) Cursor(cursor int) attendanceCursorParam {
+	return attendanceCursorParam{
+		data: builder.Field{
+			Name:  "codeId",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) In(value []int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) InIfPresent(value []int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceQueryCodeIDInt) NotIn(value []int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) NotInIfPresent(value []int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceQueryCodeIDInt) Lt(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) LtIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Lte(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) LteIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Gt(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) GtIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Gte(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) GteIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Not(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeIDInt) NotIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceQueryCodeIDInt) LT(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceQueryCodeIDInt) LTIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceQueryCodeIDInt) LTE(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceQueryCodeIDInt) LTEIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceQueryCodeIDInt) GT(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceQueryCodeIDInt) GTIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceQueryCodeIDInt) GTE(value int) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "codeId",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceQueryCodeIDInt) GTEIfPresent(value *int) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.GTE(*value)
+}
+
+func (r attendanceQueryCodeIDInt) Field() attendancePrismaFields {
+	return attendanceFieldCodeID
+}
+
+// base struct
+type attendanceQueryUserIDString struct{}
+
+// Set the required value of UserID
+func (r attendanceQueryUserIDString) Set(value string) attendanceSetParam {
+
+	return attendanceSetParam{
+		data: builder.Field{
+			Name:  "userId",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of UserID dynamically
+func (r attendanceQueryUserIDString) SetIfPresent(value *String) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r attendanceQueryUserIDString) Equals(value string) attendanceWithPrismaUserIDEqualsParam {
+
+	return attendanceWithPrismaUserIDEqualsParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) EqualsIfPresent(value *string) attendanceWithPrismaUserIDEqualsParam {
+	if value == nil {
+		return attendanceWithPrismaUserIDEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceQueryUserIDString) Order(direction SortOrder) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:  "userId",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) Cursor(cursor string) attendanceCursorParam {
+	return attendanceCursorParam{
+		data: builder.Field{
+			Name:  "userId",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) In(value []string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) InIfPresent(value []string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceQueryUserIDString) NotIn(value []string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) NotInIfPresent(value []string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceQueryUserIDString) Lt(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) LtIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceQueryUserIDString) Lte(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) LteIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceQueryUserIDString) Gt(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) GtIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceQueryUserIDString) Gte(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) GteIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceQueryUserIDString) Contains(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) ContainsIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Contains(*value)
+}
+
+func (r attendanceQueryUserIDString) StartsWith(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) StartsWithIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r attendanceQueryUserIDString) EndsWith(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) EndsWithIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r attendanceQueryUserIDString) Mode(value QueryMode) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) ModeIfPresent(value *QueryMode) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Mode(*value)
+}
+
+func (r attendanceQueryUserIDString) Not(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserIDString) NotIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r attendanceQueryUserIDString) HasPrefix(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r attendanceQueryUserIDString) HasPrefixIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r attendanceQueryUserIDString) HasSuffix(value string) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r attendanceQueryUserIDString) HasSuffixIfPresent(value *string) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r attendanceQueryUserIDString) Field() attendancePrismaFields {
+	return attendanceFieldUserID
+}
+
+// base struct
+type attendanceQueryStatusAttendanceStatus struct{}
+
+// Set the required value of Status
+func (r attendanceQueryStatusAttendanceStatus) Set(value AttendanceStatus) attendanceSetParam {
+
+	return attendanceSetParam{
+		data: builder.Field{
+			Name:  "status",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Status dynamically
+func (r attendanceQueryStatusAttendanceStatus) SetIfPresent(value *AttendanceStatus) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r attendanceQueryStatusAttendanceStatus) Equals(value AttendanceStatus) attendanceWithPrismaStatusEqualsParam {
+
+	return attendanceWithPrismaStatusEqualsParam{
+		data: builder.Field{
+			Name: "status",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryStatusAttendanceStatus) EqualsIfPresent(value *AttendanceStatus) attendanceWithPrismaStatusEqualsParam {
+	if value == nil {
+		return attendanceWithPrismaStatusEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceQueryStatusAttendanceStatus) Order(direction SortOrder) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:  "status",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceQueryStatusAttendanceStatus) Cursor(cursor AttendanceStatus) attendanceCursorParam {
+	return attendanceCursorParam{
+		data: builder.Field{
+			Name:  "status",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceQueryStatusAttendanceStatus) In(value []AttendanceStatus) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "status",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryStatusAttendanceStatus) InIfPresent(value []AttendanceStatus) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceQueryStatusAttendanceStatus) NotIn(value []AttendanceStatus) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "status",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryStatusAttendanceStatus) NotInIfPresent(value []AttendanceStatus) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceQueryStatusAttendanceStatus) Not(value AttendanceStatus) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "status",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryStatusAttendanceStatus) NotIfPresent(value *AttendanceStatus) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+func (r attendanceQueryStatusAttendanceStatus) Field() attendancePrismaFields {
+	return attendanceFieldStatus
+}
+
+// base struct
+type attendanceQueryCreatedAtDateTime struct{}
+
+// Set the required value of CreatedAt
+func (r attendanceQueryCreatedAtDateTime) Set(value DateTime) attendanceSetParam {
+
+	return attendanceSetParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of CreatedAt dynamically
+func (r attendanceQueryCreatedAtDateTime) SetIfPresent(value *DateTime) attendanceSetParam {
+	if value == nil {
+		return attendanceSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Equals(value DateTime) attendanceWithPrismaCreatedAtEqualsParam {
+
+	return attendanceWithPrismaCreatedAtEqualsParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) EqualsIfPresent(value *DateTime) attendanceWithPrismaCreatedAtEqualsParam {
+	if value == nil {
+		return attendanceWithPrismaCreatedAtEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Order(direction SortOrder) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: direction,
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) Cursor(cursor DateTime) attendanceCursorParam {
+	return attendanceCursorParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: cursor,
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) In(value []DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) InIfPresent(value []DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) NotIn(value []DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) NotInIfPresent(value []DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Lt(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) LtIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Lte(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) LteIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Gt(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) GtIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Gte(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) GteIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Not(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCreatedAtDateTime) NotIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r attendanceQueryCreatedAtDateTime) Before(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r attendanceQueryCreatedAtDateTime) BeforeIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.Before(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r attendanceQueryCreatedAtDateTime) After(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r attendanceQueryCreatedAtDateTime) AfterIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.After(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r attendanceQueryCreatedAtDateTime) BeforeEquals(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r attendanceQueryCreatedAtDateTime) BeforeEqualsIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.BeforeEquals(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r attendanceQueryCreatedAtDateTime) AfterEquals(value DateTime) attendanceDefaultParam {
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r attendanceQueryCreatedAtDateTime) AfterEqualsIfPresent(value *DateTime) attendanceDefaultParam {
+	if value == nil {
+		return attendanceDefaultParam{}
+	}
+	return r.AfterEquals(*value)
+}
+
+func (r attendanceQueryCreatedAtDateTime) Field() attendancePrismaFields {
+	return attendanceFieldCreatedAt
+}
+
+// base struct
+type attendanceQueryCodeAttendanceCode struct{}
+
+type attendanceQueryCodeRelations struct{}
+
+// Attendance -> Code
+//
+// @relation
+// @required
+func (attendanceQueryCodeRelations) Where(
+	params ...AttendanceCodeWhereParam,
+) attendanceDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:   "is",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (attendanceQueryCodeRelations) Fetch() attendanceToCodeFindUnique {
+	var v attendanceToCodeFindUnique
+
+	v.query.Operation = "query"
+	v.query.Method = "code"
+	v.query.Outputs = attendanceCodeOutput
+
+	return v
+}
+
+func (r attendanceQueryCodeRelations) Link(
+	params AttendanceCodeWhereParam,
+) attendanceWithPrismaCodeSetParam {
+	var fields []builder.Field
+
+	f := params.field()
+	if f.Fields == nil && f.Value == nil {
+		return attendanceWithPrismaCodeSetParam{}
+	}
+
+	fields = append(fields, f)
+
+	return attendanceWithPrismaCodeSetParam{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryCodeRelations) Unlink() attendanceWithPrismaCodeSetParam {
+	var v attendanceWithPrismaCodeSetParam
+
+	v = attendanceWithPrismaCodeSetParam{
+		data: builder.Field{
+			Name: "code",
+			Fields: []builder.Field{
+				{
+					Name:  "disconnect",
+					Value: true,
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r attendanceQueryCodeAttendanceCode) Field() attendancePrismaFields {
+	return attendanceFieldCode
+}
+
+// base struct
+type attendanceQueryUserUser struct{}
+
+type attendanceQueryUserRelations struct{}
+
+// Attendance -> User
+//
+// @relation
+// @required
+func (attendanceQueryUserRelations) Where(
+	params ...UserWhereParam,
+) attendanceDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return attendanceDefaultParam{
+		data: builder.Field{
+			Name: "user",
+			Fields: []builder.Field{
+				{
+					Name:   "is",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (attendanceQueryUserRelations) Fetch() attendanceToUserFindUnique {
+	var v attendanceToUserFindUnique
+
+	v.query.Operation = "query"
+	v.query.Method = "user"
+	v.query.Outputs = userOutput
+
+	return v
+}
+
+func (r attendanceQueryUserRelations) Link(
+	params UserWhereParam,
+) attendanceWithPrismaUserSetParam {
+	var fields []builder.Field
+
+	f := params.field()
+	if f.Fields == nil && f.Value == nil {
+		return attendanceWithPrismaUserSetParam{}
+	}
+
+	fields = append(fields, f)
+
+	return attendanceWithPrismaUserSetParam{
+		data: builder.Field{
+			Name: "user",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+}
+
+func (r attendanceQueryUserRelations) Unlink() attendanceWithPrismaUserSetParam {
+	var v attendanceWithPrismaUserSetParam
+
+	v = attendanceWithPrismaUserSetParam{
+		data: builder.Field{
+			Name: "user",
+			Fields: []builder.Field{
+				{
+					Name:  "disconnect",
+					Value: true,
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r attendanceQueryUserUser) Field() attendancePrismaFields {
+	return attendanceFieldUser
+}
+
 // --- template actions.gotpl ---
 var countOutput = []builder.Output{
 	{Name: "count"},
@@ -21467,6 +26095,162 @@ func (p userWithPrismaMemberGroupsEqualsUniqueParam) memberGroupsField() {}
 func (userWithPrismaMemberGroupsEqualsUniqueParam) unique() {}
 func (userWithPrismaMemberGroupsEqualsUniqueParam) equals() {}
 
+type UserWithPrismaAttendancesEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	attendancesField()
+}
+
+type UserWithPrismaAttendancesSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	attendancesField()
+}
+
+type userWithPrismaAttendancesSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAttendancesSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAttendancesSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAttendancesSetParam) userModel() {}
+
+func (p userWithPrismaAttendancesSetParam) attendancesField() {}
+
+type UserWithPrismaAttendancesWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	attendancesField()
+}
+
+type userWithPrismaAttendancesEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAttendancesEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAttendancesEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAttendancesEqualsParam) userModel() {}
+
+func (p userWithPrismaAttendancesEqualsParam) attendancesField() {}
+
+func (userWithPrismaAttendancesSetParam) settable()  {}
+func (userWithPrismaAttendancesEqualsParam) equals() {}
+
+type userWithPrismaAttendancesEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAttendancesEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAttendancesEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAttendancesEqualsUniqueParam) userModel()        {}
+func (p userWithPrismaAttendancesEqualsUniqueParam) attendancesField() {}
+
+func (userWithPrismaAttendancesEqualsUniqueParam) unique() {}
+func (userWithPrismaAttendancesEqualsUniqueParam) equals() {}
+
+type UserWithPrismaAssistantSchedulesEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	assistantSchedulesField()
+}
+
+type UserWithPrismaAssistantSchedulesSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	assistantSchedulesField()
+}
+
+type userWithPrismaAssistantSchedulesSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAssistantSchedulesSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAssistantSchedulesSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAssistantSchedulesSetParam) userModel() {}
+
+func (p userWithPrismaAssistantSchedulesSetParam) assistantSchedulesField() {}
+
+type UserWithPrismaAssistantSchedulesWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	assistantSchedulesField()
+}
+
+type userWithPrismaAssistantSchedulesEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAssistantSchedulesEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAssistantSchedulesEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAssistantSchedulesEqualsParam) userModel() {}
+
+func (p userWithPrismaAssistantSchedulesEqualsParam) assistantSchedulesField() {}
+
+func (userWithPrismaAssistantSchedulesSetParam) settable()  {}
+func (userWithPrismaAssistantSchedulesEqualsParam) equals() {}
+
+type userWithPrismaAssistantSchedulesEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) userModel()               {}
+func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) assistantSchedulesField() {}
+
+func (userWithPrismaAssistantSchedulesEqualsUniqueParam) unique() {}
+func (userWithPrismaAssistantSchedulesEqualsUniqueParam) equals() {}
+
 type UserWithPrismaGradedGradesEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
@@ -21622,84 +26406,6 @@ func (p userWithPrismaUserGradesEqualsUniqueParam) userGradesField() {}
 
 func (userWithPrismaUserGradesEqualsUniqueParam) unique() {}
 func (userWithPrismaUserGradesEqualsUniqueParam) equals() {}
-
-type UserWithPrismaAssistantSchedulesEqualsSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	equals()
-	userModel()
-	assistantSchedulesField()
-}
-
-type UserWithPrismaAssistantSchedulesSetParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	userModel()
-	assistantSchedulesField()
-}
-
-type userWithPrismaAssistantSchedulesSetParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p userWithPrismaAssistantSchedulesSetParam) field() builder.Field {
-	return p.data
-}
-
-func (p userWithPrismaAssistantSchedulesSetParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p userWithPrismaAssistantSchedulesSetParam) userModel() {}
-
-func (p userWithPrismaAssistantSchedulesSetParam) assistantSchedulesField() {}
-
-type UserWithPrismaAssistantSchedulesWhereParam interface {
-	field() builder.Field
-	getQuery() builder.Query
-	userModel()
-	assistantSchedulesField()
-}
-
-type userWithPrismaAssistantSchedulesEqualsParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p userWithPrismaAssistantSchedulesEqualsParam) field() builder.Field {
-	return p.data
-}
-
-func (p userWithPrismaAssistantSchedulesEqualsParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p userWithPrismaAssistantSchedulesEqualsParam) userModel() {}
-
-func (p userWithPrismaAssistantSchedulesEqualsParam) assistantSchedulesField() {}
-
-func (userWithPrismaAssistantSchedulesSetParam) settable()  {}
-func (userWithPrismaAssistantSchedulesEqualsParam) equals() {}
-
-type userWithPrismaAssistantSchedulesEqualsUniqueParam struct {
-	data  builder.Field
-	query builder.Query
-}
-
-func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) field() builder.Field {
-	return p.data
-}
-
-func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) getQuery() builder.Query {
-	return p.query
-}
-
-func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) userModel()               {}
-func (p userWithPrismaAssistantSchedulesEqualsUniqueParam) assistantSchedulesField() {}
-
-func (userWithPrismaAssistantSchedulesEqualsUniqueParam) unique() {}
-func (userWithPrismaAssistantSchedulesEqualsUniqueParam) equals() {}
 
 type UserWithPrismaAnnouncementsEqualsSetParam interface {
 	field() builder.Field
@@ -23086,7 +27792,7 @@ func (p scheduleSetParam) assistantField() {
 	panic("implement me")
 }
 
-func (p scheduleSetParam) practicumField() {
+func (p scheduleSetParam) groupField() {
 	//TODO implement me
 	panic("implement me")
 }
@@ -23096,7 +27802,7 @@ func (p scheduleSetParam) getQuery() builder.Query {
 	panic("implement me")
 }
 
-func (p scheduleSetParam) groupField() {
+func (p scheduleSetParam) practicumField() {
 	//TODO implement me
 	panic("implement me")
 }
@@ -23888,6 +28594,84 @@ func (p scheduleWithPrismaAssistantEqualsUniqueParam) assistantField() {}
 
 func (scheduleWithPrismaAssistantEqualsUniqueParam) unique() {}
 func (scheduleWithPrismaAssistantEqualsUniqueParam) equals() {}
+
+type ScheduleWithPrismaAttendanceCodesEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	scheduleModel()
+	attendanceCodesField()
+}
+
+type ScheduleWithPrismaAttendanceCodesSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	scheduleModel()
+	attendanceCodesField()
+}
+
+type scheduleWithPrismaAttendanceCodesSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p scheduleWithPrismaAttendanceCodesSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p scheduleWithPrismaAttendanceCodesSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p scheduleWithPrismaAttendanceCodesSetParam) scheduleModel() {}
+
+func (p scheduleWithPrismaAttendanceCodesSetParam) attendanceCodesField() {}
+
+type ScheduleWithPrismaAttendanceCodesWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	scheduleModel()
+	attendanceCodesField()
+}
+
+type scheduleWithPrismaAttendanceCodesEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsParam) scheduleModel() {}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsParam) attendanceCodesField() {}
+
+func (scheduleWithPrismaAttendanceCodesSetParam) settable()  {}
+func (scheduleWithPrismaAttendanceCodesEqualsParam) equals() {}
+
+type scheduleWithPrismaAttendanceCodesEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p scheduleWithPrismaAttendanceCodesEqualsUniqueParam) scheduleModel()        {}
+func (p scheduleWithPrismaAttendanceCodesEqualsUniqueParam) attendanceCodesField() {}
+
+func (scheduleWithPrismaAttendanceCodesEqualsUniqueParam) unique() {}
+func (scheduleWithPrismaAttendanceCodesEqualsUniqueParam) equals() {}
 
 type ScheduleWithPrismaGradesEqualsSetParam interface {
 	field() builder.Field
@@ -26282,6 +31066,1467 @@ func (p announcementWithPrismaAuthorEqualsUniqueParam) authorField()       {}
 func (announcementWithPrismaAuthorEqualsUniqueParam) unique() {}
 func (announcementWithPrismaAuthorEqualsUniqueParam) equals() {}
 
+type attendanceCodeActions struct {
+	// client holds the prisma client
+	client *PrismaClient
+}
+
+var attendanceCodeOutput = []builder.Output{
+	{Name: "id"},
+	{Name: "scheduleId"},
+	{Name: "code"},
+	{Name: "expiredAt"},
+	{Name: "createdAt"},
+}
+
+type AttendanceCodeRelationWith interface {
+	getQuery() builder.Query
+	with()
+	attendanceCodeRelation()
+}
+
+type AttendanceCodeWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+}
+
+type attendanceCodeDefaultParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeDefaultParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeDefaultParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeDefaultParam) attendanceCodeModel() {}
+
+type AttendanceCodeOrderByParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+}
+
+type attendanceCodeOrderByParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeOrderByParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeOrderByParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeOrderByParam) attendanceCodeModel() {}
+
+type AttendanceCodeCursorParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	isCursor()
+}
+
+type attendanceCodeCursorParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeCursorParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeCursorParam) isCursor() {}
+
+func (p attendanceCodeCursorParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeCursorParam) attendanceCodeModel() {}
+
+type AttendanceCodeParamUnique interface {
+	field() builder.Field
+	getQuery() builder.Query
+	unique()
+	attendanceCodeModel()
+}
+
+type attendanceCodeParamUnique struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeParamUnique) attendanceCodeModel() {}
+
+func (attendanceCodeParamUnique) unique() {}
+
+func (p attendanceCodeParamUnique) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeParamUnique) getQuery() builder.Query {
+	return p.query
+}
+
+type AttendanceCodeEqualsWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+}
+
+type attendanceCodeEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeEqualsParam) attendanceCodeModel() {}
+
+func (attendanceCodeEqualsParam) equals() {}
+
+func (p attendanceCodeEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+type AttendanceCodeEqualsUniqueWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	unique()
+	attendanceCodeModel()
+}
+
+type attendanceCodeEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeEqualsUniqueParam) attendanceCodeModel() {}
+
+func (attendanceCodeEqualsUniqueParam) unique() {}
+func (attendanceCodeEqualsUniqueParam) equals() {}
+
+func (p attendanceCodeEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+type AttendanceCodeSetParam interface {
+	field() builder.Field
+	settable()
+	attendanceCodeModel()
+}
+
+type attendanceCodeSetParam struct {
+	data builder.Field
+}
+
+func (attendanceCodeSetParam) settable() {}
+
+func (p attendanceCodeSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeSetParam) attendanceCodeModel() {}
+
+type AttendanceCodeWithPrismaIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	idField()
+}
+
+type AttendanceCodeWithPrismaIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	idField()
+}
+
+type attendanceCodeWithPrismaIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaIDSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaIDSetParam) idField() {}
+
+type AttendanceCodeWithPrismaIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	idField()
+}
+
+type attendanceCodeWithPrismaIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaIDEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaIDEqualsParam) idField() {}
+
+func (attendanceCodeWithPrismaIDSetParam) settable()  {}
+func (attendanceCodeWithPrismaIDEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaIDEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaIDEqualsUniqueParam) idField()             {}
+
+func (attendanceCodeWithPrismaIDEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaIDEqualsUniqueParam) equals() {}
+
+type AttendanceCodeWithPrismaScheduleIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	scheduleIDField()
+}
+
+type AttendanceCodeWithPrismaScheduleIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	scheduleIDField()
+}
+
+type attendanceCodeWithPrismaScheduleIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaScheduleIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaScheduleIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaScheduleIDSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaScheduleIDSetParam) scheduleIDField() {}
+
+type AttendanceCodeWithPrismaScheduleIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	scheduleIDField()
+}
+
+type attendanceCodeWithPrismaScheduleIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsParam) scheduleIDField() {}
+
+func (attendanceCodeWithPrismaScheduleIDSetParam) settable()  {}
+func (attendanceCodeWithPrismaScheduleIDEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaScheduleIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaScheduleIDEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaScheduleIDEqualsUniqueParam) scheduleIDField()     {}
+
+func (attendanceCodeWithPrismaScheduleIDEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaScheduleIDEqualsUniqueParam) equals() {}
+
+type AttendanceCodeWithPrismaCodeEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	codeField()
+}
+
+type AttendanceCodeWithPrismaCodeSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	codeField()
+}
+
+type attendanceCodeWithPrismaCodeSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaCodeSetParam) expiredAtField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p attendanceCodeWithPrismaCodeSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaCodeSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaCodeSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaCodeSetParam) codeField() {}
+
+type AttendanceCodeWithPrismaCodeWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	codeField()
+}
+
+type attendanceCodeWithPrismaCodeEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaCodeEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaCodeEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaCodeEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaCodeEqualsParam) codeField() {}
+
+func (attendanceCodeWithPrismaCodeSetParam) settable()  {}
+func (attendanceCodeWithPrismaCodeEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaCodeEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaCodeEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaCodeEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaCodeEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaCodeEqualsUniqueParam) codeField()           {}
+
+func (attendanceCodeWithPrismaCodeEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaCodeEqualsUniqueParam) equals() {}
+
+type AttendanceCodeWithPrismaExpiredAtEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	expiredAtField()
+}
+
+type AttendanceCodeWithPrismaExpiredAtSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	expiredAtField()
+}
+
+type attendanceCodeWithPrismaExpiredAtSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaExpiredAtSetParam) scheduleField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p attendanceCodeWithPrismaExpiredAtSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaExpiredAtSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaExpiredAtSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaExpiredAtSetParam) expiredAtField() {}
+
+type AttendanceCodeWithPrismaExpiredAtWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	expiredAtField()
+}
+
+type attendanceCodeWithPrismaExpiredAtEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsParam) expiredAtField() {}
+
+func (attendanceCodeWithPrismaExpiredAtSetParam) settable()  {}
+func (attendanceCodeWithPrismaExpiredAtEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaExpiredAtEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaExpiredAtEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaExpiredAtEqualsUniqueParam) expiredAtField()      {}
+
+func (attendanceCodeWithPrismaExpiredAtEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaExpiredAtEqualsUniqueParam) equals() {}
+
+type AttendanceCodeWithPrismaCreatedAtEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	createdAtField()
+}
+
+type AttendanceCodeWithPrismaCreatedAtSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	createdAtField()
+}
+
+type attendanceCodeWithPrismaCreatedAtSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaCreatedAtSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaCreatedAtSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaCreatedAtSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaCreatedAtSetParam) createdAtField() {}
+
+type AttendanceCodeWithPrismaCreatedAtWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	createdAtField()
+}
+
+type attendanceCodeWithPrismaCreatedAtEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsParam) createdAtField() {}
+
+func (attendanceCodeWithPrismaCreatedAtSetParam) settable()  {}
+func (attendanceCodeWithPrismaCreatedAtEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaCreatedAtEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaCreatedAtEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaCreatedAtEqualsUniqueParam) createdAtField()      {}
+
+func (attendanceCodeWithPrismaCreatedAtEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaCreatedAtEqualsUniqueParam) equals() {}
+
+type AttendanceCodeWithPrismaScheduleEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	scheduleField()
+}
+
+type AttendanceCodeWithPrismaScheduleSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	scheduleField()
+}
+
+type attendanceCodeWithPrismaScheduleSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaScheduleSetParam) codeField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p attendanceCodeWithPrismaScheduleSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaScheduleSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaScheduleSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaScheduleSetParam) scheduleField() {}
+
+type AttendanceCodeWithPrismaScheduleWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	scheduleField()
+}
+
+type attendanceCodeWithPrismaScheduleEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaScheduleEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaScheduleEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaScheduleEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaScheduleEqualsParam) scheduleField() {}
+
+func (attendanceCodeWithPrismaScheduleSetParam) settable()  {}
+func (attendanceCodeWithPrismaScheduleEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaScheduleEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaScheduleEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaScheduleEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaScheduleEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaScheduleEqualsUniqueParam) scheduleField()       {}
+
+func (attendanceCodeWithPrismaScheduleEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaScheduleEqualsUniqueParam) equals() {}
+
+type AttendanceCodeWithPrismaAttendancesEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceCodeModel()
+	attendancesField()
+}
+
+type AttendanceCodeWithPrismaAttendancesSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	attendancesField()
+}
+
+type attendanceCodeWithPrismaAttendancesSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaAttendancesSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaAttendancesSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaAttendancesSetParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaAttendancesSetParam) attendancesField() {}
+
+type AttendanceCodeWithPrismaAttendancesWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceCodeModel()
+	attendancesField()
+}
+
+type attendanceCodeWithPrismaAttendancesEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsParam) attendanceCodeModel() {}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsParam) attendancesField() {}
+
+func (attendanceCodeWithPrismaAttendancesSetParam) settable()  {}
+func (attendanceCodeWithPrismaAttendancesEqualsParam) equals() {}
+
+type attendanceCodeWithPrismaAttendancesEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeWithPrismaAttendancesEqualsUniqueParam) attendanceCodeModel() {}
+func (p attendanceCodeWithPrismaAttendancesEqualsUniqueParam) attendancesField()    {}
+
+func (attendanceCodeWithPrismaAttendancesEqualsUniqueParam) unique() {}
+func (attendanceCodeWithPrismaAttendancesEqualsUniqueParam) equals() {}
+
+type attendanceActions struct {
+	// client holds the prisma client
+	client *PrismaClient
+}
+
+var attendanceOutput = []builder.Output{
+	{Name: "id"},
+	{Name: "codeId"},
+	{Name: "userId"},
+	{Name: "status"},
+	{Name: "createdAt"},
+}
+
+type AttendanceRelationWith interface {
+	getQuery() builder.Query
+	with()
+	attendanceRelation()
+}
+
+type AttendanceWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+}
+
+type attendanceDefaultParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceDefaultParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceDefaultParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceDefaultParam) attendanceModel() {}
+
+type AttendanceOrderByParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+}
+
+type attendanceOrderByParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceOrderByParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceOrderByParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceOrderByParam) attendanceModel() {}
+
+type AttendanceCursorParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	isCursor()
+}
+
+type attendanceCursorParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceCursorParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceCursorParam) isCursor() {}
+
+func (p attendanceCursorParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCursorParam) attendanceModel() {}
+
+type AttendanceParamUnique interface {
+	field() builder.Field
+	getQuery() builder.Query
+	unique()
+	attendanceModel()
+}
+
+type attendanceParamUnique struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceParamUnique) attendanceModel() {}
+
+func (attendanceParamUnique) unique() {}
+
+func (p attendanceParamUnique) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceParamUnique) getQuery() builder.Query {
+	return p.query
+}
+
+type AttendanceEqualsWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+}
+
+type attendanceEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceEqualsParam) attendanceModel() {}
+
+func (attendanceEqualsParam) equals() {}
+
+func (p attendanceEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+type AttendanceEqualsUniqueWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	unique()
+	attendanceModel()
+}
+
+type attendanceEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceEqualsUniqueParam) attendanceModel() {}
+
+func (attendanceEqualsUniqueParam) unique() {}
+func (attendanceEqualsUniqueParam) equals() {}
+
+func (p attendanceEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+type AttendanceSetParam interface {
+	field() builder.Field
+	settable()
+	attendanceModel()
+}
+
+type attendanceSetParam struct {
+	data builder.Field
+}
+
+func (attendanceSetParam) settable() {}
+
+func (p attendanceSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceSetParam) attendanceModel() {}
+
+type AttendanceWithPrismaIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	idField()
+}
+
+type AttendanceWithPrismaIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	idField()
+}
+
+type attendanceWithPrismaIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaIDSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaIDSetParam) idField() {}
+
+type AttendanceWithPrismaIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	idField()
+}
+
+type attendanceWithPrismaIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaIDEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaIDEqualsParam) idField() {}
+
+func (attendanceWithPrismaIDSetParam) settable()  {}
+func (attendanceWithPrismaIDEqualsParam) equals() {}
+
+type attendanceWithPrismaIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaIDEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaIDEqualsUniqueParam) idField()         {}
+
+func (attendanceWithPrismaIDEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaIDEqualsUniqueParam) equals() {}
+
+type AttendanceWithPrismaCodeIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	codeIDField()
+}
+
+type AttendanceWithPrismaCodeIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	codeIDField()
+}
+
+type attendanceWithPrismaCodeIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCodeIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCodeIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCodeIDSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaCodeIDSetParam) codeIDField() {}
+
+type AttendanceWithPrismaCodeIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	codeIDField()
+}
+
+type attendanceWithPrismaCodeIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCodeIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCodeIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCodeIDEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaCodeIDEqualsParam) codeIDField() {}
+
+func (attendanceWithPrismaCodeIDSetParam) settable()  {}
+func (attendanceWithPrismaCodeIDEqualsParam) equals() {}
+
+type attendanceWithPrismaCodeIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCodeIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCodeIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCodeIDEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaCodeIDEqualsUniqueParam) codeIDField()     {}
+
+func (attendanceWithPrismaCodeIDEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaCodeIDEqualsUniqueParam) equals() {}
+
+type AttendanceWithPrismaUserIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	userIDField()
+}
+
+type AttendanceWithPrismaUserIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	userIDField()
+}
+
+type attendanceWithPrismaUserIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaUserIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaUserIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaUserIDSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaUserIDSetParam) userIDField() {}
+
+type AttendanceWithPrismaUserIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	userIDField()
+}
+
+type attendanceWithPrismaUserIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaUserIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaUserIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaUserIDEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaUserIDEqualsParam) userIDField() {}
+
+func (attendanceWithPrismaUserIDSetParam) settable()  {}
+func (attendanceWithPrismaUserIDEqualsParam) equals() {}
+
+type attendanceWithPrismaUserIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaUserIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaUserIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaUserIDEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaUserIDEqualsUniqueParam) userIDField()     {}
+
+func (attendanceWithPrismaUserIDEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaUserIDEqualsUniqueParam) equals() {}
+
+type AttendanceWithPrismaStatusEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	statusField()
+}
+
+type AttendanceWithPrismaStatusSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	statusField()
+}
+
+type attendanceWithPrismaStatusSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaStatusSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaStatusSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaStatusSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaStatusSetParam) statusField() {}
+
+type AttendanceWithPrismaStatusWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	statusField()
+}
+
+type attendanceWithPrismaStatusEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaStatusEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaStatusEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaStatusEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaStatusEqualsParam) statusField() {}
+
+func (attendanceWithPrismaStatusSetParam) settable()  {}
+func (attendanceWithPrismaStatusEqualsParam) equals() {}
+
+type attendanceWithPrismaStatusEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaStatusEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaStatusEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaStatusEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaStatusEqualsUniqueParam) statusField()     {}
+
+func (attendanceWithPrismaStatusEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaStatusEqualsUniqueParam) equals() {}
+
+type AttendanceWithPrismaCreatedAtEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	createdAtField()
+}
+
+type AttendanceWithPrismaCreatedAtSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	createdAtField()
+}
+
+type attendanceWithPrismaCreatedAtSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCreatedAtSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCreatedAtSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCreatedAtSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaCreatedAtSetParam) createdAtField() {}
+
+type AttendanceWithPrismaCreatedAtWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	createdAtField()
+}
+
+type attendanceWithPrismaCreatedAtEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCreatedAtEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCreatedAtEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCreatedAtEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaCreatedAtEqualsParam) createdAtField() {}
+
+func (attendanceWithPrismaCreatedAtSetParam) settable()  {}
+func (attendanceWithPrismaCreatedAtEqualsParam) equals() {}
+
+type attendanceWithPrismaCreatedAtEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCreatedAtEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCreatedAtEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCreatedAtEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaCreatedAtEqualsUniqueParam) createdAtField()  {}
+
+func (attendanceWithPrismaCreatedAtEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaCreatedAtEqualsUniqueParam) equals() {}
+
+type AttendanceWithPrismaCodeEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	codeField()
+}
+
+type AttendanceWithPrismaCodeSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	codeField()
+}
+
+type attendanceWithPrismaCodeSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCodeSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCodeSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCodeSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaCodeSetParam) codeField() {}
+
+type AttendanceWithPrismaCodeWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	codeField()
+}
+
+type attendanceWithPrismaCodeEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCodeEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCodeEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCodeEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaCodeEqualsParam) codeField() {}
+
+func (attendanceWithPrismaCodeSetParam) settable()  {}
+func (attendanceWithPrismaCodeEqualsParam) equals() {}
+
+type attendanceWithPrismaCodeEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaCodeEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaCodeEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaCodeEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaCodeEqualsUniqueParam) codeField()       {}
+
+func (attendanceWithPrismaCodeEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaCodeEqualsUniqueParam) equals() {}
+
+type AttendanceWithPrismaUserEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	attendanceModel()
+	userField()
+}
+
+type AttendanceWithPrismaUserSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	userField()
+}
+
+type attendanceWithPrismaUserSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaUserSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaUserSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaUserSetParam) attendanceModel() {}
+
+func (p attendanceWithPrismaUserSetParam) userField() {}
+
+type AttendanceWithPrismaUserWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	attendanceModel()
+	userField()
+}
+
+type attendanceWithPrismaUserEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaUserEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaUserEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaUserEqualsParam) attendanceModel() {}
+
+func (p attendanceWithPrismaUserEqualsParam) userField() {}
+
+func (attendanceWithPrismaUserSetParam) settable()  {}
+func (attendanceWithPrismaUserEqualsParam) equals() {}
+
+type attendanceWithPrismaUserEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p attendanceWithPrismaUserEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p attendanceWithPrismaUserEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceWithPrismaUserEqualsUniqueParam) attendanceModel() {}
+func (p attendanceWithPrismaUserEqualsUniqueParam) userField()       {}
+
+func (attendanceWithPrismaUserEqualsUniqueParam) unique() {}
+func (attendanceWithPrismaUserEqualsUniqueParam) equals() {}
+
 // --- template create.gotpl ---
 
 // Creates a single user.
@@ -26716,6 +32961,148 @@ func (r announcementCreateOne) Tx() AnnouncementUniqueTxResult {
 	return v
 }
 
+// Creates a single attendanceCode.
+func (r attendanceCodeActions) CreateOne(
+	_code AttendanceCodeWithPrismaCodeSetParam,
+	_expiredAt AttendanceCodeWithPrismaExpiredAtSetParam,
+	_schedule AttendanceCodeWithPrismaScheduleSetParam,
+
+	optional ...AttendanceCodeSetParam,
+) attendanceCodeCreateOne {
+	var v attendanceCodeCreateOne
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "mutation"
+	v.query.Method = "createOne"
+	v.query.Model = "AttendanceCode"
+	v.query.Outputs = attendanceCodeOutput
+
+	var fields []builder.Field
+
+	fields = append(fields, _code.field())
+	fields = append(fields, _expiredAt.field())
+	fields = append(fields, _schedule.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+func (r attendanceCodeCreateOne) With(params ...AttendanceCodeRelationWith) attendanceCodeCreateOne {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+type attendanceCodeCreateOne struct {
+	query builder.Query
+}
+
+func (p attendanceCodeCreateOne) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCodeCreateOne) attendanceCodeModel() {}
+
+func (r attendanceCodeCreateOne) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeCreateOne) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+// Creates a single attendance.
+func (r attendanceActions) CreateOne(
+	_code AttendanceWithPrismaCodeSetParam,
+	_user AttendanceWithPrismaUserSetParam,
+
+	optional ...AttendanceSetParam,
+) attendanceCreateOne {
+	var v attendanceCreateOne
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "mutation"
+	v.query.Method = "createOne"
+	v.query.Model = "Attendance"
+	v.query.Outputs = attendanceOutput
+
+	var fields []builder.Field
+
+	fields = append(fields, _code.field())
+	fields = append(fields, _user.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+func (r attendanceCreateOne) With(params ...AttendanceRelationWith) attendanceCreateOne {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+type attendanceCreateOne struct {
+	query builder.Query
+}
+
+func (p attendanceCreateOne) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p attendanceCreateOne) attendanceModel() {}
+
+func (r attendanceCreateOne) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCreateOne) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
 // --- template find.gotpl ---
 
 type userToMemberGroupsFindUnique struct {
@@ -27048,16 +33435,6 @@ type userToMemberGroupsFindMany struct {
 	query builder.Query
 }
 
-func (r userToMemberGroupsFindMany) field() builder.Field {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (r userToMemberGroupsFindMany) groupModel() {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (r userToMemberGroupsFindMany) getQuery() builder.Query {
 	return r.query
 }
@@ -27276,6 +33653,1114 @@ func (r userToMemberGroupsDeleteMany) Exec(ctx context.Context) (*BatchResult, e
 }
 
 func (r userToMemberGroupsDeleteMany) Tx() UserManyTxResult {
+	v := newUserManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type userToAttendancesFindUnique struct {
+	query builder.Query
+}
+
+func (r userToAttendancesFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesFindUnique) with()         {}
+func (r userToAttendancesFindUnique) userModel()    {}
+func (r userToAttendancesFindUnique) userRelation() {}
+
+func (r userToAttendancesFindUnique) With(params ...AttendanceRelationWith) userToAttendancesFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToAttendancesFindUnique) Select(params ...userPrismaFields) userToAttendancesFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAttendancesFindUnique) Omit(params ...userPrismaFields) userToAttendancesFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAttendancesFindUnique) Exec(ctx context.Context) (
+	*UserModel,
+	error,
+) {
+	var v *UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToAttendancesFindUnique) ExecInner(ctx context.Context) (
+	*InnerUser,
+	error,
+) {
+	var v *InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToAttendancesFindUnique) Update(params ...UserSetParam) userToAttendancesUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "User"
+
+	var v userToAttendancesUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type userToAttendancesUpdateUnique struct {
+	query builder.Query
+}
+
+func (r userToAttendancesUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesUpdateUnique) userModel() {}
+
+func (r userToAttendancesUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
+	var v UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAttendancesUpdateUnique) Tx() UserUniqueTxResult {
+	v := newUserUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r userToAttendancesFindUnique) Delete() userToAttendancesDeleteUnique {
+	var v userToAttendancesDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "User"
+
+	return v
+}
+
+type userToAttendancesDeleteUnique struct {
+	query builder.Query
+}
+
+func (r userToAttendancesDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p userToAttendancesDeleteUnique) userModel() {}
+
+func (r userToAttendancesDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
+	var v UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAttendancesDeleteUnique) Tx() UserUniqueTxResult {
+	v := newUserUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type userToAttendancesFindFirst struct {
+	query builder.Query
+}
+
+func (r userToAttendancesFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesFindFirst) with()         {}
+func (r userToAttendancesFindFirst) userModel()    {}
+func (r userToAttendancesFindFirst) userRelation() {}
+
+func (r userToAttendancesFindFirst) With(params ...AttendanceRelationWith) userToAttendancesFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToAttendancesFindFirst) Select(params ...userPrismaFields) userToAttendancesFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAttendancesFindFirst) Omit(params ...userPrismaFields) userToAttendancesFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAttendancesFindFirst) OrderBy(params ...AttendanceOrderByParam) userToAttendancesFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r userToAttendancesFindFirst) Skip(count int) userToAttendancesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAttendancesFindFirst) Take(count int) userToAttendancesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAttendancesFindFirst) Cursor(cursor UserCursorParam) userToAttendancesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r userToAttendancesFindFirst) Exec(ctx context.Context) (
+	*UserModel,
+	error,
+) {
+	var v *UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToAttendancesFindFirst) ExecInner(ctx context.Context) (
+	*InnerUser,
+	error,
+) {
+	var v *InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type userToAttendancesFindMany struct {
+	query builder.Query
+}
+
+func (r userToAttendancesFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesFindMany) with()         {}
+func (r userToAttendancesFindMany) userModel()    {}
+func (r userToAttendancesFindMany) userRelation() {}
+
+func (r userToAttendancesFindMany) With(params ...AttendanceRelationWith) userToAttendancesFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToAttendancesFindMany) Select(params ...userPrismaFields) userToAttendancesFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAttendancesFindMany) Omit(params ...userPrismaFields) userToAttendancesFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAttendancesFindMany) OrderBy(params ...AttendanceOrderByParam) userToAttendancesFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r userToAttendancesFindMany) Skip(count int) userToAttendancesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAttendancesFindMany) Take(count int) userToAttendancesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAttendancesFindMany) Cursor(cursor UserCursorParam) userToAttendancesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r userToAttendancesFindMany) Exec(ctx context.Context) (
+	[]UserModel,
+	error,
+) {
+	var v []UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r userToAttendancesFindMany) ExecInner(ctx context.Context) (
+	[]InnerUser,
+	error,
+) {
+	var v []InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r userToAttendancesFindMany) Update(params ...UserSetParam) userToAttendancesUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "User"
+
+	r.query.Outputs = countOutput
+
+	var v userToAttendancesUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type userToAttendancesUpdateMany struct {
+	query builder.Query
+}
+
+func (r userToAttendancesUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAttendancesUpdateMany) userModel() {}
+
+func (r userToAttendancesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAttendancesUpdateMany) Tx() UserManyTxResult {
+	v := newUserManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r userToAttendancesFindMany) Delete() userToAttendancesDeleteMany {
+	var v userToAttendancesDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "User"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type userToAttendancesDeleteMany struct {
+	query builder.Query
+}
+
+func (r userToAttendancesDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p userToAttendancesDeleteMany) userModel() {}
+
+func (r userToAttendancesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAttendancesDeleteMany) Tx() UserManyTxResult {
+	v := newUserManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type userToAssistantSchedulesFindUnique struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesFindUnique) with()         {}
+func (r userToAssistantSchedulesFindUnique) userModel()    {}
+func (r userToAssistantSchedulesFindUnique) userRelation() {}
+
+func (r userToAssistantSchedulesFindUnique) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindUnique) Select(params ...userPrismaFields) userToAssistantSchedulesFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindUnique) Omit(params ...userPrismaFields) userToAssistantSchedulesFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindUnique) Exec(ctx context.Context) (
+	*UserModel,
+	error,
+) {
+	var v *UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToAssistantSchedulesFindUnique) ExecInner(ctx context.Context) (
+	*InnerUser,
+	error,
+) {
+	var v *InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToAssistantSchedulesFindUnique) Update(params ...UserSetParam) userToAssistantSchedulesUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "User"
+
+	var v userToAssistantSchedulesUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type userToAssistantSchedulesUpdateUnique struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesUpdateUnique) userModel() {}
+
+func (r userToAssistantSchedulesUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
+	var v UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAssistantSchedulesUpdateUnique) Tx() UserUniqueTxResult {
+	v := newUserUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r userToAssistantSchedulesFindUnique) Delete() userToAssistantSchedulesDeleteUnique {
+	var v userToAssistantSchedulesDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "User"
+
+	return v
+}
+
+type userToAssistantSchedulesDeleteUnique struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p userToAssistantSchedulesDeleteUnique) userModel() {}
+
+func (r userToAssistantSchedulesDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
+	var v UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAssistantSchedulesDeleteUnique) Tx() UserUniqueTxResult {
+	v := newUserUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type userToAssistantSchedulesFindFirst struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesFindFirst) with()         {}
+func (r userToAssistantSchedulesFindFirst) userModel()    {}
+func (r userToAssistantSchedulesFindFirst) userRelation() {}
+
+func (r userToAssistantSchedulesFindFirst) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) Select(params ...userPrismaFields) userToAssistantSchedulesFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) Omit(params ...userPrismaFields) userToAssistantSchedulesFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) OrderBy(params ...ScheduleOrderByParam) userToAssistantSchedulesFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) Skip(count int) userToAssistantSchedulesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) Take(count int) userToAssistantSchedulesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) Cursor(cursor UserCursorParam) userToAssistantSchedulesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r userToAssistantSchedulesFindFirst) Exec(ctx context.Context) (
+	*UserModel,
+	error,
+) {
+	var v *UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToAssistantSchedulesFindFirst) ExecInner(ctx context.Context) (
+	*InnerUser,
+	error,
+) {
+	var v *InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type userToAssistantSchedulesFindMany struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesFindMany) with()         {}
+func (r userToAssistantSchedulesFindMany) userModel()    {}
+func (r userToAssistantSchedulesFindMany) userRelation() {}
+
+func (r userToAssistantSchedulesFindMany) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) Select(params ...userPrismaFields) userToAssistantSchedulesFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) Omit(params ...userPrismaFields) userToAssistantSchedulesFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) OrderBy(params ...ScheduleOrderByParam) userToAssistantSchedulesFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) Skip(count int) userToAssistantSchedulesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) Take(count int) userToAssistantSchedulesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) Cursor(cursor UserCursorParam) userToAssistantSchedulesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r userToAssistantSchedulesFindMany) Exec(ctx context.Context) (
+	[]UserModel,
+	error,
+) {
+	var v []UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r userToAssistantSchedulesFindMany) ExecInner(ctx context.Context) (
+	[]InnerUser,
+	error,
+) {
+	var v []InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r userToAssistantSchedulesFindMany) Update(params ...UserSetParam) userToAssistantSchedulesUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "User"
+
+	r.query.Outputs = countOutput
+
+	var v userToAssistantSchedulesUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type userToAssistantSchedulesUpdateMany struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToAssistantSchedulesUpdateMany) userModel() {}
+
+func (r userToAssistantSchedulesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAssistantSchedulesUpdateMany) Tx() UserManyTxResult {
+	v := newUserManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r userToAssistantSchedulesFindMany) Delete() userToAssistantSchedulesDeleteMany {
+	var v userToAssistantSchedulesDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "User"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type userToAssistantSchedulesDeleteMany struct {
+	query builder.Query
+}
+
+func (r userToAssistantSchedulesDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p userToAssistantSchedulesDeleteMany) userModel() {}
+
+func (r userToAssistantSchedulesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToAssistantSchedulesDeleteMany) Tx() UserManyTxResult {
 	v := newUserManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
@@ -28384,560 +35869,6 @@ func (r userToUserGradesDeleteMany) Exec(ctx context.Context) (*BatchResult, err
 }
 
 func (r userToUserGradesDeleteMany) Tx() UserManyTxResult {
-	v := newUserManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type userToAssistantSchedulesFindUnique struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesFindUnique) getQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesFindUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesFindUnique) with()         {}
-func (r userToAssistantSchedulesFindUnique) userModel()    {}
-func (r userToAssistantSchedulesFindUnique) userRelation() {}
-
-func (r userToAssistantSchedulesFindUnique) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindUnique {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindUnique) Select(params ...userPrismaFields) userToAssistantSchedulesFindUnique {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindUnique) Omit(params ...userPrismaFields) userToAssistantSchedulesFindUnique {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range userOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindUnique) Exec(ctx context.Context) (
-	*UserModel,
-	error,
-) {
-	var v *UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r userToAssistantSchedulesFindUnique) ExecInner(ctx context.Context) (
-	*InnerUser,
-	error,
-) {
-	var v *InnerUser
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r userToAssistantSchedulesFindUnique) Update(params ...UserSetParam) userToAssistantSchedulesUpdateUnique {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateOne"
-	r.query.Model = "User"
-
-	var v userToAssistantSchedulesUpdateUnique
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type userToAssistantSchedulesUpdateUnique struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesUpdateUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesUpdateUnique) userModel() {}
-
-func (r userToAssistantSchedulesUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
-	var v UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAssistantSchedulesUpdateUnique) Tx() UserUniqueTxResult {
-	v := newUserUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r userToAssistantSchedulesFindUnique) Delete() userToAssistantSchedulesDeleteUnique {
-	var v userToAssistantSchedulesDeleteUnique
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteOne"
-	v.query.Model = "User"
-
-	return v
-}
-
-type userToAssistantSchedulesDeleteUnique struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesDeleteUnique) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p userToAssistantSchedulesDeleteUnique) userModel() {}
-
-func (r userToAssistantSchedulesDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
-	var v UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAssistantSchedulesDeleteUnique) Tx() UserUniqueTxResult {
-	v := newUserUniqueTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-type userToAssistantSchedulesFindFirst struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesFindFirst) getQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesFindFirst) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesFindFirst) with()         {}
-func (r userToAssistantSchedulesFindFirst) userModel()    {}
-func (r userToAssistantSchedulesFindFirst) userRelation() {}
-
-func (r userToAssistantSchedulesFindFirst) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindFirst {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) Select(params ...userPrismaFields) userToAssistantSchedulesFindFirst {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) Omit(params ...userPrismaFields) userToAssistantSchedulesFindFirst {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range userOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) OrderBy(params ...ScheduleOrderByParam) userToAssistantSchedulesFindFirst {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) Skip(count int) userToAssistantSchedulesFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) Take(count int) userToAssistantSchedulesFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) Cursor(cursor UserCursorParam) userToAssistantSchedulesFindFirst {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r userToAssistantSchedulesFindFirst) Exec(ctx context.Context) (
-	*UserModel,
-	error,
-) {
-	var v *UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-func (r userToAssistantSchedulesFindFirst) ExecInner(ctx context.Context) (
-	*InnerUser,
-	error,
-) {
-	var v *InnerUser
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, ErrNotFound
-	}
-
-	return v, nil
-}
-
-type userToAssistantSchedulesFindMany struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesFindMany) getQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesFindMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesFindMany) with()         {}
-func (r userToAssistantSchedulesFindMany) userModel()    {}
-func (r userToAssistantSchedulesFindMany) userRelation() {}
-
-func (r userToAssistantSchedulesFindMany) With(params ...ScheduleRelationWith) userToAssistantSchedulesFindMany {
-	for _, q := range params {
-		query := q.getQuery()
-		r.query.Outputs = append(r.query.Outputs, builder.Output{
-			Name:    query.Method,
-			Inputs:  query.Inputs,
-			Outputs: query.Outputs,
-		})
-	}
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) Select(params ...userPrismaFields) userToAssistantSchedulesFindMany {
-	var outputs []builder.Output
-
-	for _, param := range params {
-		outputs = append(outputs, builder.Output{
-			Name: string(param),
-		})
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) Omit(params ...userPrismaFields) userToAssistantSchedulesFindMany {
-	var outputs []builder.Output
-
-	var raw []string
-	for _, param := range params {
-		raw = append(raw, string(param))
-	}
-
-	for _, output := range userOutput {
-		if !slices.Contains(raw, output.Name) {
-			outputs = append(outputs, output)
-		}
-	}
-
-	r.query.Outputs = outputs
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) OrderBy(params ...ScheduleOrderByParam) userToAssistantSchedulesFindMany {
-	var fields []builder.Field
-
-	for _, param := range params {
-		fields = append(fields, builder.Field{
-			Name:   param.field().Name,
-			Value:  param.field().Value,
-			Fields: param.field().Fields,
-		})
-	}
-
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:     "orderBy",
-		Fields:   fields,
-		WrapList: true,
-	})
-
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) Skip(count int) userToAssistantSchedulesFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "skip",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) Take(count int) userToAssistantSchedulesFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:  "take",
-		Value: count,
-	})
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) Cursor(cursor UserCursorParam) userToAssistantSchedulesFindMany {
-	r.query.Inputs = append(r.query.Inputs, builder.Input{
-		Name:   "cursor",
-		Fields: []builder.Field{cursor.field()},
-	})
-	return r
-}
-
-func (r userToAssistantSchedulesFindMany) Exec(ctx context.Context) (
-	[]UserModel,
-	error,
-) {
-	var v []UserModel
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r userToAssistantSchedulesFindMany) ExecInner(ctx context.Context) (
-	[]InnerUser,
-	error,
-) {
-	var v []InnerUser
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-
-	return v, nil
-}
-
-func (r userToAssistantSchedulesFindMany) Update(params ...UserSetParam) userToAssistantSchedulesUpdateMany {
-	r.query.Operation = "mutation"
-	r.query.Method = "updateMany"
-	r.query.Model = "User"
-
-	r.query.Outputs = countOutput
-
-	var v userToAssistantSchedulesUpdateMany
-	v.query = r.query
-	var fields []builder.Field
-	for _, q := range params {
-
-		field := q.field()
-
-		_, isJson := field.Value.(types.JSON)
-		if field.Value != nil && !isJson {
-			v := field.Value
-			field.Fields = []builder.Field{
-				{
-					Name:  "set",
-					Value: v,
-				},
-			}
-
-			field.Value = nil
-		}
-
-		fields = append(fields, field)
-	}
-	v.query.Inputs = append(v.query.Inputs, builder.Input{
-		Name:   "data",
-		Fields: fields,
-	})
-	return v
-}
-
-type userToAssistantSchedulesUpdateMany struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesUpdateMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (r userToAssistantSchedulesUpdateMany) userModel() {}
-
-func (r userToAssistantSchedulesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAssistantSchedulesUpdateMany) Tx() UserManyTxResult {
-	v := newUserManyTxResult()
-	v.query = r.query
-	v.query.TxResult = make(chan []byte, 1)
-	return v
-}
-
-func (r userToAssistantSchedulesFindMany) Delete() userToAssistantSchedulesDeleteMany {
-	var v userToAssistantSchedulesDeleteMany
-	v.query = r.query
-	v.query.Operation = "mutation"
-	v.query.Method = "deleteMany"
-	v.query.Model = "User"
-
-	v.query.Outputs = countOutput
-
-	return v
-}
-
-type userToAssistantSchedulesDeleteMany struct {
-	query builder.Query
-}
-
-func (r userToAssistantSchedulesDeleteMany) ExtractQuery() builder.Query {
-	return r.query
-}
-
-func (p userToAssistantSchedulesDeleteMany) userModel() {}
-
-func (r userToAssistantSchedulesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
-	var v BatchResult
-	if err := r.query.Exec(ctx, &v); err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
-func (r userToAssistantSchedulesDeleteMany) Tx() UserManyTxResult {
 	v := newUserManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
@@ -34772,6 +41703,560 @@ func (r scheduleToAssistantDeleteMany) Tx() ScheduleManyTxResult {
 	return v
 }
 
+type scheduleToAttendanceCodesFindUnique struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesFindUnique) with()             {}
+func (r scheduleToAttendanceCodesFindUnique) scheduleModel()    {}
+func (r scheduleToAttendanceCodesFindUnique) scheduleRelation() {}
+
+func (r scheduleToAttendanceCodesFindUnique) With(params ...AttendanceCodeRelationWith) scheduleToAttendanceCodesFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindUnique) Select(params ...schedulePrismaFields) scheduleToAttendanceCodesFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindUnique) Omit(params ...schedulePrismaFields) scheduleToAttendanceCodesFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range scheduleOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindUnique) Exec(ctx context.Context) (
+	*ScheduleModel,
+	error,
+) {
+	var v *ScheduleModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r scheduleToAttendanceCodesFindUnique) ExecInner(ctx context.Context) (
+	*InnerSchedule,
+	error,
+) {
+	var v *InnerSchedule
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r scheduleToAttendanceCodesFindUnique) Update(params ...ScheduleSetParam) scheduleToAttendanceCodesUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "Schedule"
+
+	var v scheduleToAttendanceCodesUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type scheduleToAttendanceCodesUpdateUnique struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesUpdateUnique) scheduleModel() {}
+
+func (r scheduleToAttendanceCodesUpdateUnique) Exec(ctx context.Context) (*ScheduleModel, error) {
+	var v ScheduleModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r scheduleToAttendanceCodesUpdateUnique) Tx() ScheduleUniqueTxResult {
+	v := newScheduleUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r scheduleToAttendanceCodesFindUnique) Delete() scheduleToAttendanceCodesDeleteUnique {
+	var v scheduleToAttendanceCodesDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "Schedule"
+
+	return v
+}
+
+type scheduleToAttendanceCodesDeleteUnique struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p scheduleToAttendanceCodesDeleteUnique) scheduleModel() {}
+
+func (r scheduleToAttendanceCodesDeleteUnique) Exec(ctx context.Context) (*ScheduleModel, error) {
+	var v ScheduleModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r scheduleToAttendanceCodesDeleteUnique) Tx() ScheduleUniqueTxResult {
+	v := newScheduleUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type scheduleToAttendanceCodesFindFirst struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesFindFirst) with()             {}
+func (r scheduleToAttendanceCodesFindFirst) scheduleModel()    {}
+func (r scheduleToAttendanceCodesFindFirst) scheduleRelation() {}
+
+func (r scheduleToAttendanceCodesFindFirst) With(params ...AttendanceCodeRelationWith) scheduleToAttendanceCodesFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) Select(params ...schedulePrismaFields) scheduleToAttendanceCodesFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) Omit(params ...schedulePrismaFields) scheduleToAttendanceCodesFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range scheduleOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) OrderBy(params ...AttendanceCodeOrderByParam) scheduleToAttendanceCodesFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) Skip(count int) scheduleToAttendanceCodesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) Take(count int) scheduleToAttendanceCodesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) Cursor(cursor ScheduleCursorParam) scheduleToAttendanceCodesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindFirst) Exec(ctx context.Context) (
+	*ScheduleModel,
+	error,
+) {
+	var v *ScheduleModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r scheduleToAttendanceCodesFindFirst) ExecInner(ctx context.Context) (
+	*InnerSchedule,
+	error,
+) {
+	var v *InnerSchedule
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type scheduleToAttendanceCodesFindMany struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesFindMany) with()             {}
+func (r scheduleToAttendanceCodesFindMany) scheduleModel()    {}
+func (r scheduleToAttendanceCodesFindMany) scheduleRelation() {}
+
+func (r scheduleToAttendanceCodesFindMany) With(params ...AttendanceCodeRelationWith) scheduleToAttendanceCodesFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) Select(params ...schedulePrismaFields) scheduleToAttendanceCodesFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) Omit(params ...schedulePrismaFields) scheduleToAttendanceCodesFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range scheduleOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) OrderBy(params ...AttendanceCodeOrderByParam) scheduleToAttendanceCodesFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) Skip(count int) scheduleToAttendanceCodesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) Take(count int) scheduleToAttendanceCodesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) Cursor(cursor ScheduleCursorParam) scheduleToAttendanceCodesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r scheduleToAttendanceCodesFindMany) Exec(ctx context.Context) (
+	[]ScheduleModel,
+	error,
+) {
+	var v []ScheduleModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r scheduleToAttendanceCodesFindMany) ExecInner(ctx context.Context) (
+	[]InnerSchedule,
+	error,
+) {
+	var v []InnerSchedule
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r scheduleToAttendanceCodesFindMany) Update(params ...ScheduleSetParam) scheduleToAttendanceCodesUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "Schedule"
+
+	r.query.Outputs = countOutput
+
+	var v scheduleToAttendanceCodesUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type scheduleToAttendanceCodesUpdateMany struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r scheduleToAttendanceCodesUpdateMany) scheduleModel() {}
+
+func (r scheduleToAttendanceCodesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r scheduleToAttendanceCodesUpdateMany) Tx() ScheduleManyTxResult {
+	v := newScheduleManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r scheduleToAttendanceCodesFindMany) Delete() scheduleToAttendanceCodesDeleteMany {
+	var v scheduleToAttendanceCodesDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "Schedule"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type scheduleToAttendanceCodesDeleteMany struct {
+	query builder.Query
+}
+
+func (r scheduleToAttendanceCodesDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p scheduleToAttendanceCodesDeleteMany) scheduleModel() {}
+
+func (r scheduleToAttendanceCodesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r scheduleToAttendanceCodesDeleteMany) Tx() ScheduleManyTxResult {
+	v := newScheduleManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
 type scheduleToGradesFindUnique struct {
 	query builder.Query
 }
@@ -39492,6 +46977,3522 @@ func (r announcementDeleteMany) Tx() AnnouncementManyTxResult {
 	return v
 }
 
+type attendanceCodeToScheduleFindUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleFindUnique) with()                   {}
+func (r attendanceCodeToScheduleFindUnique) attendanceCodeModel()    {}
+func (r attendanceCodeToScheduleFindUnique) attendanceCodeRelation() {}
+
+func (r attendanceCodeToScheduleFindUnique) With(params ...ScheduleRelationWith) attendanceCodeToScheduleFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindUnique) Select(params ...attendanceCodePrismaFields) attendanceCodeToScheduleFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindUnique) Omit(params ...attendanceCodePrismaFields) attendanceCodeToScheduleFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindUnique) Exec(ctx context.Context) (
+	*AttendanceCodeModel,
+	error,
+) {
+	var v *AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToScheduleFindUnique) ExecInner(ctx context.Context) (
+	*InnerAttendanceCode,
+	error,
+) {
+	var v *InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToScheduleFindUnique) Update(params ...AttendanceCodeSetParam) attendanceCodeToScheduleUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "AttendanceCode"
+
+	var v attendanceCodeToScheduleUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceCodeToScheduleUpdateUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleUpdateUnique) attendanceCodeModel() {}
+
+func (r attendanceCodeToScheduleUpdateUnique) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToScheduleUpdateUnique) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceCodeToScheduleFindUnique) Delete() attendanceCodeToScheduleDeleteUnique {
+	var v attendanceCodeToScheduleDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "AttendanceCode"
+
+	return v
+}
+
+type attendanceCodeToScheduleDeleteUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceCodeToScheduleDeleteUnique) attendanceCodeModel() {}
+
+func (r attendanceCodeToScheduleDeleteUnique) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToScheduleDeleteUnique) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceCodeToScheduleFindFirst struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleFindFirst) with()                   {}
+func (r attendanceCodeToScheduleFindFirst) attendanceCodeModel()    {}
+func (r attendanceCodeToScheduleFindFirst) attendanceCodeRelation() {}
+
+func (r attendanceCodeToScheduleFindFirst) With(params ...ScheduleRelationWith) attendanceCodeToScheduleFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) Select(params ...attendanceCodePrismaFields) attendanceCodeToScheduleFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) Omit(params ...attendanceCodePrismaFields) attendanceCodeToScheduleFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) OrderBy(params ...ScheduleOrderByParam) attendanceCodeToScheduleFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) Skip(count int) attendanceCodeToScheduleFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) Take(count int) attendanceCodeToScheduleFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) Cursor(cursor AttendanceCodeCursorParam) attendanceCodeToScheduleFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceCodeToScheduleFindFirst) Exec(ctx context.Context) (
+	*AttendanceCodeModel,
+	error,
+) {
+	var v *AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToScheduleFindFirst) ExecInner(ctx context.Context) (
+	*InnerAttendanceCode,
+	error,
+) {
+	var v *InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type attendanceCodeToScheduleFindMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleFindMany) with()                   {}
+func (r attendanceCodeToScheduleFindMany) attendanceCodeModel()    {}
+func (r attendanceCodeToScheduleFindMany) attendanceCodeRelation() {}
+
+func (r attendanceCodeToScheduleFindMany) With(params ...ScheduleRelationWith) attendanceCodeToScheduleFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) Select(params ...attendanceCodePrismaFields) attendanceCodeToScheduleFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) Omit(params ...attendanceCodePrismaFields) attendanceCodeToScheduleFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) OrderBy(params ...ScheduleOrderByParam) attendanceCodeToScheduleFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) Skip(count int) attendanceCodeToScheduleFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) Take(count int) attendanceCodeToScheduleFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) Cursor(cursor AttendanceCodeCursorParam) attendanceCodeToScheduleFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceCodeToScheduleFindMany) Exec(ctx context.Context) (
+	[]AttendanceCodeModel,
+	error,
+) {
+	var v []AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToScheduleFindMany) ExecInner(ctx context.Context) (
+	[]InnerAttendanceCode,
+	error,
+) {
+	var v []InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToScheduleFindMany) Update(params ...AttendanceCodeSetParam) attendanceCodeToScheduleUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "AttendanceCode"
+
+	r.query.Outputs = countOutput
+
+	var v attendanceCodeToScheduleUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceCodeToScheduleUpdateMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToScheduleUpdateMany) attendanceCodeModel() {}
+
+func (r attendanceCodeToScheduleUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToScheduleUpdateMany) Tx() AttendanceCodeManyTxResult {
+	v := newAttendanceCodeManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceCodeToScheduleFindMany) Delete() attendanceCodeToScheduleDeleteMany {
+	var v attendanceCodeToScheduleDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "AttendanceCode"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type attendanceCodeToScheduleDeleteMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToScheduleDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceCodeToScheduleDeleteMany) attendanceCodeModel() {}
+
+func (r attendanceCodeToScheduleDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToScheduleDeleteMany) Tx() AttendanceCodeManyTxResult {
+	v := newAttendanceCodeManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceCodeToAttendancesFindUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesFindUnique) with()                   {}
+func (r attendanceCodeToAttendancesFindUnique) attendanceCodeModel()    {}
+func (r attendanceCodeToAttendancesFindUnique) attendanceCodeRelation() {}
+
+func (r attendanceCodeToAttendancesFindUnique) With(params ...AttendanceRelationWith) attendanceCodeToAttendancesFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindUnique) Select(params ...attendanceCodePrismaFields) attendanceCodeToAttendancesFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindUnique) Omit(params ...attendanceCodePrismaFields) attendanceCodeToAttendancesFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindUnique) Exec(ctx context.Context) (
+	*AttendanceCodeModel,
+	error,
+) {
+	var v *AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToAttendancesFindUnique) ExecInner(ctx context.Context) (
+	*InnerAttendanceCode,
+	error,
+) {
+	var v *InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToAttendancesFindUnique) Update(params ...AttendanceCodeSetParam) attendanceCodeToAttendancesUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "AttendanceCode"
+
+	var v attendanceCodeToAttendancesUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceCodeToAttendancesUpdateUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesUpdateUnique) attendanceCodeModel() {}
+
+func (r attendanceCodeToAttendancesUpdateUnique) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToAttendancesUpdateUnique) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceCodeToAttendancesFindUnique) Delete() attendanceCodeToAttendancesDeleteUnique {
+	var v attendanceCodeToAttendancesDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "AttendanceCode"
+
+	return v
+}
+
+type attendanceCodeToAttendancesDeleteUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceCodeToAttendancesDeleteUnique) attendanceCodeModel() {}
+
+func (r attendanceCodeToAttendancesDeleteUnique) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToAttendancesDeleteUnique) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceCodeToAttendancesFindFirst struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesFindFirst) with()                   {}
+func (r attendanceCodeToAttendancesFindFirst) attendanceCodeModel()    {}
+func (r attendanceCodeToAttendancesFindFirst) attendanceCodeRelation() {}
+
+func (r attendanceCodeToAttendancesFindFirst) With(params ...AttendanceRelationWith) attendanceCodeToAttendancesFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) Select(params ...attendanceCodePrismaFields) attendanceCodeToAttendancesFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) Omit(params ...attendanceCodePrismaFields) attendanceCodeToAttendancesFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) OrderBy(params ...AttendanceOrderByParam) attendanceCodeToAttendancesFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) Skip(count int) attendanceCodeToAttendancesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) Take(count int) attendanceCodeToAttendancesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) Cursor(cursor AttendanceCodeCursorParam) attendanceCodeToAttendancesFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindFirst) Exec(ctx context.Context) (
+	*AttendanceCodeModel,
+	error,
+) {
+	var v *AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToAttendancesFindFirst) ExecInner(ctx context.Context) (
+	*InnerAttendanceCode,
+	error,
+) {
+	var v *InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type attendanceCodeToAttendancesFindMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesFindMany) with()                   {}
+func (r attendanceCodeToAttendancesFindMany) attendanceCodeModel()    {}
+func (r attendanceCodeToAttendancesFindMany) attendanceCodeRelation() {}
+
+func (r attendanceCodeToAttendancesFindMany) With(params ...AttendanceRelationWith) attendanceCodeToAttendancesFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) Select(params ...attendanceCodePrismaFields) attendanceCodeToAttendancesFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) Omit(params ...attendanceCodePrismaFields) attendanceCodeToAttendancesFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) OrderBy(params ...AttendanceOrderByParam) attendanceCodeToAttendancesFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) Skip(count int) attendanceCodeToAttendancesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) Take(count int) attendanceCodeToAttendancesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) Cursor(cursor AttendanceCodeCursorParam) attendanceCodeToAttendancesFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceCodeToAttendancesFindMany) Exec(ctx context.Context) (
+	[]AttendanceCodeModel,
+	error,
+) {
+	var v []AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToAttendancesFindMany) ExecInner(ctx context.Context) (
+	[]InnerAttendanceCode,
+	error,
+) {
+	var v []InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeToAttendancesFindMany) Update(params ...AttendanceCodeSetParam) attendanceCodeToAttendancesUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "AttendanceCode"
+
+	r.query.Outputs = countOutput
+
+	var v attendanceCodeToAttendancesUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceCodeToAttendancesUpdateMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeToAttendancesUpdateMany) attendanceCodeModel() {}
+
+func (r attendanceCodeToAttendancesUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToAttendancesUpdateMany) Tx() AttendanceCodeManyTxResult {
+	v := newAttendanceCodeManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceCodeToAttendancesFindMany) Delete() attendanceCodeToAttendancesDeleteMany {
+	var v attendanceCodeToAttendancesDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "AttendanceCode"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type attendanceCodeToAttendancesDeleteMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeToAttendancesDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceCodeToAttendancesDeleteMany) attendanceCodeModel() {}
+
+func (r attendanceCodeToAttendancesDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeToAttendancesDeleteMany) Tx() AttendanceCodeManyTxResult {
+	v := newAttendanceCodeManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceCodeFindUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeFindUnique) with()                   {}
+func (r attendanceCodeFindUnique) attendanceCodeModel()    {}
+func (r attendanceCodeFindUnique) attendanceCodeRelation() {}
+
+func (r attendanceCodeActions) FindUnique(
+	params AttendanceCodeEqualsUniqueWhereParam,
+) attendanceCodeFindUnique {
+	var v attendanceCodeFindUnique
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findUnique"
+
+	v.query.Model = "AttendanceCode"
+	v.query.Outputs = attendanceCodeOutput
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "where",
+		Fields: builder.TransformEquals([]builder.Field{params.field()}),
+	})
+
+	return v
+}
+
+func (r attendanceCodeFindUnique) With(params ...AttendanceCodeRelationWith) attendanceCodeFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeFindUnique) Select(params ...attendanceCodePrismaFields) attendanceCodeFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeFindUnique) Omit(params ...attendanceCodePrismaFields) attendanceCodeFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeFindUnique) Exec(ctx context.Context) (
+	*AttendanceCodeModel,
+	error,
+) {
+	var v *AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeFindUnique) ExecInner(ctx context.Context) (
+	*InnerAttendanceCode,
+	error,
+) {
+	var v *InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeFindUnique) Update(params ...AttendanceCodeSetParam) attendanceCodeUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "AttendanceCode"
+
+	var v attendanceCodeUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceCodeUpdateUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeUpdateUnique) attendanceCodeModel() {}
+
+func (r attendanceCodeUpdateUnique) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeUpdateUnique) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceCodeFindUnique) Delete() attendanceCodeDeleteUnique {
+	var v attendanceCodeDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "AttendanceCode"
+
+	return v
+}
+
+type attendanceCodeDeleteUnique struct {
+	query builder.Query
+}
+
+func (r attendanceCodeDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceCodeDeleteUnique) attendanceCodeModel() {}
+
+func (r attendanceCodeDeleteUnique) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeDeleteUnique) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceCodeFindFirst struct {
+	query builder.Query
+}
+
+func (r attendanceCodeFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeFindFirst) with()                   {}
+func (r attendanceCodeFindFirst) attendanceCodeModel()    {}
+func (r attendanceCodeFindFirst) attendanceCodeRelation() {}
+
+func (r attendanceCodeActions) FindFirst(
+	params ...AttendanceCodeWhereParam,
+) attendanceCodeFindFirst {
+	var v attendanceCodeFindFirst
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findFirst"
+
+	v.query.Model = "AttendanceCode"
+	v.query.Outputs = attendanceCodeOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r attendanceCodeFindFirst) With(params ...AttendanceCodeRelationWith) attendanceCodeFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeFindFirst) Select(params ...attendanceCodePrismaFields) attendanceCodeFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeFindFirst) Omit(params ...attendanceCodePrismaFields) attendanceCodeFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeFindFirst) OrderBy(params ...AttendanceCodeOrderByParam) attendanceCodeFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceCodeFindFirst) Skip(count int) attendanceCodeFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeFindFirst) Take(count int) attendanceCodeFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeFindFirst) Cursor(cursor AttendanceCodeCursorParam) attendanceCodeFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceCodeFindFirst) Exec(ctx context.Context) (
+	*AttendanceCodeModel,
+	error,
+) {
+	var v *AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeFindFirst) ExecInner(ctx context.Context) (
+	*InnerAttendanceCode,
+	error,
+) {
+	var v *InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type attendanceCodeFindMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeFindMany) with()                   {}
+func (r attendanceCodeFindMany) attendanceCodeModel()    {}
+func (r attendanceCodeFindMany) attendanceCodeRelation() {}
+
+func (r attendanceCodeActions) FindMany(
+	params ...AttendanceCodeWhereParam,
+) attendanceCodeFindMany {
+	var v attendanceCodeFindMany
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findMany"
+
+	v.query.Model = "AttendanceCode"
+	v.query.Outputs = attendanceCodeOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r attendanceCodeFindMany) With(params ...AttendanceCodeRelationWith) attendanceCodeFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceCodeFindMany) Select(params ...attendanceCodePrismaFields) attendanceCodeFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeFindMany) Omit(params ...attendanceCodePrismaFields) attendanceCodeFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceCodeOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceCodeFindMany) OrderBy(params ...AttendanceCodeOrderByParam) attendanceCodeFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceCodeFindMany) Skip(count int) attendanceCodeFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeFindMany) Take(count int) attendanceCodeFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceCodeFindMany) Cursor(cursor AttendanceCodeCursorParam) attendanceCodeFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceCodeFindMany) Exec(ctx context.Context) (
+	[]AttendanceCodeModel,
+	error,
+) {
+	var v []AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeFindMany) ExecInner(ctx context.Context) (
+	[]InnerAttendanceCode,
+	error,
+) {
+	var v []InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceCodeFindMany) Update(params ...AttendanceCodeSetParam) attendanceCodeUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "AttendanceCode"
+
+	r.query.Outputs = countOutput
+
+	var v attendanceCodeUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceCodeUpdateMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeUpdateMany) attendanceCodeModel() {}
+
+func (r attendanceCodeUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeUpdateMany) Tx() AttendanceCodeManyTxResult {
+	v := newAttendanceCodeManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceCodeFindMany) Delete() attendanceCodeDeleteMany {
+	var v attendanceCodeDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "AttendanceCode"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type attendanceCodeDeleteMany struct {
+	query builder.Query
+}
+
+func (r attendanceCodeDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceCodeDeleteMany) attendanceCodeModel() {}
+
+func (r attendanceCodeDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeDeleteMany) Tx() AttendanceCodeManyTxResult {
+	v := newAttendanceCodeManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceToCodeFindUnique struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeFindUnique) with()               {}
+func (r attendanceToCodeFindUnique) attendanceModel()    {}
+func (r attendanceToCodeFindUnique) attendanceRelation() {}
+
+func (r attendanceToCodeFindUnique) With(params ...AttendanceCodeRelationWith) attendanceToCodeFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceToCodeFindUnique) Select(params ...attendancePrismaFields) attendanceToCodeFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToCodeFindUnique) Omit(params ...attendancePrismaFields) attendanceToCodeFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToCodeFindUnique) Exec(ctx context.Context) (
+	*AttendanceModel,
+	error,
+) {
+	var v *AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceToCodeFindUnique) ExecInner(ctx context.Context) (
+	*InnerAttendance,
+	error,
+) {
+	var v *InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceToCodeFindUnique) Update(params ...AttendanceSetParam) attendanceToCodeUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "Attendance"
+
+	var v attendanceToCodeUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceToCodeUpdateUnique struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeUpdateUnique) attendanceModel() {}
+
+func (r attendanceToCodeUpdateUnique) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToCodeUpdateUnique) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceToCodeFindUnique) Delete() attendanceToCodeDeleteUnique {
+	var v attendanceToCodeDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "Attendance"
+
+	return v
+}
+
+type attendanceToCodeDeleteUnique struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceToCodeDeleteUnique) attendanceModel() {}
+
+func (r attendanceToCodeDeleteUnique) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToCodeDeleteUnique) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceToCodeFindFirst struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeFindFirst) with()               {}
+func (r attendanceToCodeFindFirst) attendanceModel()    {}
+func (r attendanceToCodeFindFirst) attendanceRelation() {}
+
+func (r attendanceToCodeFindFirst) With(params ...AttendanceCodeRelationWith) attendanceToCodeFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceToCodeFindFirst) Select(params ...attendancePrismaFields) attendanceToCodeFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToCodeFindFirst) Omit(params ...attendancePrismaFields) attendanceToCodeFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToCodeFindFirst) OrderBy(params ...AttendanceCodeOrderByParam) attendanceToCodeFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceToCodeFindFirst) Skip(count int) attendanceToCodeFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToCodeFindFirst) Take(count int) attendanceToCodeFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToCodeFindFirst) Cursor(cursor AttendanceCursorParam) attendanceToCodeFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceToCodeFindFirst) Exec(ctx context.Context) (
+	*AttendanceModel,
+	error,
+) {
+	var v *AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceToCodeFindFirst) ExecInner(ctx context.Context) (
+	*InnerAttendance,
+	error,
+) {
+	var v *InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type attendanceToCodeFindMany struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeFindMany) with()               {}
+func (r attendanceToCodeFindMany) attendanceModel()    {}
+func (r attendanceToCodeFindMany) attendanceRelation() {}
+
+func (r attendanceToCodeFindMany) With(params ...AttendanceCodeRelationWith) attendanceToCodeFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceToCodeFindMany) Select(params ...attendancePrismaFields) attendanceToCodeFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToCodeFindMany) Omit(params ...attendancePrismaFields) attendanceToCodeFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToCodeFindMany) OrderBy(params ...AttendanceCodeOrderByParam) attendanceToCodeFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceToCodeFindMany) Skip(count int) attendanceToCodeFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToCodeFindMany) Take(count int) attendanceToCodeFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToCodeFindMany) Cursor(cursor AttendanceCursorParam) attendanceToCodeFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceToCodeFindMany) Exec(ctx context.Context) (
+	[]AttendanceModel,
+	error,
+) {
+	var v []AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceToCodeFindMany) ExecInner(ctx context.Context) (
+	[]InnerAttendance,
+	error,
+) {
+	var v []InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceToCodeFindMany) Update(params ...AttendanceSetParam) attendanceToCodeUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "Attendance"
+
+	r.query.Outputs = countOutput
+
+	var v attendanceToCodeUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceToCodeUpdateMany struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToCodeUpdateMany) attendanceModel() {}
+
+func (r attendanceToCodeUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToCodeUpdateMany) Tx() AttendanceManyTxResult {
+	v := newAttendanceManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceToCodeFindMany) Delete() attendanceToCodeDeleteMany {
+	var v attendanceToCodeDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "Attendance"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type attendanceToCodeDeleteMany struct {
+	query builder.Query
+}
+
+func (r attendanceToCodeDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceToCodeDeleteMany) attendanceModel() {}
+
+func (r attendanceToCodeDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToCodeDeleteMany) Tx() AttendanceManyTxResult {
+	v := newAttendanceManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceToUserFindUnique struct {
+	query builder.Query
+}
+
+func (r attendanceToUserFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserFindUnique) with()               {}
+func (r attendanceToUserFindUnique) attendanceModel()    {}
+func (r attendanceToUserFindUnique) attendanceRelation() {}
+
+func (r attendanceToUserFindUnique) With(params ...UserRelationWith) attendanceToUserFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceToUserFindUnique) Select(params ...attendancePrismaFields) attendanceToUserFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToUserFindUnique) Omit(params ...attendancePrismaFields) attendanceToUserFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToUserFindUnique) Exec(ctx context.Context) (
+	*AttendanceModel,
+	error,
+) {
+	var v *AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceToUserFindUnique) ExecInner(ctx context.Context) (
+	*InnerAttendance,
+	error,
+) {
+	var v *InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceToUserFindUnique) Update(params ...AttendanceSetParam) attendanceToUserUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "Attendance"
+
+	var v attendanceToUserUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceToUserUpdateUnique struct {
+	query builder.Query
+}
+
+func (r attendanceToUserUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserUpdateUnique) attendanceModel() {}
+
+func (r attendanceToUserUpdateUnique) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToUserUpdateUnique) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceToUserFindUnique) Delete() attendanceToUserDeleteUnique {
+	var v attendanceToUserDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "Attendance"
+
+	return v
+}
+
+type attendanceToUserDeleteUnique struct {
+	query builder.Query
+}
+
+func (r attendanceToUserDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceToUserDeleteUnique) attendanceModel() {}
+
+func (r attendanceToUserDeleteUnique) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToUserDeleteUnique) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceToUserFindFirst struct {
+	query builder.Query
+}
+
+func (r attendanceToUserFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserFindFirst) with()               {}
+func (r attendanceToUserFindFirst) attendanceModel()    {}
+func (r attendanceToUserFindFirst) attendanceRelation() {}
+
+func (r attendanceToUserFindFirst) With(params ...UserRelationWith) attendanceToUserFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceToUserFindFirst) Select(params ...attendancePrismaFields) attendanceToUserFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToUserFindFirst) Omit(params ...attendancePrismaFields) attendanceToUserFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToUserFindFirst) OrderBy(params ...UserOrderByParam) attendanceToUserFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceToUserFindFirst) Skip(count int) attendanceToUserFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToUserFindFirst) Take(count int) attendanceToUserFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToUserFindFirst) Cursor(cursor AttendanceCursorParam) attendanceToUserFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceToUserFindFirst) Exec(ctx context.Context) (
+	*AttendanceModel,
+	error,
+) {
+	var v *AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceToUserFindFirst) ExecInner(ctx context.Context) (
+	*InnerAttendance,
+	error,
+) {
+	var v *InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type attendanceToUserFindMany struct {
+	query builder.Query
+}
+
+func (r attendanceToUserFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserFindMany) with()               {}
+func (r attendanceToUserFindMany) attendanceModel()    {}
+func (r attendanceToUserFindMany) attendanceRelation() {}
+
+func (r attendanceToUserFindMany) With(params ...UserRelationWith) attendanceToUserFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceToUserFindMany) Select(params ...attendancePrismaFields) attendanceToUserFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToUserFindMany) Omit(params ...attendancePrismaFields) attendanceToUserFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceToUserFindMany) OrderBy(params ...UserOrderByParam) attendanceToUserFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceToUserFindMany) Skip(count int) attendanceToUserFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToUserFindMany) Take(count int) attendanceToUserFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceToUserFindMany) Cursor(cursor AttendanceCursorParam) attendanceToUserFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceToUserFindMany) Exec(ctx context.Context) (
+	[]AttendanceModel,
+	error,
+) {
+	var v []AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceToUserFindMany) ExecInner(ctx context.Context) (
+	[]InnerAttendance,
+	error,
+) {
+	var v []InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceToUserFindMany) Update(params ...AttendanceSetParam) attendanceToUserUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "Attendance"
+
+	r.query.Outputs = countOutput
+
+	var v attendanceToUserUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceToUserUpdateMany struct {
+	query builder.Query
+}
+
+func (r attendanceToUserUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceToUserUpdateMany) attendanceModel() {}
+
+func (r attendanceToUserUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToUserUpdateMany) Tx() AttendanceManyTxResult {
+	v := newAttendanceManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceToUserFindMany) Delete() attendanceToUserDeleteMany {
+	var v attendanceToUserDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "Attendance"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type attendanceToUserDeleteMany struct {
+	query builder.Query
+}
+
+func (r attendanceToUserDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceToUserDeleteMany) attendanceModel() {}
+
+func (r attendanceToUserDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceToUserDeleteMany) Tx() AttendanceManyTxResult {
+	v := newAttendanceManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceFindUnique struct {
+	query builder.Query
+}
+
+func (r attendanceFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceFindUnique) with()               {}
+func (r attendanceFindUnique) attendanceModel()    {}
+func (r attendanceFindUnique) attendanceRelation() {}
+
+func (r attendanceActions) FindUnique(
+	params AttendanceEqualsUniqueWhereParam,
+) attendanceFindUnique {
+	var v attendanceFindUnique
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findUnique"
+
+	v.query.Model = "Attendance"
+	v.query.Outputs = attendanceOutput
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "where",
+		Fields: builder.TransformEquals([]builder.Field{params.field()}),
+	})
+
+	return v
+}
+
+func (r attendanceFindUnique) With(params ...AttendanceRelationWith) attendanceFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceFindUnique) Select(params ...attendancePrismaFields) attendanceFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceFindUnique) Omit(params ...attendancePrismaFields) attendanceFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceFindUnique) Exec(ctx context.Context) (
+	*AttendanceModel,
+	error,
+) {
+	var v *AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceFindUnique) ExecInner(ctx context.Context) (
+	*InnerAttendance,
+	error,
+) {
+	var v *InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceFindUnique) Update(params ...AttendanceSetParam) attendanceUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "Attendance"
+
+	var v attendanceUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceUpdateUnique struct {
+	query builder.Query
+}
+
+func (r attendanceUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceUpdateUnique) attendanceModel() {}
+
+func (r attendanceUpdateUnique) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceUpdateUnique) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceFindUnique) Delete() attendanceDeleteUnique {
+	var v attendanceDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "Attendance"
+
+	return v
+}
+
+type attendanceDeleteUnique struct {
+	query builder.Query
+}
+
+func (r attendanceDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceDeleteUnique) attendanceModel() {}
+
+func (r attendanceDeleteUnique) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceDeleteUnique) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceFindFirst struct {
+	query builder.Query
+}
+
+func (r attendanceFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceFindFirst) with()               {}
+func (r attendanceFindFirst) attendanceModel()    {}
+func (r attendanceFindFirst) attendanceRelation() {}
+
+func (r attendanceActions) FindFirst(
+	params ...AttendanceWhereParam,
+) attendanceFindFirst {
+	var v attendanceFindFirst
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findFirst"
+
+	v.query.Model = "Attendance"
+	v.query.Outputs = attendanceOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r attendanceFindFirst) With(params ...AttendanceRelationWith) attendanceFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceFindFirst) Select(params ...attendancePrismaFields) attendanceFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceFindFirst) Omit(params ...attendancePrismaFields) attendanceFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceFindFirst) OrderBy(params ...AttendanceOrderByParam) attendanceFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceFindFirst) Skip(count int) attendanceFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceFindFirst) Take(count int) attendanceFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceFindFirst) Cursor(cursor AttendanceCursorParam) attendanceFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceFindFirst) Exec(ctx context.Context) (
+	*AttendanceModel,
+	error,
+) {
+	var v *AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r attendanceFindFirst) ExecInner(ctx context.Context) (
+	*InnerAttendance,
+	error,
+) {
+	var v *InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type attendanceFindMany struct {
+	query builder.Query
+}
+
+func (r attendanceFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceFindMany) with()               {}
+func (r attendanceFindMany) attendanceModel()    {}
+func (r attendanceFindMany) attendanceRelation() {}
+
+func (r attendanceActions) FindMany(
+	params ...AttendanceWhereParam,
+) attendanceFindMany {
+	var v attendanceFindMany
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findMany"
+
+	v.query.Model = "Attendance"
+	v.query.Outputs = attendanceOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r attendanceFindMany) With(params ...AttendanceRelationWith) attendanceFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r attendanceFindMany) Select(params ...attendancePrismaFields) attendanceFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceFindMany) Omit(params ...attendancePrismaFields) attendanceFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range attendanceOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r attendanceFindMany) OrderBy(params ...AttendanceOrderByParam) attendanceFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r attendanceFindMany) Skip(count int) attendanceFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceFindMany) Take(count int) attendanceFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r attendanceFindMany) Cursor(cursor AttendanceCursorParam) attendanceFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r attendanceFindMany) Exec(ctx context.Context) (
+	[]AttendanceModel,
+	error,
+) {
+	var v []AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceFindMany) ExecInner(ctx context.Context) (
+	[]InnerAttendance,
+	error,
+) {
+	var v []InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r attendanceFindMany) Update(params ...AttendanceSetParam) attendanceUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "Attendance"
+
+	r.query.Outputs = countOutput
+
+	var v attendanceUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type attendanceUpdateMany struct {
+	query builder.Query
+}
+
+func (r attendanceUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceUpdateMany) attendanceModel() {}
+
+func (r attendanceUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceUpdateMany) Tx() AttendanceManyTxResult {
+	v := newAttendanceManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r attendanceFindMany) Delete() attendanceDeleteMany {
+	var v attendanceDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "Attendance"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type attendanceDeleteMany struct {
+	query builder.Query
+}
+
+func (r attendanceDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p attendanceDeleteMany) attendanceModel() {}
+
+func (r attendanceDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceDeleteMany) Tx() AttendanceManyTxResult {
+	v := newAttendanceManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
 // --- template transaction.gotpl ---
 
 func newUserUniqueTxResult() UserUniqueTxResult {
@@ -39776,6 +50777,102 @@ func (p AnnouncementManyTxResult) ExtractQuery() builder.Query {
 func (p AnnouncementManyTxResult) IsTx() {}
 
 func (r AnnouncementManyTxResult) Result() (v *BatchResult) {
+	if err := r.result.Get(r.query.TxResult, &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func newAttendanceCodeUniqueTxResult() AttendanceCodeUniqueTxResult {
+	return AttendanceCodeUniqueTxResult{
+		result: &transaction.Result{},
+	}
+}
+
+type AttendanceCodeUniqueTxResult struct {
+	query  builder.Query
+	result *transaction.Result
+}
+
+func (p AttendanceCodeUniqueTxResult) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p AttendanceCodeUniqueTxResult) IsTx() {}
+
+func (r AttendanceCodeUniqueTxResult) Result() (v *AttendanceCodeModel) {
+	if err := r.result.Get(r.query.TxResult, &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func newAttendanceCodeManyTxResult() AttendanceCodeManyTxResult {
+	return AttendanceCodeManyTxResult{
+		result: &transaction.Result{},
+	}
+}
+
+type AttendanceCodeManyTxResult struct {
+	query  builder.Query
+	result *transaction.Result
+}
+
+func (p AttendanceCodeManyTxResult) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p AttendanceCodeManyTxResult) IsTx() {}
+
+func (r AttendanceCodeManyTxResult) Result() (v *BatchResult) {
+	if err := r.result.Get(r.query.TxResult, &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func newAttendanceUniqueTxResult() AttendanceUniqueTxResult {
+	return AttendanceUniqueTxResult{
+		result: &transaction.Result{},
+	}
+}
+
+type AttendanceUniqueTxResult struct {
+	query  builder.Query
+	result *transaction.Result
+}
+
+func (p AttendanceUniqueTxResult) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p AttendanceUniqueTxResult) IsTx() {}
+
+func (r AttendanceUniqueTxResult) Result() (v *AttendanceModel) {
+	if err := r.result.Get(r.query.TxResult, &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func newAttendanceManyTxResult() AttendanceManyTxResult {
+	return AttendanceManyTxResult{
+		result: &transaction.Result{},
+	}
+}
+
+type AttendanceManyTxResult struct {
+	query  builder.Query
+	result *transaction.Result
+}
+
+func (p AttendanceManyTxResult) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p AttendanceManyTxResult) IsTx() {}
+
+func (r AttendanceManyTxResult) Result() (v *BatchResult) {
 	if err := r.result.Get(r.query.TxResult, &v); err != nil {
 		panic(err)
 	}
@@ -40468,6 +51565,232 @@ func (r announcementUpsertOne) Tx() AnnouncementUniqueTxResult {
 	return v
 }
 
+type attendanceCodeUpsertOne struct {
+	query builder.Query
+}
+
+func (r attendanceCodeUpsertOne) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeUpsertOne) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeUpsertOne) with()                   {}
+func (r attendanceCodeUpsertOne) attendanceCodeModel()    {}
+func (r attendanceCodeUpsertOne) attendanceCodeRelation() {}
+
+func (r attendanceCodeActions) UpsertOne(
+	params AttendanceCodeEqualsUniqueWhereParam,
+) attendanceCodeUpsertOne {
+	var v attendanceCodeUpsertOne
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "mutation"
+	v.query.Method = "upsertOne"
+	v.query.Model = "AttendanceCode"
+	v.query.Outputs = attendanceCodeOutput
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "where",
+		Fields: builder.TransformEquals([]builder.Field{params.field()}),
+	})
+
+	return v
+}
+
+func (r attendanceCodeUpsertOne) Create(
+
+	_code AttendanceCodeWithPrismaCodeSetParam,
+	_expiredAt AttendanceCodeWithPrismaExpiredAtSetParam,
+	_schedule AttendanceCodeWithPrismaScheduleSetParam,
+
+	optional ...AttendanceCodeSetParam,
+) attendanceCodeUpsertOne {
+	var v attendanceCodeUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _code.field())
+	fields = append(fields, _expiredAt.field())
+	fields = append(fields, _schedule.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r attendanceCodeUpsertOne) Update(
+	params ...AttendanceCodeSetParam,
+) attendanceCodeUpsertOne {
+	var v attendanceCodeUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r attendanceCodeUpsertOne) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
+	var v AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceCodeUpsertOne) Tx() AttendanceCodeUniqueTxResult {
+	v := newAttendanceCodeUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type attendanceUpsertOne struct {
+	query builder.Query
+}
+
+func (r attendanceUpsertOne) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceUpsertOne) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceUpsertOne) with()               {}
+func (r attendanceUpsertOne) attendanceModel()    {}
+func (r attendanceUpsertOne) attendanceRelation() {}
+
+func (r attendanceActions) UpsertOne(
+	params AttendanceEqualsUniqueWhereParam,
+) attendanceUpsertOne {
+	var v attendanceUpsertOne
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "mutation"
+	v.query.Method = "upsertOne"
+	v.query.Model = "Attendance"
+	v.query.Outputs = attendanceOutput
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "where",
+		Fields: builder.TransformEquals([]builder.Field{params.field()}),
+	})
+
+	return v
+}
+
+func (r attendanceUpsertOne) Create(
+
+	_code AttendanceWithPrismaCodeSetParam,
+	_user AttendanceWithPrismaUserSetParam,
+
+	optional ...AttendanceSetParam,
+) attendanceUpsertOne {
+	var v attendanceUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _code.field())
+	fields = append(fields, _user.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r attendanceUpsertOne) Update(
+	params ...AttendanceSetParam,
+) attendanceUpsertOne {
+	var v attendanceUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r attendanceUpsertOne) Exec(ctx context.Context) (*AttendanceModel, error) {
+	var v AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r attendanceUpsertOne) Tx() AttendanceUniqueTxResult {
+	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
 // --- template raw.gotpl ---
 
 type userAggregateRaw struct {
@@ -40950,6 +52273,168 @@ func (r announcementAggregateRaw) Exec(ctx context.Context) ([]AnnouncementModel
 
 func (r announcementAggregateRaw) ExecInner(ctx context.Context) ([]InnerAnnouncement, error) {
 	var v []InnerAnnouncement
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+type attendanceCodeAggregateRaw struct {
+	query builder.Query
+}
+
+func (r attendanceCodeAggregateRaw) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeAggregateRaw) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceCodeAggregateRaw) with()                   {}
+func (r attendanceCodeAggregateRaw) attendanceCodeModel()    {}
+func (r attendanceCodeAggregateRaw) attendanceCodeRelation() {}
+
+func (r attendanceCodeActions) FindRaw(filter interface{}, options ...interface{}) attendanceCodeAggregateRaw {
+	var v attendanceCodeAggregateRaw
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+	v.query.Method = "findRaw"
+	v.query.Operation = "query"
+	v.query.Model = "AttendanceCode"
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:  "filter",
+		Value: fmt.Sprintf("%v", filter),
+	})
+
+	if len(options) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:  "options",
+			Value: fmt.Sprintf("%v", options[0]),
+		})
+	}
+	return v
+}
+
+func (r attendanceCodeActions) AggregateRaw(pipeline []interface{}, options ...interface{}) attendanceCodeAggregateRaw {
+	var v attendanceCodeAggregateRaw
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+	v.query.Method = "aggregateRaw"
+	v.query.Operation = "query"
+	v.query.Model = "AttendanceCode"
+
+	parsedPip := []interface{}{}
+	for _, p := range pipeline {
+		parsedPip = append(parsedPip, fmt.Sprintf("%v", p))
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:  "pipeline",
+		Value: parsedPip,
+	})
+
+	if len(options) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:  "options",
+			Value: fmt.Sprintf("%v", options[0]),
+		})
+	}
+	return v
+}
+
+func (r attendanceCodeAggregateRaw) Exec(ctx context.Context) ([]AttendanceCodeModel, error) {
+	var v []AttendanceCodeModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func (r attendanceCodeAggregateRaw) ExecInner(ctx context.Context) ([]InnerAttendanceCode, error) {
+	var v []InnerAttendanceCode
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+type attendanceAggregateRaw struct {
+	query builder.Query
+}
+
+func (r attendanceAggregateRaw) getQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceAggregateRaw) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r attendanceAggregateRaw) with()               {}
+func (r attendanceAggregateRaw) attendanceModel()    {}
+func (r attendanceAggregateRaw) attendanceRelation() {}
+
+func (r attendanceActions) FindRaw(filter interface{}, options ...interface{}) attendanceAggregateRaw {
+	var v attendanceAggregateRaw
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+	v.query.Method = "findRaw"
+	v.query.Operation = "query"
+	v.query.Model = "Attendance"
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:  "filter",
+		Value: fmt.Sprintf("%v", filter),
+	})
+
+	if len(options) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:  "options",
+			Value: fmt.Sprintf("%v", options[0]),
+		})
+	}
+	return v
+}
+
+func (r attendanceActions) AggregateRaw(pipeline []interface{}, options ...interface{}) attendanceAggregateRaw {
+	var v attendanceAggregateRaw
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+	v.query.Method = "aggregateRaw"
+	v.query.Operation = "query"
+	v.query.Model = "Attendance"
+
+	parsedPip := []interface{}{}
+	for _, p := range pipeline {
+		parsedPip = append(parsedPip, fmt.Sprintf("%v", p))
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:  "pipeline",
+		Value: parsedPip,
+	})
+
+	if len(options) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:  "options",
+			Value: fmt.Sprintf("%v", options[0]),
+		})
+	}
+	return v
+}
+
+func (r attendanceAggregateRaw) Exec(ctx context.Context) ([]AttendanceModel, error) {
+	var v []AttendanceModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func (r attendanceAggregateRaw) ExecInner(ctx context.Context) ([]InnerAttendance, error) {
+	var v []InnerAttendance
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
 	}

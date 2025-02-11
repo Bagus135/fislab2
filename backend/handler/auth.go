@@ -149,11 +149,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("UserID from context: %s\n", userID)
 
 	// Decode request body
-	var req struct {
-		OldPassword        string `json:"old_password"`
-		NewPassword        string `json:"new_password"`
-		ConfirmNewPassword string `json:"confirm_new_password"`
-	}
+	var req types.ChangePasswordRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)

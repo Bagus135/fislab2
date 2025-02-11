@@ -18,7 +18,7 @@ type ChangePasswordRequest struct {
 	ConfirmNewPassword string `json:"confirm_new_password"`
 }
 
-type CreateScheduleRequest struct {
+type SetScheduleRequest struct {
 	PracticumID int    `json:"practicumId"`
 	GroupID     string `json:"groupId"`
 	Date        string `json:"date"`      // Format: "2024-02-09"
