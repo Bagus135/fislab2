@@ -94,6 +94,7 @@ enum Role {
 enum Status {
   UNSCHEDULED
   SCHEDULED
+  FINISHED
   COMPLETED
   CANCELLED
 }
@@ -181,9 +182,7 @@ model Schedule {
   attendanceCodes AttendanceCode[]
   grades          Grade[]
 
-  @@unique([groupId, startTime])
-  @@unique([practicumId, groupId])
-  @@unique([practicumId, assistantId])
+  @@unique([practicumId, assistantId, groupId])
 }
 
 // penilaian
@@ -386,6 +385,7 @@ type Status string
 const (
 	StatusUnscheduled Status = "UNSCHEDULED"
 	StatusScheduled   Status = "SCHEDULED"
+	StatusFinished    Status = "FINISHED"
 	StatusCompleted   Status = "COMPLETED"
 	StatusCancelled   Status = "CANCELLED"
 )
@@ -9369,55 +9369,22 @@ func (scheduleQuery) And(params ...ScheduleWhereParam) scheduleDefaultParam {
 	}
 }
 
-func (scheduleQuery) GroupIDStartTime(
-	_groupID ScheduleWithPrismaGroupIDWhereParam,
-
-	_startTime ScheduleWithPrismaStartTimeWhereParam,
-) ScheduleEqualsUniqueWhereParam {
-	var fields []builder.Field
-
-	fields = append(fields, _groupID.field())
-	fields = append(fields, _startTime.field())
-
-	return scheduleEqualsUniqueParam{
-		data: builder.Field{
-			Name:   "groupId_startTime",
-			Fields: builder.TransformEquals(fields),
-		},
-	}
-}
-
-func (scheduleQuery) PracticumIDGroupID(
-	_practicumID ScheduleWithPrismaPracticumIDWhereParam,
-
-	_groupID ScheduleWithPrismaGroupIDWhereParam,
-) ScheduleEqualsUniqueWhereParam {
-	var fields []builder.Field
-
-	fields = append(fields, _practicumID.field())
-	fields = append(fields, _groupID.field())
-
-	return scheduleEqualsUniqueParam{
-		data: builder.Field{
-			Name:   "practicumId_groupId",
-			Fields: builder.TransformEquals(fields),
-		},
-	}
-}
-
-func (scheduleQuery) PracticumIDAssistantID(
+func (scheduleQuery) PracticumIDAssistantIDGroupID(
 	_practicumID ScheduleWithPrismaPracticumIDWhereParam,
 
 	_assistantID ScheduleWithPrismaAssistantIDWhereParam,
+
+	_groupID ScheduleWithPrismaGroupIDWhereParam,
 ) ScheduleEqualsUniqueWhereParam {
 	var fields []builder.Field
 
 	fields = append(fields, _practicumID.field())
 	fields = append(fields, _assistantID.field())
+	fields = append(fields, _groupID.field())
 
 	return scheduleEqualsUniqueParam{
 		data: builder.Field{
-			Name:   "practicumId_assistantId",
+			Name:   "practicumId_assistantId_groupId",
 			Fields: builder.TransformEquals(fields),
 		},
 	}

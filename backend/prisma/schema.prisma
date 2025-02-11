@@ -19,6 +19,7 @@ enum Role {
 enum Status {
   UNSCHEDULED
   SCHEDULED
+  FINISHED
   COMPLETED
   CANCELLED
 }
@@ -106,9 +107,7 @@ model Schedule {
   attendanceCodes AttendanceCode[]
   grades          Grade[]
 
-  @@unique([groupId, startTime])
-  @@unique([practicumId, groupId])
-  @@unique([practicumId, assistantId])
+  @@unique([practicumId, assistantId, groupId])
 }
 
 // penilaian

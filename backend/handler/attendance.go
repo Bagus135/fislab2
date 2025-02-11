@@ -188,6 +188,7 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 
 	if userRole != "ASISTEN" {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "forbidden"})
 		return
 	}
 
@@ -198,7 +199,6 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
 		return
@@ -206,12 +206,12 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 
 	// Validasi input
 	if req.ScheduleID == 0 || req.UserID == "" || req.Status == "" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "scheduleId, userId, and status are required"})
 		return
 	}
-	// Pastikan status yang dimasukkan valid
+
+	// Validasi status absensi
 	validStatus := map[db.AttendanceStatus]bool{
 		db.AttendanceStatusHadir:      true,
 		db.AttendanceStatusIzin:       true,
@@ -224,7 +224,7 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Cek apakah jadwal (Schedule) terkait dengan asisten ini
+	// Cek apakah jadwal terkait dengan asisten ini
 	schedule, err := h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).With(
@@ -266,14 +266,22 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Cari atau buat absensi untuk praktikan ini
-	attendance, err := h.client.Attendance.UpsertOne(
+	// Ambil kode absensi pertama
+	if len(schedule.AttendanceCodes()) == 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code not found"})
+		return
+	}
+	attendanceCodeID := schedule.AttendanceCodes()[0].ID
+
+	// Lakukan Upsert tanpa With() karena tidak didukung
+	_, err = h.client.Attendance.UpsertOne(
 		db.Attendance.CodeIDUserID(
-			db.Attendance.CodeID.Equals(schedule.AttendanceCodes()[0].ID), // Ambil kode absensi pertama
+			db.Attendance.CodeID.Equals(attendanceCodeID),
 			db.Attendance.UserID.Equals(req.UserID),
 		),
 	).Create(
-		db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(schedule.AttendanceCodes()[0].ID)),
+		db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCodeID)),
 		db.Attendance.User.Link(db.User.ID.Equals(req.UserID)),
 		db.Attendance.Status.Set(req.Status),
 	).Update(
@@ -285,11 +293,29 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update attendance"})
 		return
 	}
+
+	// Query ulang untuk mendapatkan data lengkap dengan User
+	attendance, err := h.client.Attendance.FindUnique(
+		db.Attendance.CodeIDUserID(
+			db.Attendance.CodeID.Equals(attendanceCodeID),
+			db.Attendance.UserID.Equals(req.UserID),
+		),
+	).With(
+		db.Attendance.User.Fetch(),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch updated attendance"})
+		return
+	}
+
 	// Kirim response
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":         attendance.ID,
+		"name":       attendance.User().Name,
+		"nrp":        attendance.User().Nrp,
 		"scheduleId": req.ScheduleID,
 		"userId":     req.UserID,
 		"status":     attendance.Status,
@@ -324,7 +350,7 @@ func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.R
 
 	if err != nil || schedule.Assistant().ID != assistantID {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "you are not the assistant for this schedule"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you are not the assistant for this schedule"})
 		return
 	}
 
@@ -345,6 +371,7 @@ func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.R
 			"id":         attendance.ID,
 			"scheduleId": scheduleID,
 			"userId":     attendance.User().ID,
+			"name":       attendance.User().Name,
 			"nrp":        attendance.User().Nrp,
 			"status":     attendance.Status,
 		})
