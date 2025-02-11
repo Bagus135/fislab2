@@ -2,6 +2,7 @@ package handler
 
 import (
 	"backend/prisma/db"
+	"backend/types"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,12 +29,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	assistantId := r.Context().Value("userID").(string)
 
-	var req struct {
-		PracticumID int    `json:"practicumId"`
-		GroupID     string `json:"groupId"`
-		Date        string `json:"date"`
-		StartTime   string `json:"startTime"`
-	}
+	var req types.SetScheduleRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)

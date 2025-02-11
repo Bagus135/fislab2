@@ -7,7 +7,7 @@ generator client {
   provider = "go run github.com/steebchen/prisma-client-go"
 }
 
-// role user
+// role
 enum Role {
   SUPER_ADMIN
   ADMIN
@@ -15,7 +15,23 @@ enum Role {
   PRAKTIKAN
 }
 
-// user
+// status praktikum
+enum Status {
+  UNSCHEDULED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+// status presensi
+enum AttendanceStatus {
+  HADIR
+  SAKIT
+  IZIN
+  TIDAK_HADIR
+}
+
+// User
 model User {
   id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp       String    @unique
@@ -31,14 +47,17 @@ model User {
   // Relasi untuk anggota kelompok
   memberGroups Group[] @relation("MemberGroups")
 
+  // Relasi presensi
+  attendances Attendance[] @relation("UserAttendance")
+
+  // Relasi ke jadwal asisten
+  assistantSchedules Schedule[] @relation("AssistantSchedules")
+
   // Relasi untuk asisten yang memberi nilai
   gradedGrades Grade[] @relation("GradedBy")
 
   // Relasi untuk praktikan yang menerima nilai
   userGrades Grade[] @relation("UserGrades")
-
-  // Relasi ke jadwal asisten
-  assistantSchedules Schedule[] @relation("AssistantSchedules")
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
@@ -70,7 +89,7 @@ model Practicum {
   @@map("practicums")
 }
 
-// jadwal
+// Jadwal
 model Schedule {
   id          Int       @id @default(autoincrement())
   practicumId Int
@@ -84,7 +103,8 @@ model Schedule {
   group     Group     @relation("GroupSchedules", fields: [groupId], references: [id])
   assistant User      @relation("AssistantSchedules", fields: [assistantId], references: [id])
 
-  grades Grade[]
+  attendanceCodes AttendanceCode[]
+  grades          Grade[]
 
   @@unique([groupId, startTime])
   @@unique([practicumId, groupId])
@@ -114,14 +134,6 @@ model Grade {
   grader   User     @relation("GradedBy", fields: [gradedBy], references: [id])
 }
 
-// status praktikum yang diambil
-enum Status {
-  UNSCHEDULED
-  SCHEDULED
-  COMPLETED
-  CANCELLED
-}
-
 // pengumuman
 model Announcement {
   id        Int      @id @default(autoincrement())
@@ -132,4 +144,32 @@ model Announcement {
   authorId  String
 
   author User @relation(fields: [authorId], references: [id])
+}
+
+// Kode absensi
+model AttendanceCode {
+  id         Int      @id @default(autoincrement())
+  scheduleId Int
+  code       String   @unique
+  expiredAt  DateTime
+  createdAt  DateTime @default(now())
+
+  schedule    Schedule     @relation(fields: [scheduleId], references: [id])
+  attendances Attendance[]
+
+  @@unique([scheduleId, expiredAt])
+}
+
+// Absensi
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  codeId    Int
+  userId    String
+  status    AttendanceStatus @default(TIDAK_HADIR)
+  createdAt DateTime         @default(now())
+
+  code AttendanceCode @relation(fields: [codeId], references: [id])
+  user User           @relation("UserAttendance", fields: [userId], references: [id])
+
+  @@unique([codeId, userId])
 }
