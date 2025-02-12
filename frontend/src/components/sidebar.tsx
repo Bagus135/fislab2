@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import { Button } from "./ui/button"; // shadcn
-import { Calendar, FlaskConical, Gauge, GaugeCircle, Home, HomeIcon, Megaphone, Menu} from "lucide-react";
+import { Calendar, CheckSquare, FlaskConical, Gauge, GaugeCircle, Home, HomeIcon, Megaphone, Menu, User} from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { useState } from "react";
 import { Separator } from "./ui/separator";
@@ -34,11 +34,27 @@ export default function SideBar () {
                 </Link>
             </Button>
             <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
+                <Link href={'/presence'}>
+                    <div className="w-8  flex justify-center">
+                        <CheckSquare className="size-6"/>
+                    </div>
+                    <p className="hidden lg:flex ml-2">Presence</p>
+                </Link>
+            </Button>
+            <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
                 <Link href={'/announcement'}>
                     <div className="w-8  flex justify-center">
                         <Megaphone className="size-6"/>
                     </div>
                     <p className="hidden lg:flex ml-2">Announcement</p>
+                </Link>
+            </Button>
+            <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
+                <Link href={'/announcement'}>
+                    <div className="w-8  flex justify-center">
+                        <User className="size-6"/>
+                    </div>
+                    <p className="hidden lg:flex ml-2">Admin</p>
                 </Link>
             </Button>
         </div>
@@ -84,6 +100,13 @@ export function MobileSidebar () {
                             <Calendar className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Schedule
+                        </Link>
+                    </Button>
+                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
+                        <Link href={'/presence'}>
+                            <CheckSquare className="size-6"/>
+                            <Separator orientation="vertical"/>
+                                Presence
                         </Link>
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
