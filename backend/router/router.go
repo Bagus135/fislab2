@@ -85,5 +85,10 @@ func NewRouter(
 	// Assistant status routes
 	adminAPI.HandleFunc("/assistant/status", assistantHandler.GetAssistantStatus).Methods("GET")
 
+	api.HandleFunc("/verify-email", authHandler.VerifyEmail).Methods("POST")
+	api.HandleFunc("/send-verification-code", authHandler.SendVerificationCode).Methods("POST")
+	r.HandleFunc("/forgot-password", authHandler.ForgotPassword).Methods("POST")
+	r.HandleFunc("/reset-password", authHandler.ResetPassword).Methods("POST")
+
 	return r
 }

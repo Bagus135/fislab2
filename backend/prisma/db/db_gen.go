@@ -107,18 +107,18 @@ enum AttendanceStatus {
   TIDAK_HADIR
 }
 
-// User
 model User {
-  id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
-  nrp       String    @unique
-  name      String
-  about     String
-  email     String
-  phone     String
-  password  String
-  role      Role
-  createdAt DateTime? @default(now()) @map("created_at")
-  updatedAt DateTime? @updatedAt @map("updated_at")
+  id            String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
+  nrp           String    @unique
+  name          String
+  about         String
+  email         String    @unique
+  phone         String
+  password      String
+  role          Role
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
 
   // Relasi untuk anggota kelompok
   memberGroups Group[] @relation("MemberGroups")
@@ -137,6 +137,9 @@ model User {
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
+
+  // relasi ke reset password token
+  passwordReset PasswordReset[]
 }
 
 // kelompok
@@ -247,6 +250,20 @@ model Attendance {
 
   @@unique([codeId, userId])
 }
+
+// Model untuk kode reset password
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  token     String   @unique // token yang akan dikirim via link
+  expiredAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([token, expiredAt])
+}
 `
 const schemaDatasourceURL = ""
 const schemaEnvVarName = "DATABASE_URL"
@@ -326,6 +343,7 @@ func newClient() *PrismaClient {
 	c.Announcement = announcementActions{client: c}
 	c.AttendanceCode = attendanceCodeActions{client: c}
 	c.Attendance = attendanceActions{client: c}
+	c.PasswordReset = passwordResetActions{client: c}
 
 	c.Prisma = &PrismaActions{
 		Raw: &raw.Raw{Engine: c},
@@ -366,6 +384,8 @@ type PrismaClient struct {
 	AttendanceCode attendanceCodeActions
 	// Attendance provides access to CRUD methods.
 	Attendance attendanceActions
+	// PasswordReset provides access to CRUD methods.
+	PasswordReset passwordResetActions
 }
 
 // --- template enums.gotpl ---
@@ -414,16 +434,17 @@ const (
 type UserScalarFieldEnum string
 
 const (
-	UserScalarFieldEnumID        UserScalarFieldEnum = "id"
-	UserScalarFieldEnumNrp       UserScalarFieldEnum = "nrp"
-	UserScalarFieldEnumName      UserScalarFieldEnum = "name"
-	UserScalarFieldEnumAbout     UserScalarFieldEnum = "about"
-	UserScalarFieldEnumEmail     UserScalarFieldEnum = "email"
-	UserScalarFieldEnumPhone     UserScalarFieldEnum = "phone"
-	UserScalarFieldEnumPassword  UserScalarFieldEnum = "password"
-	UserScalarFieldEnumRole      UserScalarFieldEnum = "role"
-	UserScalarFieldEnumCreatedAt UserScalarFieldEnum = "createdAt"
-	UserScalarFieldEnumUpdatedAt UserScalarFieldEnum = "updatedAt"
+	UserScalarFieldEnumID            UserScalarFieldEnum = "id"
+	UserScalarFieldEnumNrp           UserScalarFieldEnum = "nrp"
+	UserScalarFieldEnumName          UserScalarFieldEnum = "name"
+	UserScalarFieldEnumAbout         UserScalarFieldEnum = "about"
+	UserScalarFieldEnumEmail         UserScalarFieldEnum = "email"
+	UserScalarFieldEnumPhone         UserScalarFieldEnum = "phone"
+	UserScalarFieldEnumPassword      UserScalarFieldEnum = "password"
+	UserScalarFieldEnumRole          UserScalarFieldEnum = "role"
+	UserScalarFieldEnumEmailVerified UserScalarFieldEnum = "emailVerified"
+	UserScalarFieldEnumCreatedAt     UserScalarFieldEnum = "createdAt"
+	UserScalarFieldEnumUpdatedAt     UserScalarFieldEnum = "updatedAt"
 )
 
 type GroupScalarFieldEnum string
@@ -506,6 +527,17 @@ const (
 	AttendanceScalarFieldEnumCreatedAt AttendanceScalarFieldEnum = "createdAt"
 )
 
+type PasswordResetScalarFieldEnum string
+
+const (
+	PasswordResetScalarFieldEnumID        PasswordResetScalarFieldEnum = "id"
+	PasswordResetScalarFieldEnumUserID    PasswordResetScalarFieldEnum = "userId"
+	PasswordResetScalarFieldEnumToken     PasswordResetScalarFieldEnum = "token"
+	PasswordResetScalarFieldEnumExpiredAt PasswordResetScalarFieldEnum = "expiredAt"
+	PasswordResetScalarFieldEnumUsed      PasswordResetScalarFieldEnum = "used"
+	PasswordResetScalarFieldEnumCreatedAt PasswordResetScalarFieldEnum = "createdAt"
+)
+
 type SortOrder string
 
 const (
@@ -576,6 +608,8 @@ const userFieldPassword userPrismaFields = "password"
 
 const userFieldRole userPrismaFields = "role"
 
+const userFieldEmailVerified userPrismaFields = "emailVerified"
+
 const userFieldCreatedAt userPrismaFields = "createdAt"
 
 const userFieldUpdatedAt userPrismaFields = "updatedAt"
@@ -591,6 +625,8 @@ const userFieldGradedGrades userPrismaFields = "gradedGrades"
 const userFieldUserGrades userPrismaFields = "userGrades"
 
 const userFieldAnnouncements userPrismaFields = "announcements"
+
+const userFieldPasswordReset userPrismaFields = "passwordReset"
 
 type groupPrismaFields = prismaFields
 
@@ -728,6 +764,22 @@ const attendanceFieldCode attendancePrismaFields = "code"
 
 const attendanceFieldUser attendancePrismaFields = "user"
 
+type passwordResetPrismaFields = prismaFields
+
+const passwordResetFieldID passwordResetPrismaFields = "id"
+
+const passwordResetFieldUserID passwordResetPrismaFields = "userId"
+
+const passwordResetFieldToken passwordResetPrismaFields = "token"
+
+const passwordResetFieldExpiredAt passwordResetPrismaFields = "expiredAt"
+
+const passwordResetFieldUsed passwordResetPrismaFields = "used"
+
+const passwordResetFieldCreatedAt passwordResetPrismaFields = "createdAt"
+
+const passwordResetFieldUser passwordResetPrismaFields = "user"
+
 // --- template mock.gotpl ---
 func NewMock() (*PrismaClient, *Mock, func(t *testing.T)) {
 	expectations := new([]mock.Expectation)
@@ -770,6 +822,10 @@ func NewMock() (*PrismaClient, *Mock, func(t *testing.T)) {
 		mock: m,
 	}
 
+	m.PasswordReset = passwordResetMock{
+		mock: m,
+	}
+
 	return pc, m, m.Ensure
 }
 
@@ -791,6 +847,8 @@ type Mock struct {
 	AttendanceCode attendanceCodeMock
 
 	Attendance attendanceMock
+
+	PasswordReset passwordResetMock
 }
 
 type userMock struct {
@@ -1129,6 +1187,48 @@ func (m *attendanceMockExec) Errors(err error) {
 	})
 }
 
+type passwordResetMock struct {
+	mock *Mock
+}
+
+type PasswordResetMockExpectParam interface {
+	ExtractQuery() builder.Query
+	passwordResetModel()
+}
+
+func (m *passwordResetMock) Expect(query PasswordResetMockExpectParam) *passwordResetMockExec {
+	return &passwordResetMockExec{
+		mock:  m.mock,
+		query: query.ExtractQuery(),
+	}
+}
+
+type passwordResetMockExec struct {
+	mock  *Mock
+	query builder.Query
+}
+
+func (m *passwordResetMockExec) Returns(v PasswordResetModel) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query: m.query,
+		Want:  &v,
+	})
+}
+
+func (m *passwordResetMockExec) ReturnsMany(v []PasswordResetModel) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query: m.query,
+		Want:  &v,
+	})
+}
+
+func (m *passwordResetMockExec) Errors(err error) {
+	*m.mock.Expectations = append(*m.mock.Expectations, mock.Expectation{
+		Query:   m.query,
+		WantErr: err,
+	})
+}
+
 // --- template models.gotpl ---
 
 // UserModel represents the User model and is a wrapper for accessing fields and methods
@@ -1139,40 +1239,43 @@ type UserModel struct {
 
 // InnerUser holds the actual data
 type InnerUser struct {
-	ID        string    `json:"id"`
-	Nrp       string    `json:"nrp"`
-	Name      string    `json:"name"`
-	About     string    `json:"about"`
-	Email     string    `json:"email"`
-	Phone     string    `json:"phone"`
-	Password  string    `json:"password"`
-	Role      Role      `json:"role"`
-	CreatedAt *DateTime `json:"createdAt,omitempty"`
-	UpdatedAt *DateTime `json:"updatedAt,omitempty"`
+	ID            string    `json:"id"`
+	Nrp           string    `json:"nrp"`
+	Name          string    `json:"name"`
+	About         string    `json:"about"`
+	Email         string    `json:"email"`
+	Phone         string    `json:"phone"`
+	Password      string    `json:"password"`
+	Role          Role      `json:"role"`
+	EmailVerified bool      `json:"emailVerified"`
+	CreatedAt     *DateTime `json:"createdAt,omitempty"`
+	UpdatedAt     *DateTime `json:"updatedAt,omitempty"`
 }
 
 // RawUserModel is a struct for User when used in raw queries
 type RawUserModel struct {
-	ID        RawString    `json:"id"`
-	Nrp       RawString    `json:"nrp"`
-	Name      RawString    `json:"name"`
-	About     RawString    `json:"about"`
-	Email     RawString    `json:"email"`
-	Phone     RawString    `json:"phone"`
-	Password  RawString    `json:"password"`
-	Role      RawRole      `json:"role"`
-	CreatedAt *RawDateTime `json:"createdAt,omitempty"`
-	UpdatedAt *RawDateTime `json:"updatedAt,omitempty"`
+	ID            RawString    `json:"id"`
+	Nrp           RawString    `json:"nrp"`
+	Name          RawString    `json:"name"`
+	About         RawString    `json:"about"`
+	Email         RawString    `json:"email"`
+	Phone         RawString    `json:"phone"`
+	Password      RawString    `json:"password"`
+	Role          RawRole      `json:"role"`
+	EmailVerified RawBoolean   `json:"emailVerified"`
+	CreatedAt     *RawDateTime `json:"createdAt,omitempty"`
+	UpdatedAt     *RawDateTime `json:"updatedAt,omitempty"`
 }
 
 // RelationsUser holds the relation data separately
 type RelationsUser struct {
-	MemberGroups       []GroupModel        `json:"memberGroups,omitempty"`
-	Attendances        []AttendanceModel   `json:"attendances,omitempty"`
-	AssistantSchedules []ScheduleModel     `json:"assistantSchedules,omitempty"`
-	GradedGrades       []GradeModel        `json:"gradedGrades,omitempty"`
-	UserGrades         []GradeModel        `json:"userGrades,omitempty"`
-	Announcements      []AnnouncementModel `json:"announcements,omitempty"`
+	MemberGroups       []GroupModel         `json:"memberGroups,omitempty"`
+	Attendances        []AttendanceModel    `json:"attendances,omitempty"`
+	AssistantSchedules []ScheduleModel      `json:"assistantSchedules,omitempty"`
+	GradedGrades       []GradeModel         `json:"gradedGrades,omitempty"`
+	UserGrades         []GradeModel         `json:"userGrades,omitempty"`
+	Announcements      []AnnouncementModel  `json:"announcements,omitempty"`
+	PasswordReset      []PasswordResetModel `json:"passwordReset,omitempty"`
 }
 
 func (r UserModel) CreatedAt() (value DateTime, ok bool) {
@@ -1229,6 +1332,13 @@ func (r UserModel) Announcements() (value []AnnouncementModel) {
 		panic("attempted to access announcements but did not fetch it using the .With() syntax")
 	}
 	return r.RelationsUser.Announcements
+}
+
+func (r UserModel) PasswordReset() (value []PasswordResetModel) {
+	if r.RelationsUser.PasswordReset == nil {
+		panic("attempted to access passwordReset but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsUser.PasswordReset
 }
 
 // GroupModel represents the Group model and is a wrapper for accessing fields and methods
@@ -1659,6 +1769,44 @@ func (r AttendanceModel) User() (value *UserModel) {
 	return r.RelationsAttendance.User
 }
 
+// PasswordResetModel represents the PasswordReset model and is a wrapper for accessing fields and methods
+type PasswordResetModel struct {
+	InnerPasswordReset
+	RelationsPasswordReset
+}
+
+// InnerPasswordReset holds the actual data
+type InnerPasswordReset struct {
+	ID        int      `json:"id"`
+	UserID    string   `json:"userId"`
+	Token     string   `json:"token"`
+	ExpiredAt DateTime `json:"expiredAt"`
+	Used      bool     `json:"used"`
+	CreatedAt DateTime `json:"createdAt"`
+}
+
+// RawPasswordResetModel is a struct for PasswordReset when used in raw queries
+type RawPasswordResetModel struct {
+	ID        RawInt      `json:"id"`
+	UserID    RawString   `json:"userId"`
+	Token     RawString   `json:"token"`
+	ExpiredAt RawDateTime `json:"expiredAt"`
+	Used      RawBoolean  `json:"used"`
+	CreatedAt RawDateTime `json:"createdAt"`
+}
+
+// RelationsPasswordReset holds the relation data separately
+type RelationsPasswordReset struct {
+	User *UserModel `json:"user,omitempty"`
+}
+
+func (r PasswordResetModel) User() (value *UserModel) {
+	if r.RelationsPasswordReset.User == nil {
+		panic("attempted to access user but did not fetch it using the .With() syntax")
+	}
+	return r.RelationsPasswordReset.User
+}
+
 // --- template query.gotpl ---
 
 // User acts as a namespaces to access query methods for the User model
@@ -1691,6 +1839,7 @@ type userQuery struct {
 	// Email
 	//
 	// @required
+	// @unique
 	Email userQueryEmailString
 
 	// Phone
@@ -1707,6 +1856,11 @@ type userQuery struct {
 	//
 	// @required
 	Role userQueryRoleRole
+
+	// EmailVerified
+	//
+	// @required
+	EmailVerified userQueryEmailVerifiedBoolean
 
 	// CreatedAt
 	//
@@ -1729,6 +1883,8 @@ type userQuery struct {
 	UserGrades userQueryUserGradesRelations
 
 	Announcements userQueryAnnouncementsRelations
+
+	PasswordReset userQueryPasswordResetRelations
 }
 
 func (userQuery) Not(params ...UserWhereParam) userDefaultParam {
@@ -3194,9 +3350,9 @@ func (r userQueryEmailString) SetIfPresent(value *String) userWithPrismaEmailSet
 	return r.Set(*value)
 }
 
-func (r userQueryEmailString) Equals(value string) userWithPrismaEmailEqualsParam {
+func (r userQueryEmailString) Equals(value string) userWithPrismaEmailEqualsUniqueParam {
 
-	return userWithPrismaEmailEqualsParam{
+	return userWithPrismaEmailEqualsUniqueParam{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3209,9 +3365,9 @@ func (r userQueryEmailString) Equals(value string) userWithPrismaEmailEqualsPara
 	}
 }
 
-func (r userQueryEmailString) EqualsIfPresent(value *string) userWithPrismaEmailEqualsParam {
+func (r userQueryEmailString) EqualsIfPresent(value *string) userWithPrismaEmailEqualsUniqueParam {
 	if value == nil {
-		return userWithPrismaEmailEqualsParam{}
+		return userWithPrismaEmailEqualsUniqueParam{}
 	}
 	return r.Equals(*value)
 }
@@ -3234,8 +3390,8 @@ func (r userQueryEmailString) Cursor(cursor string) userCursorParam {
 	}
 }
 
-func (r userQueryEmailString) In(value []string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) In(value []string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3248,15 +3404,15 @@ func (r userQueryEmailString) In(value []string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) InIfPresent(value []string) userDefaultParam {
+func (r userQueryEmailString) InIfPresent(value []string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.In(value)
 }
 
-func (r userQueryEmailString) NotIn(value []string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) NotIn(value []string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3269,15 +3425,15 @@ func (r userQueryEmailString) NotIn(value []string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) NotInIfPresent(value []string) userDefaultParam {
+func (r userQueryEmailString) NotInIfPresent(value []string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.NotIn(value)
 }
 
-func (r userQueryEmailString) Lt(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Lt(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3290,15 +3446,15 @@ func (r userQueryEmailString) Lt(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) LtIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) LtIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Lt(*value)
 }
 
-func (r userQueryEmailString) Lte(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Lte(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3311,15 +3467,15 @@ func (r userQueryEmailString) Lte(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) LteIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) LteIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Lte(*value)
 }
 
-func (r userQueryEmailString) Gt(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Gt(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3332,15 +3488,15 @@ func (r userQueryEmailString) Gt(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) GtIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) GtIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Gt(*value)
 }
 
-func (r userQueryEmailString) Gte(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Gte(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3353,15 +3509,15 @@ func (r userQueryEmailString) Gte(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) GteIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) GteIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Gte(*value)
 }
 
-func (r userQueryEmailString) Contains(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Contains(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3374,15 +3530,15 @@ func (r userQueryEmailString) Contains(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) ContainsIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) ContainsIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Contains(*value)
 }
 
-func (r userQueryEmailString) StartsWith(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) StartsWith(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3395,15 +3551,15 @@ func (r userQueryEmailString) StartsWith(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) StartsWithIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) StartsWithIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.StartsWith(*value)
 }
 
-func (r userQueryEmailString) EndsWith(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) EndsWith(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3416,15 +3572,15 @@ func (r userQueryEmailString) EndsWith(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) EndsWithIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) EndsWithIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.EndsWith(*value)
 }
 
-func (r userQueryEmailString) Mode(value QueryMode) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Mode(value QueryMode) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3437,15 +3593,15 @@ func (r userQueryEmailString) Mode(value QueryMode) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) ModeIfPresent(value *QueryMode) userDefaultParam {
+func (r userQueryEmailString) ModeIfPresent(value *QueryMode) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Mode(*value)
 }
 
-func (r userQueryEmailString) Not(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) Not(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3458,17 +3614,17 @@ func (r userQueryEmailString) Not(value string) userDefaultParam {
 	}
 }
 
-func (r userQueryEmailString) NotIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) NotIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.Not(*value)
 }
 
 // deprecated: Use StartsWith instead.
 
-func (r userQueryEmailString) HasPrefix(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) HasPrefix(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3482,17 +3638,17 @@ func (r userQueryEmailString) HasPrefix(value string) userDefaultParam {
 }
 
 // deprecated: Use StartsWithIfPresent instead.
-func (r userQueryEmailString) HasPrefixIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) HasPrefixIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.HasPrefix(*value)
 }
 
 // deprecated: Use EndsWith instead.
 
-func (r userQueryEmailString) HasSuffix(value string) userDefaultParam {
-	return userDefaultParam{
+func (r userQueryEmailString) HasSuffix(value string) userParamUnique {
+	return userParamUnique{
 		data: builder.Field{
 			Name: "email",
 			Fields: []builder.Field{
@@ -3506,9 +3662,9 @@ func (r userQueryEmailString) HasSuffix(value string) userDefaultParam {
 }
 
 // deprecated: Use EndsWithIfPresent instead.
-func (r userQueryEmailString) HasSuffixIfPresent(value *string) userDefaultParam {
+func (r userQueryEmailString) HasSuffixIfPresent(value *string) userParamUnique {
 	if value == nil {
-		return userDefaultParam{}
+		return userParamUnique{}
 	}
 	return r.HasSuffix(*value)
 }
@@ -4340,6 +4496,74 @@ func (r userQueryRoleRole) NotIfPresent(value *Role) userDefaultParam {
 
 func (r userQueryRoleRole) Field() userPrismaFields {
 	return userFieldRole
+}
+
+// base struct
+type userQueryEmailVerifiedBoolean struct{}
+
+// Set the required value of EmailVerified
+func (r userQueryEmailVerifiedBoolean) Set(value bool) userSetParam {
+
+	return userSetParam{
+		data: builder.Field{
+			Name:  "emailVerified",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of EmailVerified dynamically
+func (r userQueryEmailVerifiedBoolean) SetIfPresent(value *Boolean) userSetParam {
+	if value == nil {
+		return userSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r userQueryEmailVerifiedBoolean) Equals(value bool) userWithPrismaEmailVerifiedEqualsParam {
+
+	return userWithPrismaEmailVerifiedEqualsParam{
+		data: builder.Field{
+			Name: "emailVerified",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailVerifiedBoolean) EqualsIfPresent(value *bool) userWithPrismaEmailVerifiedEqualsParam {
+	if value == nil {
+		return userWithPrismaEmailVerifiedEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r userQueryEmailVerifiedBoolean) Order(direction SortOrder) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name:  "emailVerified",
+			Value: direction,
+		},
+	}
+}
+
+func (r userQueryEmailVerifiedBoolean) Cursor(cursor bool) userCursorParam {
+	return userCursorParam{
+		data: builder.Field{
+			Name:  "emailVerified",
+			Value: cursor,
+		},
+	}
+}
+
+func (r userQueryEmailVerifiedBoolean) Field() userPrismaFields {
+	return userFieldEmailVerified
 }
 
 // base struct
@@ -6084,6 +6308,178 @@ func (r userQueryAnnouncementsRelations) Unlink(
 
 func (r userQueryAnnouncementsAnnouncement) Field() userPrismaFields {
 	return userFieldAnnouncements
+}
+
+// base struct
+type userQueryPasswordResetPasswordReset struct{}
+
+type userQueryPasswordResetRelations struct{}
+
+// User -> PasswordReset
+//
+// @relation
+// @required
+func (userQueryPasswordResetRelations) Some(
+	params ...PasswordResetWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "passwordReset",
+			Fields: []builder.Field{
+				{
+					Name:   "some",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// User -> PasswordReset
+//
+// @relation
+// @required
+func (userQueryPasswordResetRelations) Every(
+	params ...PasswordResetWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "passwordReset",
+			Fields: []builder.Field{
+				{
+					Name:   "every",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+// User -> PasswordReset
+//
+// @relation
+// @required
+func (userQueryPasswordResetRelations) None(
+	params ...PasswordResetWhereParam,
+) userDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "passwordReset",
+			Fields: []builder.Field{
+				{
+					Name:   "none",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (userQueryPasswordResetRelations) Fetch(
+
+	params ...PasswordResetWhereParam,
+
+) userToPasswordResetFindMany {
+	var v userToPasswordResetFindMany
+
+	v.query.Operation = "query"
+	v.query.Method = "passwordReset"
+	v.query.Outputs = passwordResetOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r userQueryPasswordResetRelations) Link(
+	params ...PasswordResetWhereParam,
+) userSetParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return userSetParam{
+		data: builder.Field{
+			Name: "passwordReset",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+
+					List:     true,
+					WrapList: true,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPasswordResetRelations) Unlink(
+	params ...PasswordResetWhereParam,
+) userSetParam {
+	var v userSetParam
+
+	var fields []builder.Field
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+	v = userSetParam{
+		data: builder.Field{
+			Name: "passwordReset",
+			Fields: []builder.Field{
+				{
+					Name:     "disconnect",
+					List:     true,
+					WrapList: true,
+					Fields:   builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r userQueryPasswordResetPasswordReset) Field() userPrismaFields {
+	return userFieldPasswordReset
 }
 
 // Group acts as a namespaces to access query methods for the Group model
@@ -25035,6 +25431,1968 @@ func (r attendanceQueryUserUser) Field() attendancePrismaFields {
 	return attendanceFieldUser
 }
 
+// PasswordReset acts as a namespaces to access query methods for the PasswordReset model
+var PasswordReset = passwordResetQuery{}
+
+// passwordResetQuery exposes query functions for the passwordReset model
+type passwordResetQuery struct {
+
+	// ID
+	//
+	// @required
+	ID passwordResetQueryIDInt
+
+	// UserID
+	//
+	// @required
+	UserID passwordResetQueryUserIDString
+
+	// Token
+	//
+	// @required
+	// @unique
+	Token passwordResetQueryTokenString
+
+	// ExpiredAt
+	//
+	// @required
+	ExpiredAt passwordResetQueryExpiredAtDateTime
+
+	// Used
+	//
+	// @required
+	Used passwordResetQueryUsedBoolean
+
+	// CreatedAt
+	//
+	// @required
+	CreatedAt passwordResetQueryCreatedAtDateTime
+
+	User passwordResetQueryUserRelations
+}
+
+func (passwordResetQuery) Not(params ...PasswordResetWhereParam) passwordResetDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:     "NOT",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (passwordResetQuery) Or(params ...PasswordResetWhereParam) passwordResetDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:     "OR",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+func (passwordResetQuery) And(params ...PasswordResetWhereParam) passwordResetDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:     "AND",
+			List:     true,
+			WrapList: true,
+			Fields:   fields,
+		},
+	}
+}
+
+// base struct
+type passwordResetQueryIDInt struct{}
+
+// Set the required value of ID
+func (r passwordResetQueryIDInt) Set(value int) passwordResetSetParam {
+
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of ID dynamically
+func (r passwordResetQueryIDInt) SetIfPresent(value *Int) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the required value of ID
+func (r passwordResetQueryIDInt) Increment(value int) passwordResetSetParam {
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) IncrementIfPresent(value *int) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the required value of ID
+func (r passwordResetQueryIDInt) Decrement(value int) passwordResetSetParam {
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) DecrementIfPresent(value *int) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the required value of ID
+func (r passwordResetQueryIDInt) Multiply(value int) passwordResetSetParam {
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) MultiplyIfPresent(value *int) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the required value of ID
+func (r passwordResetQueryIDInt) Divide(value int) passwordResetSetParam {
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) DivideIfPresent(value *int) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r passwordResetQueryIDInt) Equals(value int) passwordResetWithPrismaIDEqualsUniqueParam {
+
+	return passwordResetWithPrismaIDEqualsUniqueParam{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) EqualsIfPresent(value *int) passwordResetWithPrismaIDEqualsUniqueParam {
+	if value == nil {
+		return passwordResetWithPrismaIDEqualsUniqueParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r passwordResetQueryIDInt) Order(direction SortOrder) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: direction,
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) Cursor(cursor int) passwordResetCursorParam {
+	return passwordResetCursorParam{
+		data: builder.Field{
+			Name:  "id",
+			Value: cursor,
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) In(value []int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) InIfPresent(value []int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.In(value)
+}
+
+func (r passwordResetQueryIDInt) NotIn(value []int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) NotInIfPresent(value []int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.NotIn(value)
+}
+
+func (r passwordResetQueryIDInt) Lt(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) LtIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Lt(*value)
+}
+
+func (r passwordResetQueryIDInt) Lte(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) LteIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Lte(*value)
+}
+
+func (r passwordResetQueryIDInt) Gt(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) GtIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Gt(*value)
+}
+
+func (r passwordResetQueryIDInt) Gte(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) GteIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Gte(*value)
+}
+
+func (r passwordResetQueryIDInt) Not(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryIDInt) NotIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r passwordResetQueryIDInt) LT(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r passwordResetQueryIDInt) LTIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r passwordResetQueryIDInt) LTE(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r passwordResetQueryIDInt) LTEIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r passwordResetQueryIDInt) GT(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r passwordResetQueryIDInt) GTIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r passwordResetQueryIDInt) GTE(value int) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r passwordResetQueryIDInt) GTEIfPresent(value *int) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.GTE(*value)
+}
+
+func (r passwordResetQueryIDInt) Field() passwordResetPrismaFields {
+	return passwordResetFieldID
+}
+
+// base struct
+type passwordResetQueryUserIDString struct{}
+
+// Set the required value of UserID
+func (r passwordResetQueryUserIDString) Set(value string) passwordResetSetParam {
+
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name:  "userId",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of UserID dynamically
+func (r passwordResetQueryUserIDString) SetIfPresent(value *String) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r passwordResetQueryUserIDString) Equals(value string) passwordResetWithPrismaUserIDEqualsParam {
+
+	return passwordResetWithPrismaUserIDEqualsParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) EqualsIfPresent(value *string) passwordResetWithPrismaUserIDEqualsParam {
+	if value == nil {
+		return passwordResetWithPrismaUserIDEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r passwordResetQueryUserIDString) Order(direction SortOrder) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:  "userId",
+			Value: direction,
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) Cursor(cursor string) passwordResetCursorParam {
+	return passwordResetCursorParam{
+		data: builder.Field{
+			Name:  "userId",
+			Value: cursor,
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) In(value []string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) InIfPresent(value []string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r passwordResetQueryUserIDString) NotIn(value []string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) NotInIfPresent(value []string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r passwordResetQueryUserIDString) Lt(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) LtIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r passwordResetQueryUserIDString) Lte(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) LteIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r passwordResetQueryUserIDString) Gt(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) GtIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r passwordResetQueryUserIDString) Gte(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) GteIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r passwordResetQueryUserIDString) Contains(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) ContainsIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Contains(*value)
+}
+
+func (r passwordResetQueryUserIDString) StartsWith(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) StartsWithIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r passwordResetQueryUserIDString) EndsWith(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) EndsWithIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r passwordResetQueryUserIDString) Mode(value QueryMode) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) ModeIfPresent(value *QueryMode) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Mode(*value)
+}
+
+func (r passwordResetQueryUserIDString) Not(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserIDString) NotIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r passwordResetQueryUserIDString) HasPrefix(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r passwordResetQueryUserIDString) HasPrefixIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r passwordResetQueryUserIDString) HasSuffix(value string) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "userId",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r passwordResetQueryUserIDString) HasSuffixIfPresent(value *string) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r passwordResetQueryUserIDString) Field() passwordResetPrismaFields {
+	return passwordResetFieldUserID
+}
+
+// base struct
+type passwordResetQueryTokenString struct{}
+
+// Set the required value of Token
+func (r passwordResetQueryTokenString) Set(value string) passwordResetWithPrismaTokenSetParam {
+
+	return passwordResetWithPrismaTokenSetParam{
+		data: builder.Field{
+			Name:  "token",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Token dynamically
+func (r passwordResetQueryTokenString) SetIfPresent(value *String) passwordResetWithPrismaTokenSetParam {
+	if value == nil {
+		return passwordResetWithPrismaTokenSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r passwordResetQueryTokenString) Equals(value string) passwordResetWithPrismaTokenEqualsUniqueParam {
+
+	return passwordResetWithPrismaTokenEqualsUniqueParam{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) EqualsIfPresent(value *string) passwordResetWithPrismaTokenEqualsUniqueParam {
+	if value == nil {
+		return passwordResetWithPrismaTokenEqualsUniqueParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r passwordResetQueryTokenString) Order(direction SortOrder) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:  "token",
+			Value: direction,
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) Cursor(cursor string) passwordResetCursorParam {
+	return passwordResetCursorParam{
+		data: builder.Field{
+			Name:  "token",
+			Value: cursor,
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) In(value []string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) InIfPresent(value []string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.In(value)
+}
+
+func (r passwordResetQueryTokenString) NotIn(value []string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) NotInIfPresent(value []string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.NotIn(value)
+}
+
+func (r passwordResetQueryTokenString) Lt(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) LtIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Lt(*value)
+}
+
+func (r passwordResetQueryTokenString) Lte(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) LteIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Lte(*value)
+}
+
+func (r passwordResetQueryTokenString) Gt(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) GtIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Gt(*value)
+}
+
+func (r passwordResetQueryTokenString) Gte(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) GteIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Gte(*value)
+}
+
+func (r passwordResetQueryTokenString) Contains(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) ContainsIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Contains(*value)
+}
+
+func (r passwordResetQueryTokenString) StartsWith(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) StartsWithIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r passwordResetQueryTokenString) EndsWith(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) EndsWithIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r passwordResetQueryTokenString) Mode(value QueryMode) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) ModeIfPresent(value *QueryMode) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Mode(*value)
+}
+
+func (r passwordResetQueryTokenString) Not(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryTokenString) NotIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use StartsWith instead.
+
+func (r passwordResetQueryTokenString) HasPrefix(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "starts_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use StartsWithIfPresent instead.
+func (r passwordResetQueryTokenString) HasPrefixIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.HasPrefix(*value)
+}
+
+// deprecated: Use EndsWith instead.
+
+func (r passwordResetQueryTokenString) HasSuffix(value string) passwordResetParamUnique {
+	return passwordResetParamUnique{
+		data: builder.Field{
+			Name: "token",
+			Fields: []builder.Field{
+				{
+					Name:  "ends_with",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use EndsWithIfPresent instead.
+func (r passwordResetQueryTokenString) HasSuffixIfPresent(value *string) passwordResetParamUnique {
+	if value == nil {
+		return passwordResetParamUnique{}
+	}
+	return r.HasSuffix(*value)
+}
+
+func (r passwordResetQueryTokenString) Field() passwordResetPrismaFields {
+	return passwordResetFieldToken
+}
+
+// base struct
+type passwordResetQueryExpiredAtDateTime struct{}
+
+// Set the required value of ExpiredAt
+func (r passwordResetQueryExpiredAtDateTime) Set(value DateTime) passwordResetWithPrismaExpiredAtSetParam {
+
+	return passwordResetWithPrismaExpiredAtSetParam{
+		data: builder.Field{
+			Name:  "expiredAt",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of ExpiredAt dynamically
+func (r passwordResetQueryExpiredAtDateTime) SetIfPresent(value *DateTime) passwordResetWithPrismaExpiredAtSetParam {
+	if value == nil {
+		return passwordResetWithPrismaExpiredAtSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Equals(value DateTime) passwordResetWithPrismaExpiredAtEqualsParam {
+
+	return passwordResetWithPrismaExpiredAtEqualsParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) EqualsIfPresent(value *DateTime) passwordResetWithPrismaExpiredAtEqualsParam {
+	if value == nil {
+		return passwordResetWithPrismaExpiredAtEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Order(direction SortOrder) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:  "expiredAt",
+			Value: direction,
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Cursor(cursor DateTime) passwordResetCursorParam {
+	return passwordResetCursorParam{
+		data: builder.Field{
+			Name:  "expiredAt",
+			Value: cursor,
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) In(value []DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) InIfPresent(value []DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) NotIn(value []DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) NotInIfPresent(value []DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Lt(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) LtIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Lte(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) LteIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Gt(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) GtIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Gte(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) GteIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Not(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryExpiredAtDateTime) NotIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r passwordResetQueryExpiredAtDateTime) Before(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r passwordResetQueryExpiredAtDateTime) BeforeIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Before(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r passwordResetQueryExpiredAtDateTime) After(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r passwordResetQueryExpiredAtDateTime) AfterIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.After(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r passwordResetQueryExpiredAtDateTime) BeforeEquals(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r passwordResetQueryExpiredAtDateTime) BeforeEqualsIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.BeforeEquals(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r passwordResetQueryExpiredAtDateTime) AfterEquals(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "expiredAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r passwordResetQueryExpiredAtDateTime) AfterEqualsIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.AfterEquals(*value)
+}
+
+func (r passwordResetQueryExpiredAtDateTime) Field() passwordResetPrismaFields {
+	return passwordResetFieldExpiredAt
+}
+
+// base struct
+type passwordResetQueryUsedBoolean struct{}
+
+// Set the required value of Used
+func (r passwordResetQueryUsedBoolean) Set(value bool) passwordResetSetParam {
+
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name:  "used",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Used dynamically
+func (r passwordResetQueryUsedBoolean) SetIfPresent(value *Boolean) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r passwordResetQueryUsedBoolean) Equals(value bool) passwordResetWithPrismaUsedEqualsParam {
+
+	return passwordResetWithPrismaUsedEqualsParam{
+		data: builder.Field{
+			Name: "used",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUsedBoolean) EqualsIfPresent(value *bool) passwordResetWithPrismaUsedEqualsParam {
+	if value == nil {
+		return passwordResetWithPrismaUsedEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r passwordResetQueryUsedBoolean) Order(direction SortOrder) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:  "used",
+			Value: direction,
+		},
+	}
+}
+
+func (r passwordResetQueryUsedBoolean) Cursor(cursor bool) passwordResetCursorParam {
+	return passwordResetCursorParam{
+		data: builder.Field{
+			Name:  "used",
+			Value: cursor,
+		},
+	}
+}
+
+func (r passwordResetQueryUsedBoolean) Field() passwordResetPrismaFields {
+	return passwordResetFieldUsed
+}
+
+// base struct
+type passwordResetQueryCreatedAtDateTime struct{}
+
+// Set the required value of CreatedAt
+func (r passwordResetQueryCreatedAtDateTime) Set(value DateTime) passwordResetSetParam {
+
+	return passwordResetSetParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of CreatedAt dynamically
+func (r passwordResetQueryCreatedAtDateTime) SetIfPresent(value *DateTime) passwordResetSetParam {
+	if value == nil {
+		return passwordResetSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Equals(value DateTime) passwordResetWithPrismaCreatedAtEqualsParam {
+
+	return passwordResetWithPrismaCreatedAtEqualsParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) EqualsIfPresent(value *DateTime) passwordResetWithPrismaCreatedAtEqualsParam {
+	if value == nil {
+		return passwordResetWithPrismaCreatedAtEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Order(direction SortOrder) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: direction,
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Cursor(cursor DateTime) passwordResetCursorParam {
+	return passwordResetCursorParam{
+		data: builder.Field{
+			Name:  "createdAt",
+			Value: cursor,
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) In(value []DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) InIfPresent(value []DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) NotIn(value []DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) NotInIfPresent(value []DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Lt(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) LtIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Lte(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) LteIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Gt(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) GtIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Gte(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) GteIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Not(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryCreatedAtDateTime) NotIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r passwordResetQueryCreatedAtDateTime) Before(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r passwordResetQueryCreatedAtDateTime) BeforeIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.Before(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r passwordResetQueryCreatedAtDateTime) After(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r passwordResetQueryCreatedAtDateTime) AfterIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.After(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r passwordResetQueryCreatedAtDateTime) BeforeEquals(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r passwordResetQueryCreatedAtDateTime) BeforeEqualsIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.BeforeEquals(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r passwordResetQueryCreatedAtDateTime) AfterEquals(value DateTime) passwordResetDefaultParam {
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "createdAt",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r passwordResetQueryCreatedAtDateTime) AfterEqualsIfPresent(value *DateTime) passwordResetDefaultParam {
+	if value == nil {
+		return passwordResetDefaultParam{}
+	}
+	return r.AfterEquals(*value)
+}
+
+func (r passwordResetQueryCreatedAtDateTime) Field() passwordResetPrismaFields {
+	return passwordResetFieldCreatedAt
+}
+
+// base struct
+type passwordResetQueryUserUser struct{}
+
+type passwordResetQueryUserRelations struct{}
+
+// PasswordReset -> User
+//
+// @relation
+// @required
+func (passwordResetQueryUserRelations) Where(
+	params ...UserWhereParam,
+) passwordResetDefaultParam {
+	var fields []builder.Field
+
+	for _, q := range params {
+		fields = append(fields, q.field())
+	}
+
+	return passwordResetDefaultParam{
+		data: builder.Field{
+			Name: "user",
+			Fields: []builder.Field{
+				{
+					Name:   "is",
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func (passwordResetQueryUserRelations) Fetch() passwordResetToUserFindUnique {
+	var v passwordResetToUserFindUnique
+
+	v.query.Operation = "query"
+	v.query.Method = "user"
+	v.query.Outputs = userOutput
+
+	return v
+}
+
+func (r passwordResetQueryUserRelations) Link(
+	params UserWhereParam,
+) passwordResetWithPrismaUserSetParam {
+	var fields []builder.Field
+
+	f := params.field()
+	if f.Fields == nil && f.Value == nil {
+		return passwordResetWithPrismaUserSetParam{}
+	}
+
+	fields = append(fields, f)
+
+	return passwordResetWithPrismaUserSetParam{
+		data: builder.Field{
+			Name: "user",
+			Fields: []builder.Field{
+				{
+					Name:   "connect",
+					Fields: builder.TransformEquals(fields),
+				},
+			},
+		},
+	}
+}
+
+func (r passwordResetQueryUserRelations) Unlink() passwordResetWithPrismaUserSetParam {
+	var v passwordResetWithPrismaUserSetParam
+
+	v = passwordResetWithPrismaUserSetParam{
+		data: builder.Field{
+			Name: "user",
+			Fields: []builder.Field{
+				{
+					Name:  "disconnect",
+					Value: true,
+				},
+			},
+		},
+	}
+
+	return v
+}
+
+func (r passwordResetQueryUserUser) Field() passwordResetPrismaFields {
+	return passwordResetFieldUser
+}
+
 // --- template actions.gotpl ---
 var countOutput = []builder.Output{
 	{Name: "count"},
@@ -25054,6 +27412,7 @@ var userOutput = []builder.Output{
 	{Name: "phone"},
 	{Name: "password"},
 	{Name: "role"},
+	{Name: "emailVerified"},
 	{Name: "createdAt"},
 	{Name: "updatedAt"},
 }
@@ -25861,6 +28220,84 @@ func (p userWithPrismaRoleEqualsUniqueParam) roleField() {}
 func (userWithPrismaRoleEqualsUniqueParam) unique() {}
 func (userWithPrismaRoleEqualsUniqueParam) equals() {}
 
+type UserWithPrismaEmailVerifiedEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	emailVerifiedField()
+}
+
+type UserWithPrismaEmailVerifiedSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	emailVerifiedField()
+}
+
+type userWithPrismaEmailVerifiedSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaEmailVerifiedSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaEmailVerifiedSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaEmailVerifiedSetParam) userModel() {}
+
+func (p userWithPrismaEmailVerifiedSetParam) emailVerifiedField() {}
+
+type UserWithPrismaEmailVerifiedWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	emailVerifiedField()
+}
+
+type userWithPrismaEmailVerifiedEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaEmailVerifiedEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaEmailVerifiedEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaEmailVerifiedEqualsParam) userModel() {}
+
+func (p userWithPrismaEmailVerifiedEqualsParam) emailVerifiedField() {}
+
+func (userWithPrismaEmailVerifiedSetParam) settable()  {}
+func (userWithPrismaEmailVerifiedEqualsParam) equals() {}
+
+type userWithPrismaEmailVerifiedEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaEmailVerifiedEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaEmailVerifiedEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaEmailVerifiedEqualsUniqueParam) userModel()          {}
+func (p userWithPrismaEmailVerifiedEqualsUniqueParam) emailVerifiedField() {}
+
+func (userWithPrismaEmailVerifiedEqualsUniqueParam) unique() {}
+func (userWithPrismaEmailVerifiedEqualsUniqueParam) equals() {}
+
 type UserWithPrismaCreatedAtEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
@@ -26484,6 +28921,84 @@ func (p userWithPrismaAnnouncementsEqualsUniqueParam) announcementsField() {}
 
 func (userWithPrismaAnnouncementsEqualsUniqueParam) unique() {}
 func (userWithPrismaAnnouncementsEqualsUniqueParam) equals() {}
+
+type UserWithPrismaPasswordResetEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	userModel()
+	passwordResetField()
+}
+
+type UserWithPrismaPasswordResetSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	passwordResetField()
+}
+
+type userWithPrismaPasswordResetSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaPasswordResetSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaPasswordResetSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaPasswordResetSetParam) userModel() {}
+
+func (p userWithPrismaPasswordResetSetParam) passwordResetField() {}
+
+type UserWithPrismaPasswordResetWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	userModel()
+	passwordResetField()
+}
+
+type userWithPrismaPasswordResetEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaPasswordResetEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaPasswordResetEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaPasswordResetEqualsParam) userModel() {}
+
+func (p userWithPrismaPasswordResetEqualsParam) passwordResetField() {}
+
+func (userWithPrismaPasswordResetSetParam) settable()  {}
+func (userWithPrismaPasswordResetEqualsParam) equals() {}
+
+type userWithPrismaPasswordResetEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p userWithPrismaPasswordResetEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p userWithPrismaPasswordResetEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p userWithPrismaPasswordResetEqualsUniqueParam) userModel()          {}
+func (p userWithPrismaPasswordResetEqualsUniqueParam) passwordResetField() {}
+
+func (userWithPrismaPasswordResetEqualsUniqueParam) unique() {}
+func (userWithPrismaPasswordResetEqualsUniqueParam) equals() {}
 
 type groupActions struct {
 	// client holds the prisma client
@@ -32527,6 +35042,760 @@ func (p attendanceWithPrismaUserEqualsUniqueParam) userField()       {}
 func (attendanceWithPrismaUserEqualsUniqueParam) unique() {}
 func (attendanceWithPrismaUserEqualsUniqueParam) equals() {}
 
+type passwordResetActions struct {
+	// client holds the prisma client
+	client *PrismaClient
+}
+
+var passwordResetOutput = []builder.Output{
+	{Name: "id"},
+	{Name: "userId"},
+	{Name: "token"},
+	{Name: "expiredAt"},
+	{Name: "used"},
+	{Name: "createdAt"},
+}
+
+type PasswordResetRelationWith interface {
+	getQuery() builder.Query
+	with()
+	passwordResetRelation()
+}
+
+type PasswordResetWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+}
+
+type passwordResetDefaultParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetDefaultParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetDefaultParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetDefaultParam) passwordResetModel() {}
+
+type PasswordResetOrderByParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+}
+
+type passwordResetOrderByParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetOrderByParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetOrderByParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetOrderByParam) passwordResetModel() {}
+
+type PasswordResetCursorParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	isCursor()
+}
+
+type passwordResetCursorParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetCursorParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetCursorParam) isCursor() {}
+
+func (p passwordResetCursorParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetCursorParam) passwordResetModel() {}
+
+type PasswordResetParamUnique interface {
+	field() builder.Field
+	getQuery() builder.Query
+	unique()
+	passwordResetModel()
+}
+
+type passwordResetParamUnique struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetParamUnique) passwordResetModel() {}
+
+func (passwordResetParamUnique) unique() {}
+
+func (p passwordResetParamUnique) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetParamUnique) getQuery() builder.Query {
+	return p.query
+}
+
+type PasswordResetEqualsWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+}
+
+type passwordResetEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetEqualsParam) passwordResetModel() {}
+
+func (passwordResetEqualsParam) equals() {}
+
+func (p passwordResetEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+type PasswordResetEqualsUniqueWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	unique()
+	passwordResetModel()
+}
+
+type passwordResetEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetEqualsUniqueParam) passwordResetModel() {}
+
+func (passwordResetEqualsUniqueParam) unique() {}
+func (passwordResetEqualsUniqueParam) equals() {}
+
+func (p passwordResetEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+type PasswordResetSetParam interface {
+	field() builder.Field
+	settable()
+	passwordResetModel()
+}
+
+type passwordResetSetParam struct {
+	data builder.Field
+}
+
+func (p passwordResetSetParam) getQuery() builder.Query {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p passwordResetSetParam) tokenField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (passwordResetSetParam) settable() {}
+
+func (p passwordResetSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetSetParam) passwordResetModel() {}
+
+type PasswordResetWithPrismaIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	idField()
+}
+
+type PasswordResetWithPrismaIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	idField()
+}
+
+type passwordResetWithPrismaIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaIDSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaIDSetParam) idField() {}
+
+type PasswordResetWithPrismaIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	idField()
+}
+
+type passwordResetWithPrismaIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaIDEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaIDEqualsParam) idField() {}
+
+func (passwordResetWithPrismaIDSetParam) settable()  {}
+func (passwordResetWithPrismaIDEqualsParam) equals() {}
+
+type passwordResetWithPrismaIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaIDEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaIDEqualsUniqueParam) idField()            {}
+
+func (passwordResetWithPrismaIDEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaIDEqualsUniqueParam) equals() {}
+
+type PasswordResetWithPrismaUserIDEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	userIDField()
+}
+
+type PasswordResetWithPrismaUserIDSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	userIDField()
+}
+
+type passwordResetWithPrismaUserIDSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUserIDSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUserIDSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUserIDSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaUserIDSetParam) userIDField() {}
+
+type PasswordResetWithPrismaUserIDWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	userIDField()
+}
+
+type passwordResetWithPrismaUserIDEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUserIDEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUserIDEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUserIDEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaUserIDEqualsParam) userIDField() {}
+
+func (passwordResetWithPrismaUserIDSetParam) settable()  {}
+func (passwordResetWithPrismaUserIDEqualsParam) equals() {}
+
+type passwordResetWithPrismaUserIDEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUserIDEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUserIDEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUserIDEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaUserIDEqualsUniqueParam) userIDField()        {}
+
+func (passwordResetWithPrismaUserIDEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaUserIDEqualsUniqueParam) equals() {}
+
+type PasswordResetWithPrismaTokenEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	tokenField()
+}
+
+type PasswordResetWithPrismaTokenSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	tokenField()
+}
+
+type passwordResetWithPrismaTokenSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaTokenSetParam) expiredAtField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p passwordResetWithPrismaTokenSetParam) userField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p passwordResetWithPrismaTokenSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaTokenSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaTokenSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaTokenSetParam) tokenField() {}
+
+type PasswordResetWithPrismaTokenWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	tokenField()
+}
+
+type passwordResetWithPrismaTokenEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaTokenEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaTokenEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaTokenEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaTokenEqualsParam) tokenField() {}
+
+func (passwordResetWithPrismaTokenSetParam) settable()  {}
+func (passwordResetWithPrismaTokenEqualsParam) equals() {}
+
+type passwordResetWithPrismaTokenEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaTokenEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaTokenEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaTokenEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaTokenEqualsUniqueParam) tokenField()         {}
+
+func (passwordResetWithPrismaTokenEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaTokenEqualsUniqueParam) equals() {}
+
+type PasswordResetWithPrismaExpiredAtEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	expiredAtField()
+}
+
+type PasswordResetWithPrismaExpiredAtSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	expiredAtField()
+}
+
+type passwordResetWithPrismaExpiredAtSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaExpiredAtSetParam) userField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p passwordResetWithPrismaExpiredAtSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaExpiredAtSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaExpiredAtSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaExpiredAtSetParam) expiredAtField() {}
+
+type PasswordResetWithPrismaExpiredAtWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	expiredAtField()
+}
+
+type passwordResetWithPrismaExpiredAtEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaExpiredAtEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaExpiredAtEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaExpiredAtEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaExpiredAtEqualsParam) expiredAtField() {}
+
+func (passwordResetWithPrismaExpiredAtSetParam) settable()  {}
+func (passwordResetWithPrismaExpiredAtEqualsParam) equals() {}
+
+type passwordResetWithPrismaExpiredAtEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaExpiredAtEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaExpiredAtEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaExpiredAtEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaExpiredAtEqualsUniqueParam) expiredAtField()     {}
+
+func (passwordResetWithPrismaExpiredAtEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaExpiredAtEqualsUniqueParam) equals() {}
+
+type PasswordResetWithPrismaUsedEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	usedField()
+}
+
+type PasswordResetWithPrismaUsedSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	usedField()
+}
+
+type passwordResetWithPrismaUsedSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUsedSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUsedSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUsedSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaUsedSetParam) usedField() {}
+
+type PasswordResetWithPrismaUsedWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	usedField()
+}
+
+type passwordResetWithPrismaUsedEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUsedEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUsedEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUsedEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaUsedEqualsParam) usedField() {}
+
+func (passwordResetWithPrismaUsedSetParam) settable()  {}
+func (passwordResetWithPrismaUsedEqualsParam) equals() {}
+
+type passwordResetWithPrismaUsedEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUsedEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUsedEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUsedEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaUsedEqualsUniqueParam) usedField()          {}
+
+func (passwordResetWithPrismaUsedEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaUsedEqualsUniqueParam) equals() {}
+
+type PasswordResetWithPrismaCreatedAtEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	createdAtField()
+}
+
+type PasswordResetWithPrismaCreatedAtSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	createdAtField()
+}
+
+type passwordResetWithPrismaCreatedAtSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaCreatedAtSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaCreatedAtSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaCreatedAtSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaCreatedAtSetParam) createdAtField() {}
+
+type PasswordResetWithPrismaCreatedAtWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	createdAtField()
+}
+
+type passwordResetWithPrismaCreatedAtEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaCreatedAtEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaCreatedAtEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaCreatedAtEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaCreatedAtEqualsParam) createdAtField() {}
+
+func (passwordResetWithPrismaCreatedAtSetParam) settable()  {}
+func (passwordResetWithPrismaCreatedAtEqualsParam) equals() {}
+
+type passwordResetWithPrismaCreatedAtEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaCreatedAtEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaCreatedAtEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaCreatedAtEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaCreatedAtEqualsUniqueParam) createdAtField()     {}
+
+func (passwordResetWithPrismaCreatedAtEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaCreatedAtEqualsUniqueParam) equals() {}
+
+type PasswordResetWithPrismaUserEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	passwordResetModel()
+	userField()
+}
+
+type PasswordResetWithPrismaUserSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	userField()
+}
+
+type passwordResetWithPrismaUserSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUserSetParam) tokenField() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p passwordResetWithPrismaUserSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUserSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUserSetParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaUserSetParam) userField() {}
+
+type PasswordResetWithPrismaUserWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	passwordResetModel()
+	userField()
+}
+
+type passwordResetWithPrismaUserEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUserEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUserEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUserEqualsParam) passwordResetModel() {}
+
+func (p passwordResetWithPrismaUserEqualsParam) userField() {}
+
+func (passwordResetWithPrismaUserSetParam) settable()  {}
+func (passwordResetWithPrismaUserEqualsParam) equals() {}
+
+type passwordResetWithPrismaUserEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p passwordResetWithPrismaUserEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p passwordResetWithPrismaUserEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetWithPrismaUserEqualsUniqueParam) passwordResetModel() {}
+func (p passwordResetWithPrismaUserEqualsUniqueParam) userField()          {}
+
+func (passwordResetWithPrismaUserEqualsUniqueParam) unique() {}
+func (passwordResetWithPrismaUserEqualsUniqueParam) equals() {}
+
 // --- template create.gotpl ---
 
 // Creates a single user.
@@ -33098,6 +36367,78 @@ func (r attendanceCreateOne) Exec(ctx context.Context) (*AttendanceModel, error)
 
 func (r attendanceCreateOne) Tx() AttendanceUniqueTxResult {
 	v := newAttendanceUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+// Creates a single passwordReset.
+func (r passwordResetActions) CreateOne(
+	_token PasswordResetWithPrismaTokenSetParam,
+	_expiredAt PasswordResetWithPrismaExpiredAtSetParam,
+	_user PasswordResetWithPrismaUserSetParam,
+
+	optional ...PasswordResetSetParam,
+) passwordResetCreateOne {
+	var v passwordResetCreateOne
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "mutation"
+	v.query.Method = "createOne"
+	v.query.Model = "PasswordReset"
+	v.query.Outputs = passwordResetOutput
+
+	var fields []builder.Field
+
+	fields = append(fields, _token.field())
+	fields = append(fields, _expiredAt.field())
+	fields = append(fields, _user.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+func (r passwordResetCreateOne) With(params ...PasswordResetRelationWith) passwordResetCreateOne {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+type passwordResetCreateOne struct {
+	query builder.Query
+}
+
+func (p passwordResetCreateOne) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p passwordResetCreateOne) passwordResetModel() {}
+
+func (r passwordResetCreateOne) Exec(ctx context.Context) (*PasswordResetModel, error) {
+	var v PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetCreateOne) Tx() PasswordResetUniqueTxResult {
+	v := newPasswordResetUniqueTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
 	return v
@@ -36423,6 +39764,560 @@ func (r userToAnnouncementsDeleteMany) Exec(ctx context.Context) (*BatchResult, 
 }
 
 func (r userToAnnouncementsDeleteMany) Tx() UserManyTxResult {
+	v := newUserManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type userToPasswordResetFindUnique struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetFindUnique) with()         {}
+func (r userToPasswordResetFindUnique) userModel()    {}
+func (r userToPasswordResetFindUnique) userRelation() {}
+
+func (r userToPasswordResetFindUnique) With(params ...PasswordResetRelationWith) userToPasswordResetFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToPasswordResetFindUnique) Select(params ...userPrismaFields) userToPasswordResetFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToPasswordResetFindUnique) Omit(params ...userPrismaFields) userToPasswordResetFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToPasswordResetFindUnique) Exec(ctx context.Context) (
+	*UserModel,
+	error,
+) {
+	var v *UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToPasswordResetFindUnique) ExecInner(ctx context.Context) (
+	*InnerUser,
+	error,
+) {
+	var v *InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToPasswordResetFindUnique) Update(params ...UserSetParam) userToPasswordResetUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "User"
+
+	var v userToPasswordResetUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type userToPasswordResetUpdateUnique struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetUpdateUnique) userModel() {}
+
+func (r userToPasswordResetUpdateUnique) Exec(ctx context.Context) (*UserModel, error) {
+	var v UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToPasswordResetUpdateUnique) Tx() UserUniqueTxResult {
+	v := newUserUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r userToPasswordResetFindUnique) Delete() userToPasswordResetDeleteUnique {
+	var v userToPasswordResetDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "User"
+
+	return v
+}
+
+type userToPasswordResetDeleteUnique struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p userToPasswordResetDeleteUnique) userModel() {}
+
+func (r userToPasswordResetDeleteUnique) Exec(ctx context.Context) (*UserModel, error) {
+	var v UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToPasswordResetDeleteUnique) Tx() UserUniqueTxResult {
+	v := newUserUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type userToPasswordResetFindFirst struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetFindFirst) with()         {}
+func (r userToPasswordResetFindFirst) userModel()    {}
+func (r userToPasswordResetFindFirst) userRelation() {}
+
+func (r userToPasswordResetFindFirst) With(params ...PasswordResetRelationWith) userToPasswordResetFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToPasswordResetFindFirst) Select(params ...userPrismaFields) userToPasswordResetFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToPasswordResetFindFirst) Omit(params ...userPrismaFields) userToPasswordResetFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToPasswordResetFindFirst) OrderBy(params ...PasswordResetOrderByParam) userToPasswordResetFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r userToPasswordResetFindFirst) Skip(count int) userToPasswordResetFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToPasswordResetFindFirst) Take(count int) userToPasswordResetFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToPasswordResetFindFirst) Cursor(cursor UserCursorParam) userToPasswordResetFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r userToPasswordResetFindFirst) Exec(ctx context.Context) (
+	*UserModel,
+	error,
+) {
+	var v *UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r userToPasswordResetFindFirst) ExecInner(ctx context.Context) (
+	*InnerUser,
+	error,
+) {
+	var v *InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type userToPasswordResetFindMany struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetFindMany) with()         {}
+func (r userToPasswordResetFindMany) userModel()    {}
+func (r userToPasswordResetFindMany) userRelation() {}
+
+func (r userToPasswordResetFindMany) With(params ...PasswordResetRelationWith) userToPasswordResetFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r userToPasswordResetFindMany) Select(params ...userPrismaFields) userToPasswordResetFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToPasswordResetFindMany) Omit(params ...userPrismaFields) userToPasswordResetFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range userOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r userToPasswordResetFindMany) OrderBy(params ...PasswordResetOrderByParam) userToPasswordResetFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r userToPasswordResetFindMany) Skip(count int) userToPasswordResetFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToPasswordResetFindMany) Take(count int) userToPasswordResetFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r userToPasswordResetFindMany) Cursor(cursor UserCursorParam) userToPasswordResetFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r userToPasswordResetFindMany) Exec(ctx context.Context) (
+	[]UserModel,
+	error,
+) {
+	var v []UserModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r userToPasswordResetFindMany) ExecInner(ctx context.Context) (
+	[]InnerUser,
+	error,
+) {
+	var v []InnerUser
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r userToPasswordResetFindMany) Update(params ...UserSetParam) userToPasswordResetUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "User"
+
+	r.query.Outputs = countOutput
+
+	var v userToPasswordResetUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type userToPasswordResetUpdateMany struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r userToPasswordResetUpdateMany) userModel() {}
+
+func (r userToPasswordResetUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToPasswordResetUpdateMany) Tx() UserManyTxResult {
+	v := newUserManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r userToPasswordResetFindMany) Delete() userToPasswordResetDeleteMany {
+	var v userToPasswordResetDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "User"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type userToPasswordResetDeleteMany struct {
+	query builder.Query
+}
+
+func (r userToPasswordResetDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p userToPasswordResetDeleteMany) userModel() {}
+
+func (r userToPasswordResetDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r userToPasswordResetDeleteMany) Tx() UserManyTxResult {
 	v := newUserManyTxResult()
 	v.query = r.query
 	v.query.TxResult = make(chan []byte, 1)
@@ -50493,6 +54388,1210 @@ func (r attendanceDeleteMany) Tx() AttendanceManyTxResult {
 	return v
 }
 
+type passwordResetToUserFindUnique struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserFindUnique) with()                  {}
+func (r passwordResetToUserFindUnique) passwordResetModel()    {}
+func (r passwordResetToUserFindUnique) passwordResetRelation() {}
+
+func (r passwordResetToUserFindUnique) With(params ...UserRelationWith) passwordResetToUserFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r passwordResetToUserFindUnique) Select(params ...passwordResetPrismaFields) passwordResetToUserFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetToUserFindUnique) Omit(params ...passwordResetPrismaFields) passwordResetToUserFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range passwordResetOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetToUserFindUnique) Exec(ctx context.Context) (
+	*PasswordResetModel,
+	error,
+) {
+	var v *PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r passwordResetToUserFindUnique) ExecInner(ctx context.Context) (
+	*InnerPasswordReset,
+	error,
+) {
+	var v *InnerPasswordReset
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r passwordResetToUserFindUnique) Update(params ...PasswordResetSetParam) passwordResetToUserUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "PasswordReset"
+
+	var v passwordResetToUserUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type passwordResetToUserUpdateUnique struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserUpdateUnique) passwordResetModel() {}
+
+func (r passwordResetToUserUpdateUnique) Exec(ctx context.Context) (*PasswordResetModel, error) {
+	var v PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetToUserUpdateUnique) Tx() PasswordResetUniqueTxResult {
+	v := newPasswordResetUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r passwordResetToUserFindUnique) Delete() passwordResetToUserDeleteUnique {
+	var v passwordResetToUserDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "PasswordReset"
+
+	return v
+}
+
+type passwordResetToUserDeleteUnique struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p passwordResetToUserDeleteUnique) passwordResetModel() {}
+
+func (r passwordResetToUserDeleteUnique) Exec(ctx context.Context) (*PasswordResetModel, error) {
+	var v PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetToUserDeleteUnique) Tx() PasswordResetUniqueTxResult {
+	v := newPasswordResetUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type passwordResetToUserFindFirst struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserFindFirst) with()                  {}
+func (r passwordResetToUserFindFirst) passwordResetModel()    {}
+func (r passwordResetToUserFindFirst) passwordResetRelation() {}
+
+func (r passwordResetToUserFindFirst) With(params ...UserRelationWith) passwordResetToUserFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r passwordResetToUserFindFirst) Select(params ...passwordResetPrismaFields) passwordResetToUserFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetToUserFindFirst) Omit(params ...passwordResetPrismaFields) passwordResetToUserFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range passwordResetOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetToUserFindFirst) OrderBy(params ...UserOrderByParam) passwordResetToUserFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r passwordResetToUserFindFirst) Skip(count int) passwordResetToUserFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetToUserFindFirst) Take(count int) passwordResetToUserFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetToUserFindFirst) Cursor(cursor PasswordResetCursorParam) passwordResetToUserFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r passwordResetToUserFindFirst) Exec(ctx context.Context) (
+	*PasswordResetModel,
+	error,
+) {
+	var v *PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r passwordResetToUserFindFirst) ExecInner(ctx context.Context) (
+	*InnerPasswordReset,
+	error,
+) {
+	var v *InnerPasswordReset
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type passwordResetToUserFindMany struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserFindMany) with()                  {}
+func (r passwordResetToUserFindMany) passwordResetModel()    {}
+func (r passwordResetToUserFindMany) passwordResetRelation() {}
+
+func (r passwordResetToUserFindMany) With(params ...UserRelationWith) passwordResetToUserFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r passwordResetToUserFindMany) Select(params ...passwordResetPrismaFields) passwordResetToUserFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetToUserFindMany) Omit(params ...passwordResetPrismaFields) passwordResetToUserFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range passwordResetOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetToUserFindMany) OrderBy(params ...UserOrderByParam) passwordResetToUserFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r passwordResetToUserFindMany) Skip(count int) passwordResetToUserFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetToUserFindMany) Take(count int) passwordResetToUserFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetToUserFindMany) Cursor(cursor PasswordResetCursorParam) passwordResetToUserFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r passwordResetToUserFindMany) Exec(ctx context.Context) (
+	[]PasswordResetModel,
+	error,
+) {
+	var v []PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r passwordResetToUserFindMany) ExecInner(ctx context.Context) (
+	[]InnerPasswordReset,
+	error,
+) {
+	var v []InnerPasswordReset
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r passwordResetToUserFindMany) Update(params ...PasswordResetSetParam) passwordResetToUserUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "PasswordReset"
+
+	r.query.Outputs = countOutput
+
+	var v passwordResetToUserUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type passwordResetToUserUpdateMany struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetToUserUpdateMany) passwordResetModel() {}
+
+func (r passwordResetToUserUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetToUserUpdateMany) Tx() PasswordResetManyTxResult {
+	v := newPasswordResetManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r passwordResetToUserFindMany) Delete() passwordResetToUserDeleteMany {
+	var v passwordResetToUserDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "PasswordReset"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type passwordResetToUserDeleteMany struct {
+	query builder.Query
+}
+
+func (r passwordResetToUserDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p passwordResetToUserDeleteMany) passwordResetModel() {}
+
+func (r passwordResetToUserDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetToUserDeleteMany) Tx() PasswordResetManyTxResult {
+	v := newPasswordResetManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type passwordResetFindUnique struct {
+	query builder.Query
+}
+
+func (r passwordResetFindUnique) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetFindUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetFindUnique) with()                  {}
+func (r passwordResetFindUnique) passwordResetModel()    {}
+func (r passwordResetFindUnique) passwordResetRelation() {}
+
+func (r passwordResetActions) FindUnique(
+	params PasswordResetEqualsUniqueWhereParam,
+) passwordResetFindUnique {
+	var v passwordResetFindUnique
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findUnique"
+
+	v.query.Model = "PasswordReset"
+	v.query.Outputs = passwordResetOutput
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "where",
+		Fields: builder.TransformEquals([]builder.Field{params.field()}),
+	})
+
+	return v
+}
+
+func (r passwordResetFindUnique) With(params ...PasswordResetRelationWith) passwordResetFindUnique {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r passwordResetFindUnique) Select(params ...passwordResetPrismaFields) passwordResetFindUnique {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetFindUnique) Omit(params ...passwordResetPrismaFields) passwordResetFindUnique {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range passwordResetOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetFindUnique) Exec(ctx context.Context) (
+	*PasswordResetModel,
+	error,
+) {
+	var v *PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r passwordResetFindUnique) ExecInner(ctx context.Context) (
+	*InnerPasswordReset,
+	error,
+) {
+	var v *InnerPasswordReset
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r passwordResetFindUnique) Update(params ...PasswordResetSetParam) passwordResetUpdateUnique {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateOne"
+	r.query.Model = "PasswordReset"
+
+	var v passwordResetUpdateUnique
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type passwordResetUpdateUnique struct {
+	query builder.Query
+}
+
+func (r passwordResetUpdateUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetUpdateUnique) passwordResetModel() {}
+
+func (r passwordResetUpdateUnique) Exec(ctx context.Context) (*PasswordResetModel, error) {
+	var v PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetUpdateUnique) Tx() PasswordResetUniqueTxResult {
+	v := newPasswordResetUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r passwordResetFindUnique) Delete() passwordResetDeleteUnique {
+	var v passwordResetDeleteUnique
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteOne"
+	v.query.Model = "PasswordReset"
+
+	return v
+}
+
+type passwordResetDeleteUnique struct {
+	query builder.Query
+}
+
+func (r passwordResetDeleteUnique) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p passwordResetDeleteUnique) passwordResetModel() {}
+
+func (r passwordResetDeleteUnique) Exec(ctx context.Context) (*PasswordResetModel, error) {
+	var v PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetDeleteUnique) Tx() PasswordResetUniqueTxResult {
+	v := newPasswordResetUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+type passwordResetFindFirst struct {
+	query builder.Query
+}
+
+func (r passwordResetFindFirst) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetFindFirst) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetFindFirst) with()                  {}
+func (r passwordResetFindFirst) passwordResetModel()    {}
+func (r passwordResetFindFirst) passwordResetRelation() {}
+
+func (r passwordResetActions) FindFirst(
+	params ...PasswordResetWhereParam,
+) passwordResetFindFirst {
+	var v passwordResetFindFirst
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findFirst"
+
+	v.query.Model = "PasswordReset"
+	v.query.Outputs = passwordResetOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r passwordResetFindFirst) With(params ...PasswordResetRelationWith) passwordResetFindFirst {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r passwordResetFindFirst) Select(params ...passwordResetPrismaFields) passwordResetFindFirst {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetFindFirst) Omit(params ...passwordResetPrismaFields) passwordResetFindFirst {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range passwordResetOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetFindFirst) OrderBy(params ...PasswordResetOrderByParam) passwordResetFindFirst {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r passwordResetFindFirst) Skip(count int) passwordResetFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetFindFirst) Take(count int) passwordResetFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetFindFirst) Cursor(cursor PasswordResetCursorParam) passwordResetFindFirst {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r passwordResetFindFirst) Exec(ctx context.Context) (
+	*PasswordResetModel,
+	error,
+) {
+	var v *PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+func (r passwordResetFindFirst) ExecInner(ctx context.Context) (
+	*InnerPasswordReset,
+	error,
+) {
+	var v *InnerPasswordReset
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, ErrNotFound
+	}
+
+	return v, nil
+}
+
+type passwordResetFindMany struct {
+	query builder.Query
+}
+
+func (r passwordResetFindMany) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetFindMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetFindMany) with()                  {}
+func (r passwordResetFindMany) passwordResetModel()    {}
+func (r passwordResetFindMany) passwordResetRelation() {}
+
+func (r passwordResetActions) FindMany(
+	params ...PasswordResetWhereParam,
+) passwordResetFindMany {
+	var v passwordResetFindMany
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "query"
+
+	v.query.Method = "findMany"
+
+	v.query.Model = "PasswordReset"
+	v.query.Outputs = passwordResetOutput
+
+	var where []builder.Field
+	for _, q := range params {
+		if query := q.getQuery(); query.Operation != "" {
+			v.query.Outputs = append(v.query.Outputs, builder.Output{
+				Name:    query.Method,
+				Inputs:  query.Inputs,
+				Outputs: query.Outputs,
+			})
+		} else {
+			where = append(where, q.field())
+		}
+	}
+
+	if len(where) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:   "where",
+			Fields: where,
+		})
+	}
+
+	return v
+}
+
+func (r passwordResetFindMany) With(params ...PasswordResetRelationWith) passwordResetFindMany {
+	for _, q := range params {
+		query := q.getQuery()
+		r.query.Outputs = append(r.query.Outputs, builder.Output{
+			Name:    query.Method,
+			Inputs:  query.Inputs,
+			Outputs: query.Outputs,
+		})
+	}
+
+	return r
+}
+
+func (r passwordResetFindMany) Select(params ...passwordResetPrismaFields) passwordResetFindMany {
+	var outputs []builder.Output
+
+	for _, param := range params {
+		outputs = append(outputs, builder.Output{
+			Name: string(param),
+		})
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetFindMany) Omit(params ...passwordResetPrismaFields) passwordResetFindMany {
+	var outputs []builder.Output
+
+	var raw []string
+	for _, param := range params {
+		raw = append(raw, string(param))
+	}
+
+	for _, output := range passwordResetOutput {
+		if !slices.Contains(raw, output.Name) {
+			outputs = append(outputs, output)
+		}
+	}
+
+	r.query.Outputs = outputs
+
+	return r
+}
+
+func (r passwordResetFindMany) OrderBy(params ...PasswordResetOrderByParam) passwordResetFindMany {
+	var fields []builder.Field
+
+	for _, param := range params {
+		fields = append(fields, builder.Field{
+			Name:   param.field().Name,
+			Value:  param.field().Value,
+			Fields: param.field().Fields,
+		})
+	}
+
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:     "orderBy",
+		Fields:   fields,
+		WrapList: true,
+	})
+
+	return r
+}
+
+func (r passwordResetFindMany) Skip(count int) passwordResetFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "skip",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetFindMany) Take(count int) passwordResetFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:  "take",
+		Value: count,
+	})
+	return r
+}
+
+func (r passwordResetFindMany) Cursor(cursor PasswordResetCursorParam) passwordResetFindMany {
+	r.query.Inputs = append(r.query.Inputs, builder.Input{
+		Name:   "cursor",
+		Fields: []builder.Field{cursor.field()},
+	})
+	return r
+}
+
+func (r passwordResetFindMany) Exec(ctx context.Context) (
+	[]PasswordResetModel,
+	error,
+) {
+	var v []PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r passwordResetFindMany) ExecInner(ctx context.Context) (
+	[]InnerPasswordReset,
+	error,
+) {
+	var v []InnerPasswordReset
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (r passwordResetFindMany) Update(params ...PasswordResetSetParam) passwordResetUpdateMany {
+	r.query.Operation = "mutation"
+	r.query.Method = "updateMany"
+	r.query.Model = "PasswordReset"
+
+	r.query.Outputs = countOutput
+
+	var v passwordResetUpdateMany
+	v.query = r.query
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "data",
+		Fields: fields,
+	})
+	return v
+}
+
+type passwordResetUpdateMany struct {
+	query builder.Query
+}
+
+func (r passwordResetUpdateMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetUpdateMany) passwordResetModel() {}
+
+func (r passwordResetUpdateMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetUpdateMany) Tx() PasswordResetManyTxResult {
+	v := newPasswordResetManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
+func (r passwordResetFindMany) Delete() passwordResetDeleteMany {
+	var v passwordResetDeleteMany
+	v.query = r.query
+	v.query.Operation = "mutation"
+	v.query.Method = "deleteMany"
+	v.query.Model = "PasswordReset"
+
+	v.query.Outputs = countOutput
+
+	return v
+}
+
+type passwordResetDeleteMany struct {
+	query builder.Query
+}
+
+func (r passwordResetDeleteMany) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (p passwordResetDeleteMany) passwordResetModel() {}
+
+func (r passwordResetDeleteMany) Exec(ctx context.Context) (*BatchResult, error) {
+	var v BatchResult
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetDeleteMany) Tx() PasswordResetManyTxResult {
+	v := newPasswordResetManyTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
 // --- template transaction.gotpl ---
 
 func newUserUniqueTxResult() UserUniqueTxResult {
@@ -50873,6 +55972,54 @@ func (p AttendanceManyTxResult) ExtractQuery() builder.Query {
 func (p AttendanceManyTxResult) IsTx() {}
 
 func (r AttendanceManyTxResult) Result() (v *BatchResult) {
+	if err := r.result.Get(r.query.TxResult, &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func newPasswordResetUniqueTxResult() PasswordResetUniqueTxResult {
+	return PasswordResetUniqueTxResult{
+		result: &transaction.Result{},
+	}
+}
+
+type PasswordResetUniqueTxResult struct {
+	query  builder.Query
+	result *transaction.Result
+}
+
+func (p PasswordResetUniqueTxResult) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p PasswordResetUniqueTxResult) IsTx() {}
+
+func (r PasswordResetUniqueTxResult) Result() (v *PasswordResetModel) {
+	if err := r.result.Get(r.query.TxResult, &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func newPasswordResetManyTxResult() PasswordResetManyTxResult {
+	return PasswordResetManyTxResult{
+		result: &transaction.Result{},
+	}
+}
+
+type PasswordResetManyTxResult struct {
+	query  builder.Query
+	result *transaction.Result
+}
+
+func (p PasswordResetManyTxResult) ExtractQuery() builder.Query {
+	return p.query
+}
+
+func (p PasswordResetManyTxResult) IsTx() {}
+
+func (r PasswordResetManyTxResult) Result() (v *BatchResult) {
 	if err := r.result.Get(r.query.TxResult, &v); err != nil {
 		panic(err)
 	}
@@ -51791,6 +56938,120 @@ func (r attendanceUpsertOne) Tx() AttendanceUniqueTxResult {
 	return v
 }
 
+type passwordResetUpsertOne struct {
+	query builder.Query
+}
+
+func (r passwordResetUpsertOne) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetUpsertOne) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetUpsertOne) with()                  {}
+func (r passwordResetUpsertOne) passwordResetModel()    {}
+func (r passwordResetUpsertOne) passwordResetRelation() {}
+
+func (r passwordResetActions) UpsertOne(
+	params PasswordResetEqualsUniqueWhereParam,
+) passwordResetUpsertOne {
+	var v passwordResetUpsertOne
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+
+	v.query.Operation = "mutation"
+	v.query.Method = "upsertOne"
+	v.query.Model = "PasswordReset"
+	v.query.Outputs = passwordResetOutput
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "where",
+		Fields: builder.TransformEquals([]builder.Field{params.field()}),
+	})
+
+	return v
+}
+
+func (r passwordResetUpsertOne) Create(
+
+	_token PasswordResetWithPrismaTokenSetParam,
+	_expiredAt PasswordResetWithPrismaExpiredAtSetParam,
+	_user PasswordResetWithPrismaUserSetParam,
+
+	optional ...PasswordResetSetParam,
+) passwordResetUpsertOne {
+	var v passwordResetUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _token.field())
+	fields = append(fields, _expiredAt.field())
+	fields = append(fields, _user.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r passwordResetUpsertOne) Update(
+	params ...PasswordResetSetParam,
+) passwordResetUpsertOne {
+	var v passwordResetUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	for _, q := range params {
+
+		field := q.field()
+
+		_, isJson := field.Value.(types.JSON)
+		if field.Value != nil && !isJson {
+			v := field.Value
+			field.Fields = []builder.Field{
+				{
+					Name:  "set",
+					Value: v,
+				},
+			}
+
+			field.Value = nil
+		}
+
+		fields = append(fields, field)
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r passwordResetUpsertOne) Exec(ctx context.Context) (*PasswordResetModel, error) {
+	var v PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (r passwordResetUpsertOne) Tx() PasswordResetUniqueTxResult {
+	v := newPasswordResetUniqueTxResult()
+	v.query = r.query
+	v.query.TxResult = make(chan []byte, 1)
+	return v
+}
+
 // --- template raw.gotpl ---
 
 type userAggregateRaw struct {
@@ -52435,6 +57696,87 @@ func (r attendanceAggregateRaw) Exec(ctx context.Context) ([]AttendanceModel, er
 
 func (r attendanceAggregateRaw) ExecInner(ctx context.Context) ([]InnerAttendance, error) {
 	var v []InnerAttendance
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+type passwordResetAggregateRaw struct {
+	query builder.Query
+}
+
+func (r passwordResetAggregateRaw) getQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetAggregateRaw) ExtractQuery() builder.Query {
+	return r.query
+}
+
+func (r passwordResetAggregateRaw) with()                  {}
+func (r passwordResetAggregateRaw) passwordResetModel()    {}
+func (r passwordResetAggregateRaw) passwordResetRelation() {}
+
+func (r passwordResetActions) FindRaw(filter interface{}, options ...interface{}) passwordResetAggregateRaw {
+	var v passwordResetAggregateRaw
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+	v.query.Method = "findRaw"
+	v.query.Operation = "query"
+	v.query.Model = "PasswordReset"
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:  "filter",
+		Value: fmt.Sprintf("%v", filter),
+	})
+
+	if len(options) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:  "options",
+			Value: fmt.Sprintf("%v", options[0]),
+		})
+	}
+	return v
+}
+
+func (r passwordResetActions) AggregateRaw(pipeline []interface{}, options ...interface{}) passwordResetAggregateRaw {
+	var v passwordResetAggregateRaw
+	v.query = builder.NewQuery()
+	v.query.Engine = r.client
+	v.query.Method = "aggregateRaw"
+	v.query.Operation = "query"
+	v.query.Model = "PasswordReset"
+
+	parsedPip := []interface{}{}
+	for _, p := range pipeline {
+		parsedPip = append(parsedPip, fmt.Sprintf("%v", p))
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:  "pipeline",
+		Value: parsedPip,
+	})
+
+	if len(options) > 0 {
+		v.query.Inputs = append(v.query.Inputs, builder.Input{
+			Name:  "options",
+			Value: fmt.Sprintf("%v", options[0]),
+		})
+	}
+	return v
+}
+
+func (r passwordResetAggregateRaw) Exec(ctx context.Context) ([]PasswordResetModel, error) {
+	var v []PasswordResetModel
+	if err := r.query.Exec(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func (r passwordResetAggregateRaw) ExecInner(ctx context.Context) ([]InnerPasswordReset, error) {
+	var v []InnerPasswordReset
 	if err := r.query.Exec(ctx, &v); err != nil {
 		return nil, err
 	}

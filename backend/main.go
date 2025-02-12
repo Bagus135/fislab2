@@ -5,6 +5,7 @@ import (
 	"backend/config/server"
 	"backend/handler"
 	"backend/router"
+	"backend/service"
 )
 
 func main() {
@@ -12,8 +13,11 @@ func main() {
 	client := database.ConnectDB()
 	defer database.DisconnectDB(client)
 
+	emailService := service.NewEmailService()
+	cacheService := service.NewCacheService()
+
 	// Instance handler
-	authHandler := handler.NewAuthHandler(client)
+	authHandler := handler.NewAuthHandler(client, emailService, cacheService)
 	announcementHandler := handler.NewAnnouncementHandler(client)
 	userHandler := handler.NewUserHandler(client)
 	groupHandler := handler.NewGroupHandler(client)

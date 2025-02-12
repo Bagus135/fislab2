@@ -32,18 +32,18 @@ enum AttendanceStatus {
   TIDAK_HADIR
 }
 
-// User
 model User {
-  id        String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
-  nrp       String    @unique
-  name      String
-  about     String
-  email     String
-  phone     String
-  password  String
-  role      Role
-  createdAt DateTime? @default(now()) @map("created_at")
-  updatedAt DateTime? @updatedAt @map("updated_at")
+  id            String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
+  nrp           String    @unique
+  name          String
+  about         String
+  email         String    @unique
+  phone         String
+  password      String
+  role          Role
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime? @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
 
   // Relasi untuk anggota kelompok
   memberGroups Group[] @relation("MemberGroups")
@@ -62,8 +62,10 @@ model User {
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
-}
 
+  // relasi ke reset password token
+  passwordReset PasswordReset[]
+}
 // kelompok
 model Group {
   id   String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
@@ -171,4 +173,18 @@ model Attendance {
   user User           @relation("UserAttendance", fields: [userId], references: [id])
 
   @@unique([codeId, userId])
+}
+
+// Model untuk kode reset password
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  token     String   @unique
+  expiredAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([token, expiredAt])
 }

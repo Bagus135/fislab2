@@ -2,22 +2,33 @@ package handler
 
 import (
 	"backend/prisma/db"
+	"backend/service"
 	"backend/types"
 	"backend/utils"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 )
 
 type AuthHandler struct {
-	client *db.PrismaClient
+	client       *db.PrismaClient
+	emailService *service.EmailService
+	cacheService *service.CacheService
 }
 
-func NewAuthHandler(client *db.PrismaClient) *AuthHandler {
+func NewAuthHandler(
+	client *db.PrismaClient,
+	emailService *service.EmailService,
+	cacheService *service.CacheService) *AuthHandler {
+
 	return &AuthHandler{
-		client: client,
+		client:       client,
+		emailService: emailService,
+		cacheService: cacheService,
 	}
 }
 
@@ -219,4 +230,293 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	// Kirim response sukses
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"message": "password updated"})
+}
+
+// Generate kode verifikasi 6 digit
+func generateResetToken() string {
+
+	timestamp := time.Now().Unix()
+
+	// Generate random string
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+
+	// Generate 32 random bytes
+	randomBytes := make([]byte, 32)
+	for i := range randomBytes {
+		randomBytes[i] = byte(r.Intn(256))
+	}
+
+	// Gabungkan timestamp dan random bytes
+	token := fmt.Sprintf("%d-%x", timestamp, randomBytes)
+	return token
+}
+
+// Generate kode verifikasi 6 digit
+func generateVerificationCode() string {
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+	return fmt.Sprintf("%06d", r.Intn(900000)+100000)
+}
+
+func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	// Cek user
+	user, err := h.client.User.FindFirst(
+		db.User.Email.Equals(req.Email),
+	).Exec(ctx)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "email not found"})
+		return
+	}
+
+	// Generate kode
+	code := generateVerificationCode()
+
+	// Simpan di cache
+	err = h.cacheService.Set(
+		fmt.Sprintf("verify:%s", user.Email),
+		code,
+		10*time.Minute,
+	)
+
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to process request"})
+		return
+	}
+
+	// Kirim email
+	err = h.emailService.SendVerificationCode(user.Email, code)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to send email"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "verification code sent"})
+}
+
+func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	var req struct {
+		Email string `json:"email"`
+		Code  string `json:"code"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	// Ambil kode dari cache
+	code, err := h.cacheService.Get(fmt.Sprintf("verify:%s", req.Email))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid or expired code"})
+		return
+	}
+
+	if code != req.Code {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid code"})
+		return
+	}
+
+	// Update status email verified
+	_, err = h.client.User.FindUnique(
+		db.User.Email.Equals(req.Email),
+	).Update(
+		db.User.EmailVerified.Set(true),
+	).Exec(ctx)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to verify email"})
+		return
+	}
+
+	// Hapus kode dari cache
+	_ = h.cacheService.Delete(fmt.Sprintf("verify:%s", req.Email))
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "email verified successfully"})
+}
+
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Cek user berdasarkan email
+	user, err := h.client.User.FindFirst(
+		db.User.Email.Equals(req.Email),
+	).Exec(ctx)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("email not found"))
+		return
+	}
+
+	// Generate reset token
+	token := generateResetToken()
+	expiredAt := time.Now().Add(10 * time.Minute)
+
+	// Invalidate token lama
+	_, err = h.client.PasswordReset.FindMany(
+		db.PasswordReset.UserID.Equals(user.ID),
+		db.PasswordReset.Used.Equals(false),
+	).Update(
+		db.PasswordReset.Used.Set(true),
+	).Exec(ctx)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to reset password"})
+		return
+	}
+
+	// Buat token baru
+	_, err = h.client.PasswordReset.CreateOne(
+		db.PasswordReset.User.Link(
+			db.User.ID.Equals(user.ID),
+		),
+		db.PasswordReset.Token.Set(token),
+		db.PasswordReset.ExpiredAt.Set(expiredAt),
+		db.PasswordReset.Used.Set(false),
+	).Exec(ctx)
+	if err != nil {
+		fmt.Printf("Error creating new token: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to generate token"))
+		return
+	}
+
+	// Kirim email reset password
+	err = h.emailService.SendResetPasswordEmail(user.Email, token)
+	if err != nil {
+		fmt.Printf("Error sending email: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to send email"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("reset password link has been sent to your email"))
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	var req struct {
+		Token           string `json:"token"`
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Validasi input
+	if req.NewPassword == "" || req.ConfirmPassword == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("password fields cannot be empty"))
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("passwords do not match"))
+		return
+	}
+
+	if len(req.NewPassword) < 8 {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("password must be at least 8 characters"))
+		return
+	}
+
+	// Cek token reset password
+	resetToken, err := h.client.PasswordReset.FindFirst(
+		db.PasswordReset.Token.Equals(req.Token),
+		db.PasswordReset.Used.Equals(false),
+		db.PasswordReset.ExpiredAt.Gt(time.Now()),
+	).With(
+		db.PasswordReset.User.Fetch(),
+	).Exec(ctx)
+	if err != nil {
+		fmt.Printf("Error finding reset token: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid or expired token"))
+		return
+	}
+
+	// Hash password baru
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("Error hashing password: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process password"))
+		return
+	}
+
+	// Update password
+	_, err = h.client.User.FindUnique(
+		db.User.ID.Equals(resetToken.UserID),
+	).Update(
+		db.User.Password.Set(string(hashedPassword)),
+	).Exec(ctx)
+	if err != nil {
+		fmt.Printf("Error updating password: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to reset password"))
+		return
+	}
+
+	// Mark token sebagai used
+	_, err = h.client.PasswordReset.FindUnique(
+		db.PasswordReset.ID.Equals(resetToken.ID),
+	).Update(
+		db.PasswordReset.Used.Set(true),
+	).Exec(ctx)
+	if err != nil {
+		fmt.Printf("Error marking token as used: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to update token status"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("password has been reset successfully"))
 }
