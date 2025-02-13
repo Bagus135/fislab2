@@ -62,9 +62,6 @@ model User {
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
-
-  // relasi ke reset password token
-  passwordReset PasswordReset[]
 }
 // kelompok
 model Group {
@@ -173,18 +170,4 @@ model Attendance {
   user User           @relation("UserAttendance", fields: [userId], references: [id])
 
   @@unique([codeId, userId])
-}
-
-// Model untuk kode reset password
-model PasswordReset {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  token     String   @unique
-  expiredAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([token, expiredAt])
 }
