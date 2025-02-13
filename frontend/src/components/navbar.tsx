@@ -3,7 +3,7 @@
 import Link from "next/link";
 import ThemeButton from "./themeToogle";
 import { Button } from "./ui/button";
-import { ChevronDown, Github, Loader2Icon, LogOut, User } from "lucide-react";
+import { ChevronDown, Github, Loader2Icon, LogOut, UserRoundCog, UserRoundPen } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar } from "@radix-ui/react-avatar";
 import { AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -59,9 +59,17 @@ function ProfileDropdown (){
                     <DropdownMenuGroup >
                         <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
                             <Link href={`/profile/me`}>
-                                <User className="w-4 h-4"/>
+                                <UserRoundPen className="w-4 h-4"/>
                                 <span className="inline">
                                     Profile
+                                </span>
+                            </Link>
+                        </DropdownMenuLabel>
+                        <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
+                            <Link href={`/admin`}>
+                                <UserRoundCog className="w-4 h-4"/>
+                                <span className="inline">
+                                    Admin
                                 </span>
                             </Link>
                         </DropdownMenuLabel>

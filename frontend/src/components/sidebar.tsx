@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import { Button } from "./ui/button"; // shadcn
-import { Calendar, CheckSquare, FlaskConical, Gauge, GaugeCircle, Home, HomeIcon, Megaphone, Menu, User} from "lucide-react";
+import { Calendar, CheckSquare, FlaskConical, Gauge, GaugeCircle, Megaphone, Menu, } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { useState } from "react";
 import { Separator } from "./ui/separator";
@@ -49,14 +49,6 @@ export default function SideBar () {
                     <p className="hidden lg:flex ml-2">Announcement</p>
                 </Link>
             </Button>
-            <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
-                <Link href={'/announcement'}>
-                    <div className="w-8  flex justify-center">
-                        <User className="size-6"/>
-                    </div>
-                    <p className="hidden lg:flex ml-2">Admin</p>
-                </Link>
-            </Button>
         </div>
     )
 }
@@ -70,7 +62,7 @@ export function MobileSidebar () {
                     <Menu className="size-4 font-bold"/>
                 </Button>
             </SheetTrigger>
-            <SheetContent side={'left'} className="w-[200px] min-h-screen pt-5">
+            <SheetContent side={"left"} className="w-[200px] min-h-screen pt-5">
                 <SheetHeader>
                     <SheetTitle className="flex flex-row items-center gap-4 ">
                         <img src="/logofisika.png" className=" h-6 w-6 dark:hidden"/>

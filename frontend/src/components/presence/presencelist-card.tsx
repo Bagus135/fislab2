@@ -5,6 +5,7 @@ import { Separator } from "../ui/separator";
 import { Fragment } from "react";
 import InputCodeModal from "./inputcode-modal";
 import PermitModal from "./permit-modal";
+import GenerateCodeModal from "./generatecode-modal";
 
 export default function PresenceListCard(){
     return  (
@@ -69,17 +70,23 @@ function PresenceCard(){
                 </div>
                 <div className="flex flex-col gap-2">
                     <PermitModal>
-                        <Button size={"sm"} variant={'outline'} className="flex gap-2 px-2 flex-row">
+                        <Button size={"sm"} variant={'outline'} className=" flex gap-2 px-2 flex-row">
                             <Mail className="size-4"/>
                             <p className="text-xs">Permit Letter</p>
                         </Button>
                     </PermitModal>
-                    <InputCodeModal>
+                    {/* <InputCodeModal>
                         <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
                             <QrCode className="size-4"/>
                             <p className="text-xs">Enter Code</p>
                         </Button>
-                    </InputCodeModal>
+                    </InputCodeModal> */}
+                    <GenerateCodeModal>
+                        <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
+                            <QrCode className="size-4"/>
+                            <p className="text-xs">Generate Code</p>
+                        </Button>
+                    </GenerateCodeModal>
                 </div>           
             </div>
         </CardContent>
