@@ -388,34 +388,13 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	// Generate reset token
 	token := generateResetToken()
-	expiredAt := time.Now().Add(10 * time.Minute)
 
-	// Invalidate token lama
-	_, err = h.client.PasswordReset.FindMany(
-		db.PasswordReset.UserID.Equals(user.ID),
-		db.PasswordReset.Used.Equals(false),
-	).Update(
-		db.PasswordReset.Used.Set(true),
-	).Exec(ctx)
+	// Simpan token di Redis
+	err = h.cacheService.SetResetPasswordToken(user.Email, token)
 	if err != nil {
+		fmt.Printf("Error setting reset token in cache: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to reset password"})
-		return
-	}
-
-	// Buat token baru
-	_, err = h.client.PasswordReset.CreateOne(
-		db.PasswordReset.User.Link(
-			db.User.ID.Equals(user.ID),
-		),
-		db.PasswordReset.Token.Set(token),
-		db.PasswordReset.ExpiredAt.Set(expiredAt),
-		db.PasswordReset.Used.Set(false),
-	).Exec(ctx)
-	if err != nil {
-		fmt.Printf("Error creating new token: %v\n", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to generate token"))
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
 		return
 	}
 
@@ -467,18 +446,23 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cek token reset password
-	resetToken, err := h.client.PasswordReset.FindFirst(
-		db.PasswordReset.Token.Equals(req.Token),
-		db.PasswordReset.Used.Equals(false),
-		db.PasswordReset.ExpiredAt.Gt(time.Now()),
-	).With(
-		db.PasswordReset.User.Fetch(),
-	).Exec(ctx)
+	// Ambil email dari token di Redis
+	email, err := h.cacheService.GetResetPasswordEmail(req.Token)
 	if err != nil {
-		fmt.Printf("Error finding reset token: %v\n", err)
+		fmt.Printf("Error getting reset token from cache: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid or expired token"))
+		return
+	}
+
+	// Cari user berdasarkan email
+	user, err := h.client.User.FindFirst(
+		db.User.Email.Equals(email),
+	).Exec(ctx)
+	if err != nil {
+		fmt.Printf("Error finding user: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
 		return
 	}
 
@@ -493,7 +477,7 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	// Update password
 	_, err = h.client.User.FindUnique(
-		db.User.ID.Equals(resetToken.UserID),
+		db.User.ID.Equals(user.ID),
 	).Update(
 		db.User.Password.Set(string(hashedPassword)),
 	).Exec(ctx)
@@ -501,19 +485,6 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error updating password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to reset password"))
-		return
-	}
-
-	// Mark token sebagai used
-	_, err = h.client.PasswordReset.FindUnique(
-		db.PasswordReset.ID.Equals(resetToken.ID),
-	).Update(
-		db.PasswordReset.Used.Set(true),
-	).Exec(ctx)
-	if err != nil {
-		fmt.Printf("Error marking token as used: %v\n", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to update token status"))
 		return
 	}
 
