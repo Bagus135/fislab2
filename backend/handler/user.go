@@ -165,10 +165,9 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
 	// Validasi role
-	userRole := ctx.Value("role").(string)
+	userRole := r.Context().Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view all users"})
@@ -179,7 +178,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.client.User.FindMany().OrderBy(
 		db.User.Role.Order(db.SortOrderAsc),
 		db.User.Name.Order(db.SortOrderAsc),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		fmt.Printf("Error fetching users: %v\n", err)
@@ -209,10 +208,9 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
 	// Validasi role admin
-	userRole := ctx.Value("role").(string)
+	userRole := r.Context().Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only admin can view users"})
@@ -254,7 +252,7 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 		db.User.Role.Equals(db.Role(requestedRole)),
 	).OrderBy(
 		db.User.Name.Order(db.SortOrderAsc),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		fmt.Printf("Error fetching users: %v\n", err)

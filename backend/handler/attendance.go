@@ -121,13 +121,16 @@ func (h *AttendanceHandler) SubmitAttendance(w http.ResponseWriter, r *http.Requ
 
 	userRole := r.Context().Value("role").(string)
 	userID := r.Context().Value("userID").(string)
+
 	if userRole != "PRAKTIKAN" {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
+
 	var req struct {
 		Code string `json:"code"`
 	}
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
