@@ -5,6 +5,12 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type RegisterSuperAdminRequest struct {
+	NRP      string `json:"nrp"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
 type RegisterRequest struct {
 	NRP      string `json:"nrp"`
 	Name     string `json:"name"`

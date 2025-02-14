@@ -112,7 +112,7 @@ model User {
   nrp           String    @unique
   name          String
   about         String
-  email         String    @unique
+  email         String?   @unique
   phone         String
   password      String
   role          Role
@@ -1146,7 +1146,7 @@ type InnerUser struct {
 	Nrp           string    `json:"nrp"`
 	Name          string    `json:"name"`
 	About         string    `json:"about"`
-	Email         string    `json:"email"`
+	Email         *string   `json:"email,omitempty"`
 	Phone         string    `json:"phone"`
 	Password      string    `json:"password"`
 	Role          Role      `json:"role"`
@@ -1161,7 +1161,7 @@ type RawUserModel struct {
 	Nrp           RawString    `json:"nrp"`
 	Name          RawString    `json:"name"`
 	About         RawString    `json:"about"`
-	Email         RawString    `json:"email"`
+	Email         *RawString   `json:"email,omitempty"`
 	Phone         RawString    `json:"phone"`
 	Password      RawString    `json:"password"`
 	Role          RawRole      `json:"role"`
@@ -1178,6 +1178,13 @@ type RelationsUser struct {
 	GradedGrades       []GradeModel        `json:"gradedGrades,omitempty"`
 	UserGrades         []GradeModel        `json:"userGrades,omitempty"`
 	Announcements      []AnnouncementModel `json:"announcements,omitempty"`
+}
+
+func (r UserModel) Email() (value String, ok bool) {
+	if r.InnerUser.Email == nil {
+		return value, false
+	}
+	return *r.InnerUser.Email, true
 }
 
 func (r UserModel) CreatedAt() (value DateTime, ok bool) {
@@ -1695,7 +1702,7 @@ type userQuery struct {
 
 	// Email
 	//
-	// @required
+	// @optional
 	// @unique
 	Email userQueryEmailString
 
@@ -3184,10 +3191,10 @@ func (r userQueryAboutString) Field() userPrismaFields {
 // base struct
 type userQueryEmailString struct{}
 
-// Set the required value of Email
-func (r userQueryEmailString) Set(value string) userWithPrismaEmailSetParam {
+// Set the optional value of Email
+func (r userQueryEmailString) Set(value string) userSetParam {
 
-	return userWithPrismaEmailSetParam{
+	return userSetParam{
 		data: builder.Field{
 			Name:  "email",
 			Value: value,
@@ -3197,9 +3204,25 @@ func (r userQueryEmailString) Set(value string) userWithPrismaEmailSetParam {
 }
 
 // Set the optional value of Email dynamically
-func (r userQueryEmailString) SetIfPresent(value *String) userWithPrismaEmailSetParam {
+func (r userQueryEmailString) SetIfPresent(value *String) userSetParam {
 	if value == nil {
-		return userWithPrismaEmailSetParam{}
+		return userSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of Email dynamically
+func (r userQueryEmailString) SetOptional(value *String) userSetParam {
+	if value == nil {
+
+		var v *string
+		return userSetParam{
+			data: builder.Field{
+				Name:  "email",
+				Value: v,
+			},
+		}
 	}
 
 	return r.Set(*value)
@@ -3225,6 +3248,35 @@ func (r userQueryEmailString) EqualsIfPresent(value *string) userWithPrismaEmail
 		return userWithPrismaEmailEqualsUniqueParam{}
 	}
 	return r.Equals(*value)
+}
+
+func (r userQueryEmailString) EqualsOptional(value *String) userParamUnique {
+	return userParamUnique{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryEmailString) IsNull() userParamUnique {
+	var str *string = nil
+	return userParamUnique{
+		data: builder.Field{
+			Name: "email",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
 }
 
 func (r userQueryEmailString) Order(direction SortOrder) userDefaultParam {
@@ -25294,6 +25346,16 @@ type userSetParam struct {
 	data builder.Field
 }
 
+func (p userSetParam) getQuery() builder.Query {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p userSetParam) aboutField() {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (userSetParam) settable() {}
 
 func (p userSetParam) field() builder.Field {
@@ -25556,7 +25618,7 @@ type userWithPrismaAboutSetParam struct {
 	query builder.Query
 }
 
-func (p userWithPrismaAboutSetParam) phoneField() {
+func (p userWithPrismaAboutSetParam) passwordField() {
 	//TODO implement me
 	panic("implement me")
 }
@@ -25639,11 +25701,6 @@ type userWithPrismaEmailSetParam struct {
 	query builder.Query
 }
 
-func (p userWithPrismaEmailSetParam) aboutField() {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (p userWithPrismaEmailSetParam) field() builder.Field {
 	return p.data
 }
@@ -25722,11 +25779,6 @@ type userWithPrismaPhoneSetParam struct {
 	query builder.Query
 }
 
-func (p userWithPrismaPhoneSetParam) emailField() {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (p userWithPrismaPhoneSetParam) field() builder.Field {
 	return p.data
 }
@@ -25803,6 +25855,11 @@ type UserWithPrismaPasswordSetParam interface {
 type userWithPrismaPasswordSetParam struct {
 	data  builder.Field
 	query builder.Query
+}
+
+func (p userWithPrismaPasswordSetParam) roleField() {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (p userWithPrismaPasswordSetParam) field() builder.Field {
@@ -32692,7 +32749,6 @@ func (r userActions) CreateOne(
 	_nrp UserWithPrismaNrpSetParam,
 	_name UserWithPrismaNameSetParam,
 	_about UserWithPrismaAboutSetParam,
-	_email UserWithPrismaEmailSetParam,
 	_phone UserWithPrismaPhoneSetParam,
 	_password UserWithPrismaPasswordSetParam,
 	_role UserWithPrismaRoleSetParam,
@@ -32713,7 +32769,6 @@ func (r userActions) CreateOne(
 	fields = append(fields, _nrp.field())
 	fields = append(fields, _name.field())
 	fields = append(fields, _about.field())
-	fields = append(fields, _email.field())
 	fields = append(fields, _phone.field())
 	fields = append(fields, _password.field())
 	fields = append(fields, _role.field())
@@ -51080,7 +51135,6 @@ func (r userUpsertOne) Create(
 	_nrp UserWithPrismaNrpSetParam,
 	_name UserWithPrismaNameSetParam,
 	_about UserWithPrismaAboutSetParam,
-	_email UserWithPrismaEmailSetParam,
 	_phone UserWithPrismaPhoneSetParam,
 	_password UserWithPrismaPasswordSetParam,
 	_role UserWithPrismaRoleSetParam,
@@ -51094,7 +51148,6 @@ func (r userUpsertOne) Create(
 	fields = append(fields, _nrp.field())
 	fields = append(fields, _name.field())
 	fields = append(fields, _about.field())
-	fields = append(fields, _email.field())
 	fields = append(fields, _phone.field())
 	fields = append(fields, _password.field())
 	fields = append(fields, _role.field())

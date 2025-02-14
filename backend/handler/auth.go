@@ -88,17 +88,160 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Debug print token
+	fmt.Printf("Generated token: %s\n", token)
+	fmt.Printf("UserID stored: %s\n", user.ID)
+
+	// Simpan ke Redis dengan format yang konsisten
+	err = h.cacheService.StoreSession(user.ID, token, 24*time.Hour)
+	if err != nil {
+		fmt.Printf("Error storing session in Redis: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("could not create session"))
+		return
+	}
+
+	// Debug print Redis
+	storedToken, _ := h.cacheService.GetSession(user.ID)
+	fmt.Printf("Token in Redis: %s\n", storedToken)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Debug: print semua values dari context
+	fmt.Printf("Context values: userID=%v, nrp=%v, role=%v\n",
+		r.Context().Value("userID"),
+		r.Context().Value("nrp"),
+		r.Context().Value("role"),
+	)
+
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		fmt.Printf("Error: userID not found in context or invalid type. Value: %v, Type: %T\n",
+			r.Context().Value("userID"),
+			r.Context().Value("userID"),
+		)
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("unauthorized"))
+		return
+	}
+
+	// Validasi userID
+	if userID == "" {
+		fmt.Printf("Error: empty userID\n")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("unauthorized"))
+		return
+	}
+
+	err := h.cacheService.RemoveSession(userID)
+	if err != nil {
+		fmt.Printf("Error removing session for userID %s: %v\n", userID, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process logout"))
+		return
+	}
+
+	fmt.Printf("Successfully logged out userID: %s\n", userID)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("logged out successfully"))
+}
+
+func (h *AuthHandler) RegisterFirstSuperAdmin(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Cek apakah sudah ada SUPER_ADMIN
+	existingSuperAdmin, err := h.client.User.FindFirst(
+		db.User.Role.Equals(db.RoleSuperAdmin),
+	).Exec(r.Context())
+
+	if err == nil && existingSuperAdmin != nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	var req types.RegisterSuperAdminRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Printf("Error decoding request: %v\n", err)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Cek NRP
+	existingUser, _ := h.client.User.FindUnique(
+		db.User.Nrp.Equals(req.NRP),
+	).Exec(r.Context())
+
+	if existingUser != nil {
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp already exists"))
+		return
+	}
+
+	// Hash password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
+		return
+	}
+
+	_, err = h.client.User.CreateOne(
+		db.User.Nrp.Set(req.NRP),
+		db.User.Name.Set(req.Name),
+		db.User.Email.SetOptional(nil),
+		db.User.Phone.Set(""),
+		db.User.About.Set(""),
+		db.User.Password.Set(hashedPassword),
+		db.User.Role.Set(db.RoleSuperAdmin),
+	).Exec(r.Context())
+
+	if err != nil {
+		fmt.Printf("Error creating super admin: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to create super admin"))
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("super admin created"))
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil role dari context
+	userRole := r.Context().Value("role").(string)
+
+	if userRole != "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	var req types.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Cek role yang akan dibuat
+	if req.Role == "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// Validasi role yang valid
+	if req.Role != "ADMIN" && req.Role != "ASISTEN" && req.Role != "PRAKTIKAN" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid role"))
 		return
 	}
 
@@ -108,7 +251,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if existingUser != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp already exists"))
 		return
@@ -117,7 +259,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
 		return
@@ -129,7 +270,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	_, err = h.client.User.CreateOne(
 		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
-		db.User.Email.Set(""),
+		db.User.Email.SetOptional(nil),
 		db.User.Phone.Set(""),
 		db.User.About.Set(""),
 		db.User.Password.Set(hashedPassword),
@@ -137,13 +278,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		fmt.Printf("Error creating user: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to create user"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(types.SuccessResponse("user created"))
 }
@@ -284,12 +424,20 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Gunakan `user.Email()` jika itu method, atau langsung `user.Email` jika itu field
+	email, ok := user.Email() // Jika user.Email adalah field, ganti dengan: email := user.Email
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to get user email"})
+		return
+	}
+
 	// Generate kode
 	code := generateVerificationCode()
 
 	// Simpan di cache
 	err = h.cacheService.Set(
-		fmt.Sprintf("verify:%s", user.Email),
+		fmt.Sprintf("verify: %s", email),
 		code,
 		10*time.Minute,
 	)
@@ -302,7 +450,7 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Kirim email
-	err = h.emailService.SendVerificationCode(user.Email, code)
+	err = h.emailService.SendVerificationCode(email, code)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to send email"})
@@ -389,8 +537,15 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Generate reset token
 	token := generateResetToken()
 
+	email, ok := user.Email()
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to get user email"))
+		return
+	}
+
 	// Simpan token di Redis
-	err = h.cacheService.SetResetPasswordToken(user.Email, token)
+	err = h.cacheService.SetResetPasswordToken(email, token)
 	if err != nil {
 		fmt.Printf("Error setting reset token in cache: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -398,8 +553,14 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	email, ok = user.Email()
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to get user email"))
+		return
+	}
 	// Kirim email reset password
-	err = h.emailService.SendResetPasswordEmail(user.Email, token)
+	err = h.emailService.SendResetPasswordEmail(email, token)
 	if err != nil {
 		fmt.Printf("Error sending email: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)

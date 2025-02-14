@@ -3,6 +3,7 @@ package router
 import (
 	"backend/handler"
 	"backend/middleware"
+	"backend/service"
 	"github.com/gorilla/mux"
 	"os"
 )
@@ -19,22 +20,27 @@ func NewRouter(
 	attendanceHandler *handler.AttendanceHandler,
 ) *mux.Router {
 
+	cacheService := service.NewCacheService()
+	secretKey := os.Getenv("JWT_SECRET")
+
 	r := mux.NewRouter()
 
-	// admin route
-	r.HandleFunc("/api/admin/register", authHandler.Register).Methods("POST")
-
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
+	api.Use(middleware.AuthMiddleware(secretKey, cacheService))
 
 	adminAPI := api.PathPrefix("/admin").Subrouter()
 	adminAPI.Use(middleware.RoleCheck("SUPER_ADMIN", "ADMIN"))
+
+	// register user route
+	r.HandleFunc("/api/register-first-super-admin", authHandler.RegisterFirstSuperAdmin).Methods("POST")
+	adminAPI.HandleFunc("/register", authHandler.Register).Methods("POST")
 
 	assistantAPI := api.PathPrefix("/assistant").Subrouter()
 	assistantAPI.Use(middleware.RoleCheck("ASISTEN"))
 
 	// Public routes
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+	api.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	r.HandleFunc("/api/announcement", announcementHandler.GetAnnouncements).Methods("GET")
 
 	// Announcement routes
