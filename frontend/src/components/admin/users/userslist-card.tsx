@@ -4,17 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {PlusSquare, Search, Trash} from "lucide-react";
+import { Circle, PlusSquare, Search} from "lucide-react";
 import { useState } from "react";
-import CreateSesionPracticum from "./createsession-modal";
+import DropDownMenu from "./dropdown-menu";
+import CreateUser from "./createuser-modal";
+import CreateUserModal from "./createuser-modal";
 
-export default function AslabPracticanGroup (){
+export default function UserListCard (){
     const [search , setSearch] = useState("")
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Aslab-Modul Grouping</CardTitle>
-                <CardDescription>Connect Asistant Laboratorium to Modul</CardDescription>
+                <CardTitle>User List</CardTitle>
+                <CardDescription>Physics Laboratorium Participants</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-row gap-4 justify-between mb-4">
@@ -24,24 +26,25 @@ export default function AslabPracticanGroup (){
                         </span>
                         <Input
                             placeholder="Search group number..." 
-                            className="pl-12 lg:w-80"
+                            className="pl-12"
                             value={search}
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <CreateSesionPracticum>
+                    <CreateUserModal>
                         <Button>
                             <PlusSquare className="size-4"/>
                         </Button>
-                    </CreateSesionPracticum>
+                    </CreateUserModal>
                 </div>
                 <Table className="text-center">
                     <TableHeader>
                         <TableRow >
-                        <TableHead className="text-center">Group</TableHead>
-                        <TableHead className="text-center">Week</TableHead>
-                        <TableHead className="text-center">Modul</TableHead>
-                        <TableHead className="text-center">Aslab</TableHead>
+                        <TableHead className="text-center">No</TableHead>
+                        <TableHead className="text-center">Name</TableHead>
+                        <TableHead className="text-center">NRP</TableHead>
+                        <TableHead className="text-center">Role</TableHead>
+                        <TableHead className="text-center hidden md:align-middle md:table-cell ">Last Update</TableHead>
                         <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -49,16 +52,15 @@ export default function AslabPracticanGroup (){
                         [...Array(20)].map((_,i) =>(
 
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
-                                <TableCell className="font-medium">Group {i}</TableCell>
-                                <TableCell>{i}</TableCell>
-                                <TableCell>MP-{i}</TableCell>
-                                <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
-                                <TableCell>
-                                    <Button size={"sm"} className="bg-red-500 hover:bg-red-600 text-black">
-                                        <Trash className="size-4"/>
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
+                            <TableCell className="font-medium">{i}</TableCell>
+                            <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
+                            <TableCell>5001221060</TableCell>
+                            <TableCell>Asistant</TableCell>
+                            <TableCell className="hidden  md:table-cell  md:align-middle" >1 year ago</TableCell>
+                            <TableCell>
+                                <DropDownMenu/>
+                            </TableCell>
+                        </TableRow>
                         ))
                         }
                     </TableBody>

@@ -9,7 +9,7 @@ export default function AdminLayout ({children} : Readonly<{children : React.Rea
             <div className="border-r h-[calc(100vh-4rem)] md:flex md:w-16 lg:w-44 fixed hidden">
                 <AdminTabsListDesktop/>
             </div>
-            <div className="md:ml-16 p-2 lg:ml-44">
+            <div className="md:ml-16 p-2 lg:ml-44 lg:px-2">
                 {children}
             </div>
          </Tabs>

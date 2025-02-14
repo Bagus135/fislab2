@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightCircle, Gauge, User, UsersRound } from "lucide-react";
+import { ArrowRightCircle, Gauge, SquareActivity, SquareUser, User, UsersRound } from "lucide-react";
 import { TabsList, TabsTrigger } from "../ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet";
 import { Button } from "../ui/button";
@@ -9,30 +9,30 @@ import { useState } from "react";
 
 export function AdminTabsListDesktop (){
     return (
-        <TabsList className="w-full justify-center gap-8 flex flex-col m-0 rounded-none h-auto p-0 bg-transparent">
+        <TabsList className="w-full justify-center items-start gap-8 flex flex-col m-0 rounded-none h-auto p-0 bg-transparent">
             <TabsTrigger
                 value="grouping"
-                className=" p-2 text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                className=" p-2 text-xs md:text-sm w-full flex items-center justify-start gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                     <div className="w-8  flex justify-center">
                         <UsersRound className="size-6"/>
                     </div>
                     <p className="hidden lg:flex ml-2 ">Grouping</p>
             </TabsTrigger>
             <TabsTrigger
-                value="a"
-                className=" p-2 text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                value="monitoring"
+                className=" p-2 text-xs md:text-sm w-full flex items-center justify-start gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                     <div className="w-8  flex justify-center">
-                        <Gauge className="size-6"/>
+                        <SquareActivity className="size-6"/>
                     </div>
-                    <p className="hidden lg:flex ml-2 ">Dashboard</p>
+                    <p className="hidden lg:flex ml-2 ">Monitoring</p>
             </TabsTrigger>
             <TabsTrigger
-                value="b"
-                className=" p-2 text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                value="users"
+                className=" p-2 text-xs md:text-sm w-full flex items-center justify-start gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                     <div className="w-8  flex justify-center">
-                        <Gauge className="size-6"/>
+                        <SquareUser className="size-6"/>
                     </div>
-                    <p className="hidden lg:flex ml-2 ">Dashboard</p>
+                    <p className="hidden lg:flex ml-2 ">Users</p>
             </TabsTrigger>
         </TabsList>
     )

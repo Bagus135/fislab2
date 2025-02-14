@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Circle, PlusSquare, Search, Trash} from "lucide-react";
+import {  PlusSquare, Search, Trash} from "lucide-react";
 import { useState } from "react";
+import CreateModulAslabModal from "./create-modal";
 
 export default function AslabModulGroup (){
     const [search , setSearch] = useState("")
@@ -28,9 +29,11 @@ export default function AslabModulGroup (){
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <Button>
-                        <PlusSquare className="size-4"/>
-                    </Button>
+                    <CreateModulAslabModal>
+                        <Button>
+                            <PlusSquare className="size-4"/>
+                        </Button>
+                    </CreateModulAslabModal>
                 </div>
                 <Table className="text-center">
                     <TableHeader>
