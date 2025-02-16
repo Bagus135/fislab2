@@ -57,19 +57,7 @@ export function AdminTabsListMobile (){
                         </p>
                 </SheetTitle>
             </SheetHeader>
-            <TabsList className="w-full justify-center gap-8 flex flex-col m-0 rounded-none h-auto p-0 bg-transparent">
-                <div className=" flex flex-col space-y-4 mt-6">
-                    <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
-                        <TabsTrigger
-                            value="profile"
-                            className=" p-2 text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
-                            <User className="size-4"/>
-                            <Separator orientation="vertical"/>
-                            Profile
-                        </TabsTrigger>
-                    </Button>
-                </div>
-            </TabsList>
+            <AdminTabsListDesktop/>
         </SheetContent>
     </Sheet>
     )
