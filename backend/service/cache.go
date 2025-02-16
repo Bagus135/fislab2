@@ -57,3 +57,18 @@ func (s *CacheService) GetResetPasswordEmail(token string) (string, error) {
 
 	return email, nil
 }
+
+func (s *CacheService) StoreSession(userID string, token string, expiration time.Duration) error {
+	key := fmt.Sprintf("session:%s", userID)
+	return s.client.Set(context.Background(), key, token, expiration).Err()
+}
+
+func (s *CacheService) GetSession(userID string) (string, error) {
+	key := fmt.Sprintf("session:%s", userID)
+	return s.client.Get(context.Background(), key).Result()
+}
+
+func (s *CacheService) RemoveSession(userID string) error {
+	key := fmt.Sprintf("session:%s", userID)
+	return s.client.Del(context.Background(), key).Err()
+}

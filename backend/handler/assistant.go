@@ -18,9 +18,8 @@ func NewAssistantHandler(client *db.PrismaClient) *AssistantHandler {
 
 func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
-	userRole := ctx.Value("role").(string)
+	userRole := r.Context().Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only SUPER_ADMIN and ADMIN can assign assistants"})
@@ -42,7 +41,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	// Validasi apakah asisten ada
 	assistant, err := h.client.User.FindUnique(
 		db.User.ID.Equals(req.AssistantID),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -59,7 +58,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	// Cek apakah asisten sudah mengampu praktikum
 	existingAssistantPracticum, err := h.client.Schedule.FindFirst(
 		db.Schedule.AssistantID.Equals(req.AssistantID),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err == nil && existingAssistantPracticum.PracticumID != req.PracticumID {
 		// Jika asisten sudah mengampu praktikum lain, tolak permintaan
@@ -73,7 +72,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	// Validasi praktikum
 	_, err = h.client.Practicum.FindUnique(
 		db.Practicum.ID.Equals(req.PracticumID),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -84,7 +83,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	// Validasi group
 	_, err = h.client.Group.FindUnique(
 		db.Group.ID.Equals(req.GroupID),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -97,7 +96,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 		db.Schedule.PracticumID.Equals(req.PracticumID),
 		db.Schedule.AssistantID.Equals(req.AssistantID),
 		db.Schedule.GroupID.Equals(req.GroupID),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -106,13 +105,14 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var schedule *db.ScheduleModel
+
 	if existingSchedule != nil {
 		// Jika jadwal sudah ada, update statusnya
 		schedule, err = h.client.Schedule.FindUnique(
 			db.Schedule.ID.Equals(existingSchedule.ID),
 		).Update(
 			db.Schedule.Status.Set(db.StatusUnscheduled),
-		).Exec(ctx)
+		).Exec(r.Context())
 	} else {
 		// Jika jadwal belum ada, buat baru
 		schedule, err = h.client.Schedule.CreateOne(
@@ -120,7 +120,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 			db.Schedule.GroupID.Set(req.GroupID),
 			db.Schedule.AssistantID.Set(req.AssistantID),
 			db.Schedule.Status.Set(db.StatusUnscheduled),
-		).Exec(ctx)
+		).Exec(r.Context())
 	}
 
 	if err != nil {
@@ -143,6 +143,8 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	userRole := r.Context().Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
@@ -191,12 +193,10 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
+	w.Header().Set("Content-Type", "application/json")
 	// Ambil role dari context
-	userRole, ok := ctx.Value("role").(string)
+	userRole, ok := r.Context().Value("role").(string)
 	if !ok || userRole != "ADMIN" && userRole != "SUPER_ADMIN" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only ADMIN can view assistant status"})
 		return
@@ -211,10 +211,9 @@ func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Req
 			db.Schedule.Group.Fetch(),
 			db.Schedule.Grades.Fetch(),
 		),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch assistants"})
 		return
@@ -270,7 +269,6 @@ func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Req
 	}
 
 	// Kirim response
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
 }

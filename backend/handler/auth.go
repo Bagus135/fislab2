@@ -43,23 +43,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Login attempt - NRP: %s\n", req.NRP)
-
 	// Cari user berdasarkan NRP
 	user, err := h.client.User.FindFirst(
 		db.User.Nrp.Equals(req.NRP),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error finding user: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
 		return
 	}
-
-	fmt.Printf("Found user: %+v\n", user)
-	fmt.Printf("Input password: %s\n", req.Password)
-	fmt.Printf("Stored hash: %s\n", user.Password)
 
 	// Verifikasi password
 	if !utils.CheckPasswordHash(req.Password, user.Password) {
@@ -73,7 +66,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Jika berhasil, kirim token
 	secretKey := os.Getenv("JWT_SECRET")
 	if secretKey == "" {
-		fmt.Printf("Error getting JWT_SECRET environment variable\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("server error"))
@@ -82,9 +74,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := utils.GenerateTokens(user.ID, user.Nrp, string(user.Role), secretKey)
 	if err != nil {
-		fmt.Printf("Error generating JWT: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("could not generating token"))
+		return
+	}
+
+	// Simpan ke Redis dengan format yang konsisten
+	err = h.cacheService.StoreSession(user.ID, token, 24*time.Hour)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("could not create session"))
 		return
 	}
 
@@ -93,12 +92,123 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req types.RegisterRequest
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("unauthorized"))
+		return
+	}
+
+	// Validasi userID
+	if userID == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("unauthorized"))
+		return
+	}
+
+	err := h.cacheService.RemoveSession(userID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to logout"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("logged out successfully"))
+}
+
+func (h *AuthHandler) RegisterFirstSuperAdmin(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Cek apakah sudah ada SUPER_ADMIN
+	existingSuperAdmin, err := h.client.User.FindFirst(
+		db.User.Role.Equals(db.RoleSuperAdmin),
+	).Exec(r.Context())
+
+	if err == nil && existingSuperAdmin != nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	var req types.RegisterSuperAdminRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Cek NRP
+	existingUser, _ := h.client.User.FindUnique(
+		db.User.Nrp.Equals(req.NRP),
+	).Exec(r.Context())
+
+	if existingUser != nil {
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp already exists"))
+		return
+	}
+
+	// Hash password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
+		return
+	}
+
+	_, err = h.client.User.CreateOne(
+		db.User.Nrp.Set(req.NRP),
+		db.User.Name.Set(req.Name),
+		db.User.Email.SetOptional(nil),
+		db.User.Phone.Set(""),
+		db.User.About.Set(""),
+		db.User.Password.Set(hashedPassword),
+		db.User.Role.Set(db.RoleSuperAdmin),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to create super admin"))
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("super admin created"))
+}
+
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil role dari context
+	userRole := r.Context().Value("role").(string)
+
+	if userRole != "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	var req types.RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Cek role yang akan dibuat
+	if req.Role == "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// Validasi role yang valid
+	if req.Role != "ADMIN" && req.Role != "ASISTEN" && req.Role != "PRAKTIKAN" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid role"))
 		return
 	}
 
@@ -108,7 +218,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if existingUser != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp already exists"))
 		return
@@ -117,7 +226,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to process request"))
 		return
@@ -129,7 +237,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	_, err = h.client.User.CreateOne(
 		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
-		db.User.Email.Set(""),
+		db.User.Email.SetOptional(nil),
 		db.User.Phone.Set(""),
 		db.User.About.Set(""),
 		db.User.Password.Set(hashedPassword),
@@ -137,13 +245,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		fmt.Printf("Error creating user: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to create user"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(types.SuccessResponse("user created"))
 }
@@ -153,11 +260,8 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "userID not found in context"})
 		return
 	}
-
-	fmt.Printf("UserID from context: %s\n", userID)
 
 	// Decode request body
 	var req types.ChangePasswordRequest
@@ -177,7 +281,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	if req.ConfirmNewPassword != req.NewPassword {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "new_password and confirm_new_password are not matching"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "new password are not matching"})
 	}
 
 	// Ambil user dari database
@@ -185,15 +289,10 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		db.User.ID.Equals(userID),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
-
-	fmt.Printf("Found user: %+v\n", user)
-	fmt.Printf("Stored password hash: %s\n", user.Password)
-	fmt.Printf("Old password attempt: %s\n", req.OldPassword)
 
 	// Verifikasi password lama
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
@@ -204,9 +303,8 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Hash password baru
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
-		fmt.Printf("Error hashing new password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to hash password"})
 		return
@@ -216,10 +314,9 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	updatedUser, err := h.client.User.FindUnique(
 		db.User.ID.Equals(userID),
 	).Update(
-		db.User.Password.Set(string(hashedPassword)),
+		db.User.Password.Set(hashedPassword),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error updating password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update password"})
 		return
@@ -261,7 +358,6 @@ func generateVerificationCode() string {
 
 func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
 	var req struct {
 		Email string `json:"email"`
@@ -276,11 +372,19 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 	// Cek user
 	user, err := h.client.User.FindFirst(
 		db.User.Email.Equals(req.Email),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "email not found"})
+		return
+	}
+
+	// Gunakan `user.Email()` jika itu method, atau langsung `user.Email` jika itu field
+	email, ok := user.Email() // Jika user.Email adalah field, ganti dengan: email := user.Email
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to get user email"})
 		return
 	}
 
@@ -289,7 +393,7 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 
 	// Simpan di cache
 	err = h.cacheService.Set(
-		fmt.Sprintf("verify:%s", user.Email),
+		fmt.Sprintf("verify: %s", email),
 		code,
 		10*time.Minute,
 	)
@@ -302,7 +406,7 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Kirim email
-	err = h.emailService.SendVerificationCode(user.Email, code)
+	err = h.emailService.SendVerificationCode(email, code)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to send email"})
@@ -315,7 +419,6 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
 	var req struct {
 		Email string `json:"email"`
@@ -347,7 +450,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		db.User.Email.Equals(req.Email),
 	).Update(
 		db.User.EmailVerified.Set(true),
-	).Exec(ctx)
+	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -364,7 +467,6 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
 	var req struct {
 		Email string `json:"email"`
@@ -379,7 +481,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Cek user berdasarkan email
 	user, err := h.client.User.FindFirst(
 		db.User.Email.Equals(req.Email),
-	).Exec(ctx)
+	).Exec(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("email not found"))
@@ -389,8 +491,15 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Generate reset token
 	token := generateResetToken()
 
+	email, ok := user.Email()
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to get user email"))
+		return
+	}
+
 	// Simpan token di Redis
-	err = h.cacheService.SetResetPasswordToken(user.Email, token)
+	err = h.cacheService.SetResetPasswordToken(email, token)
 	if err != nil {
 		fmt.Printf("Error setting reset token in cache: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -398,8 +507,14 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	email, ok = user.Email()
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to get user email"))
+		return
+	}
 	// Kirim email reset password
-	err = h.emailService.SendResetPasswordEmail(user.Email, token)
+	err = h.emailService.SendResetPasswordEmail(email, token)
 	if err != nil {
 		fmt.Printf("Error sending email: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -413,7 +528,6 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	ctx := r.Context()
 
 	var req struct {
 		Token           string `json:"token"`
@@ -458,7 +572,7 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	// Cari user berdasarkan email
 	user, err := h.client.User.FindFirst(
 		db.User.Email.Equals(email),
-	).Exec(ctx)
+	).Exec(r.Context())
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -467,7 +581,7 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Hash password baru
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
 		fmt.Printf("Error hashing password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -479,8 +593,8 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	_, err = h.client.User.FindUnique(
 		db.User.ID.Equals(user.ID),
 	).Update(
-		db.User.Password.Set(string(hashedPassword)),
-	).Exec(ctx)
+		db.User.Password.Set(hashedPassword),
+	).Exec(r.Context())
 	if err != nil {
 		fmt.Printf("Error updating password: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)

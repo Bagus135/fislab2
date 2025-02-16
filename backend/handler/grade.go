@@ -207,6 +207,7 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		"gradedBy":     grade.GradedBy,
 		"createdAt":    grade.CreatedAt,
 	}
+
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(response)
 }

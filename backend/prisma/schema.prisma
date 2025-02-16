@@ -37,7 +37,7 @@ model User {
   nrp           String    @unique
   name          String
   about         String
-  email         String    @unique
+  email         String?   @unique
   phone         String
   password      String
   role          Role
