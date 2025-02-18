@@ -7,11 +7,12 @@ import (
 	"backend/utils"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthHandler struct {

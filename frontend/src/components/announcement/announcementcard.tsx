@@ -5,10 +5,10 @@ import AnnouncementModal from "./announcement-modal";
 export default function AnnouncementCard () {
     return (
     
-        <AnnouncementModal props={{ id : 2 ,title : `Dilarang Jomok`, content : `Mantra Lorem Ipsum dor colorskdjskdj skdksdj`, createdAt : new Date (), updatedAt : new Date (), author : "Alief Hisyam Al Hasany Nur Rahmat"}}>
+        <AnnouncementModal props={{ id : 2 ,title : `Dilarang Makan`, content : `Mantra Lorem Ipsum dor colorskdjskdj skdksdj`, createdAt : new Date (), updatedAt : new Date (), author : "Alief Hisyam Al Hasany Nur Rahmat"}}>
             <Card className="cursor-pointer">
                 <CardHeader className="pb-2 flex flex-col">
-                    <CardTitle>Dilarang Menjomok Di Laboratorium Madya</CardTitle>
+                    <CardTitle>Dilarang Makan Di Laboratorium Madya</CardTitle>
                     <CardDescription className="font-normal">Lorem, ipsum dolor sit amet consectetur adipisicing elit. Repellat sit vitae enim. Ratione similique laudantium nisi, molestias explicabo suscipit asperiores excepturi error optio sunt, voluptatum animi corporis mollitia, omnis illum.</CardDescription>
                 </CardHeader>
                 <CardFooter className="flex flex-row justify-between items-center">
