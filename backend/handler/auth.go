@@ -124,18 +124,23 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) RegisterFirstSuperAdmin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Cek apakah sudah ada SUPER_ADMIN
-	existingSuperAdmin, err := h.client.User.FindFirst(
+	superAdmins, err := h.client.User.FindMany(
 		db.User.Role.Equals(db.RoleSuperAdmin),
 	).Exec(r.Context())
 
-	if err == nil && existingSuperAdmin != nil {
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to check super admin"))
+		return
+	}
+
+	// Batasi maksimal 2 super admin
+	if len(superAdmins) >= 2 {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
 	var req types.RegisterSuperAdminRequest
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))

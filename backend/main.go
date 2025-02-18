@@ -41,5 +41,5 @@ func main() {
 	)
 
 	// Running server
-	server.StartServer("8080", r)
+	server.StartServer(r)
 }
