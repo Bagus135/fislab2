@@ -25346,14 +25346,14 @@ type userSetParam struct {
 	data builder.Field
 }
 
-func (p userSetParam) getQuery() builder.Query {
-	//TODO implement me
-	panic("implement me")
+// aboutField implements UserWithPrismaAboutSetParam.
+func (p userSetParam) aboutField() {
+	panic("unimplemented")
 }
 
-func (p userSetParam) aboutField() {
-	//TODO implement me
-	panic("implement me")
+// getQuery implements UserWithPrismaAboutSetParam.
+func (p userSetParam) getQuery() builder.Query {
+	panic("unimplemented")
 }
 
 func (userSetParam) settable() {}
@@ -25618,9 +25618,9 @@ type userWithPrismaAboutSetParam struct {
 	query builder.Query
 }
 
+// passwordField implements UserWithPrismaPasswordSetParam.
 func (p userWithPrismaAboutSetParam) passwordField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
 }
 
 func (p userWithPrismaAboutSetParam) field() builder.Field {
@@ -25857,9 +25857,9 @@ type userWithPrismaPasswordSetParam struct {
 	query builder.Query
 }
 
+// roleField implements UserWithPrismaRoleSetParam.
 func (p userWithPrismaPasswordSetParam) roleField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
 }
 
 func (p userWithPrismaPasswordSetParam) field() builder.Field {
@@ -28002,24 +28002,24 @@ type scheduleSetParam struct {
 	data builder.Field
 }
 
-func (p scheduleSetParam) assistantField() {
-	//TODO implement me
-	panic("implement me")
-}
-
+// groupField implements ScheduleWithPrismaGroupSetParam.
 func (p scheduleSetParam) groupField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
 }
 
-func (p scheduleSetParam) getQuery() builder.Query {
-	//TODO implement me
-	panic("implement me")
-}
-
+// practicumField implements ScheduleWithPrismaPracticumSetParam.
 func (p scheduleSetParam) practicumField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
+}
+
+// assistantField implements ScheduleWithPrismaAssistantSetParam.
+func (p scheduleSetParam) assistantField() {
+	panic("unimplemented")
+}
+
+// getQuery implements ScheduleWithPrismaAssistantSetParam.
+func (p scheduleSetParam) getQuery() builder.Query {
+	panic("unimplemented")
 }
 
 func (scheduleSetParam) settable() {}
@@ -31634,9 +31634,9 @@ type attendanceCodeWithPrismaCodeSetParam struct {
 	query builder.Query
 }
 
+// expiredAtField implements AttendanceCodeWithPrismaExpiredAtSetParam.
 func (p attendanceCodeWithPrismaCodeSetParam) expiredAtField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
 }
 
 func (p attendanceCodeWithPrismaCodeSetParam) field() builder.Field {
@@ -31717,9 +31717,9 @@ type attendanceCodeWithPrismaExpiredAtSetParam struct {
 	query builder.Query
 }
 
+// scheduleField implements AttendanceCodeWithPrismaScheduleSetParam.
 func (p attendanceCodeWithPrismaExpiredAtSetParam) scheduleField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
 }
 
 func (p attendanceCodeWithPrismaExpiredAtSetParam) field() builder.Field {
@@ -31878,9 +31878,9 @@ type attendanceCodeWithPrismaScheduleSetParam struct {
 	query builder.Query
 }
 
+// codeField implements AttendanceCodeWithPrismaCodeSetParam.
 func (p attendanceCodeWithPrismaScheduleSetParam) codeField() {
-	//TODO implement me
-	panic("implement me")
+	panic("unimplemented")
 }
 
 func (p attendanceCodeWithPrismaScheduleSetParam) field() builder.Field {

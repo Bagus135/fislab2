@@ -4,16 +4,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 export default function CreateUserModal({children}: {children : ReactNode}){
     const [input, setInput] = useState({
         nrp : "",
         name : "",
-        gender : "",
         password : "",
 
     });
+    
+    const handleSubmit = async(e : FormEvent<HTMLFormElement>)=>{
+        e.preventDefault();
+        try {
+            const res = await fetch("/api/register-first-super-admin", {
+                method : "POST",
+                headers : {
+                    "Content-Type" : "application/json",
+                },
+                body : JSON.stringify(input)
+            })
+            console.log(res)
+        } catch (error : any) {
+            console.log(error.message)
+        }
+    }
 
     return (
         <Dialog>
@@ -25,7 +40,7 @@ export default function CreateUserModal({children}: {children : ReactNode}){
                     <DialogTitle>Sign Up</DialogTitle>
                     <DialogDescription>Create a new physics laboratorium participant</DialogDescription>
                 </DialogHeader>
-                <form noValidate className="mt-4">
+                <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">
 
                         <div className="flex flex-col gap-1">
@@ -48,20 +63,22 @@ export default function CreateUserModal({children}: {children : ReactNode}){
                             />
                         </div>
 
-                        <div className="flex flex-col gap-1">
+                        {/* <div className="flex flex-col gap-1">
                             <Label htmlFor="aslab">Gender</Label>
-                            <Select required onValueChange={(value)=>setInput({...input, gender: value})}>
+                            <Select required onValueChange={(value)=>setInput({...input, role: value})}>
                                 <SelectTrigger id="aslab">
                                     <SelectValue placeholder="Select Here"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="male">Male</SelectItem>
-                                        <SelectItem value="female">Female</SelectItem>
+                                        <SelectItem value="SUPER_ADMIN">SUPER_ADMIN</SelectItem>
+                                        <SelectItem value="ADMIN">ADMIN</SelectItem>
+                                        <SelectItem value="ASISTEN">ASISTEN</SelectItem>
+                                        <SelectItem value="PRAKTIKAN">PRAKTIKAN</SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                        </div>
+                        </div> */}
 
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="pass">Password</Label>
