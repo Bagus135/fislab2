@@ -63,6 +63,7 @@ func NewRouter(
 	// ======================
 	adminAPI.HandleFunc("/register", authHandler.Register).Methods("POST")
 	adminAPI.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
+	adminAPI.HandleFunc("/users/delete", userHandler.DeleteUser).Methods("POST")
 	adminAPI.HandleFunc("/users/{role}", userHandler.GetUsersByRole).Methods("GET")
 	adminAPI.HandleFunc("/groups", groupHandler.GetAllGroups).Methods("GET")
 	adminAPI.HandleFunc("/groups/{id}", groupHandler.GetGroupById).Methods("GET")

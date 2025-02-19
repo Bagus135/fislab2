@@ -2,6 +2,7 @@ package handler
 
 import (
 	"backend/prisma/db"
+	"backend/types"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -19,10 +20,12 @@ func NewUserHandler(client *db.PrismaClient) *UserHandler {
 
 // GetMyProfile - Ambil profile sendiri
 func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 
@@ -32,35 +35,44 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
+	}
+
+	// Menggunakan metode accessor untuk email yang nullable
+	email := ""
+	if emailVal, ok := user.Email(); ok {
+		email = emailVal
 	}
 
 	response := map[string]interface{}{
 		"id":    user.ID,
 		"nrp":   user.Nrp,
 		"name":  user.Name,
-		"email": user.Email,
 		"phone": user.Phone,
 		"about": user.About,
+		"email": email,
+		"role":  string(user.Role),
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Printf("Error encoding response: %v\n", err)
+	}
 }
 
 func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	vars := mux.Vars(r)
 	requestedUserID := vars["id"]
-
-	// Debugging
-	fmt.Println("Requested User ID:", requestedUserID)
 
 	if requestedUserID == "" {
 		userID, ok := r.Context().Value("userID").(string)
 		if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 			return
 		}
 		requestedUserID = userID
@@ -70,24 +82,34 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	user, err := h.client.User.FindUnique(
 		db.User.ID.Equals(requestedUserID),
 	).Exec(r.Context())
-
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
+	// Menggunakan metode accessor untuk email yang nullable
+	email := ""
+	if emailVal, ok := user.Email(); ok {
+		email = emailVal
+	}
+
 	response := map[string]interface{}{
+		"id":    user.ID,
 		"nrp":   user.Nrp,
 		"name":  user.Name,
-		"email": user.Email,
 		"phone": user.Phone,
 		"about": user.About,
+		"email": email,
+		"role":  string(user.Role),
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Printf("Error encoding response: %v\n", err)
+	}
 }
 
 func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
@@ -278,4 +300,64 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 		"total": len(users),
 		"users": response,
 	})
+}
+
+func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Validasi role super admin dari context
+	userRole := r.Context().Value("role").(string)
+	if userRole != "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("only super admin can delete users"))
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Validasi ID tidak kosong
+	if req.ID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("user id is required"))
+		return
+	}
+
+	// Cek apakah user yang akan dihapus ada
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(req.ID),
+	).Exec(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("user not found"))
+		return
+	}
+
+	// Cek apakah user yang akan dihapus bukan super admin
+	if user.Role == db.RoleSuperAdmin {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("cannot delete super admin user"))
+		return
+	}
+
+	// Hapus user
+	_, err = h.client.User.FindUnique(
+		db.User.ID.Equals(req.ID),
+	).Delete().Exec(r.Context())
+	if err != nil {
+		fmt.Printf("Error deleting user: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to delete user"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("user deleted"))
 }

@@ -43,6 +43,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.NRP == "" || req.Password == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp and password are required"))
+		return
+	}
+
 	// Cari user berdasarkan NRP
 	user, err := h.client.User.FindFirst(
 		db.User.Nrp.Equals(req.NRP),
