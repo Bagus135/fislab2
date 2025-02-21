@@ -25,7 +25,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 
@@ -35,7 +35,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
@@ -72,7 +72,7 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("userID").(string)
 		if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 			return
 		}
 		requestedUserID = userID
@@ -85,7 +85,7 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 

@@ -152,6 +152,17 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Ambil semua user dengan role ASISTEN
+	assistants, err := h.client.User.FindMany(
+		db.User.Role.Equals(db.RoleAsisten),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch assistants"})
+		return
+	}
+
 	// Ambil semua jadwal dengan detil asisten dan praktikum
 	schedules, err := h.client.Schedule.FindMany().With(
 		db.Schedule.Assistant.Fetch(),
@@ -160,32 +171,43 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch assistant assignments"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
 		return
 	}
 
-	// Gunakan map untuk menyimpan asisten unik berdasarkan ID
-	assistantMap := make(map[string]map[string]interface{})
-
+	// Map untuk menyimpan ID asisten dan judul praktikum
+	// Jika asisten punya jadwal, judul akan diisi
+	scheduleMap := make(map[string]string)
 	for _, schedule := range schedules {
 		assistant := schedule.Assistant()
 		practicum := schedule.Practicum()
-
-		// Jika asisten belum ada di map, tambahkan
-		if _, exists := assistantMap[assistant.ID]; !exists {
-			assistantMap[assistant.ID] = map[string]interface{}{
-				"id":    assistant.ID,
-				"name":  assistant.Name,
-				"nrp":   assistant.Nrp,
-				"judul": practicum.Title, // Hanya ambil judul pertama karena semua harus sama
-			}
-		}
+		scheduleMap[assistant.ID] = practicum.Title
 	}
 
-	// Konversi map ke slice
+	// Buat response
 	var response []map[string]interface{}
-	for _, data := range assistantMap {
-		response = append(response, data)
+	for _, assistant := range assistants {
+		// Cek apakah asisten punya jadwal
+		judul, hasSchedule := scheduleMap[assistant.ID]
+
+		assistantData := map[string]interface{}{
+			"id":    assistant.ID,
+			"name":  assistant.Name,
+			"nrp":   assistant.Nrp,
+			"judul": nil,
+		}
+
+		// Jika asisten punya jadwal, tambahkan judul
+		if hasSchedule {
+			assistantData["judul"] = judul
+		}
+
+		response = append(response, assistantData)
+	}
+
+	// Jika tidak ada asisten, kirim array kosong
+	if len(response) == 0 {
+		response = []map[string]interface{}{}
 	}
 
 	w.WriteHeader(http.StatusOK)
