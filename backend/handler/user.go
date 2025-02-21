@@ -2,6 +2,7 @@ package handler
 
 import (
 	"backend/prisma/db"
+	"backend/types"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -46,13 +47,14 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"id":    user.ID,
-		"nrp":   user.Nrp,
-		"name":  user.Name,
-		"phone": user.Phone,
-		"about": user.About,
-		"email": email,
-		"role":  string(user.Role),
+		"id":             user.ID,
+		"nrp":            user.Nrp,
+		"name":           user.Name,
+		"phone":          user.Phone,
+		"about":          user.About,
+		"email":          email,
+		"email-verified": user.EmailVerified,
+		"role":           string(user.Role),
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -300,4 +302,64 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 		"total": len(users),
 		"users": response,
 	})
+}
+
+func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Validasi role super admin dari context
+	userRole := r.Context().Value("role").(string)
+	if userRole != "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("only super admin can delete users"))
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Validasi ID tidak kosong
+	if req.ID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("user id is required"))
+		return
+	}
+
+	// Cek apakah user yang akan dihapus ada
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(req.ID),
+	).Exec(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("user not found"))
+		return
+	}
+
+	// Cek apakah user yang akan dihapus bukan super admin
+	if user.Role == db.RoleSuperAdmin {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("cannot delete super admin user"))
+		return
+	}
+
+	// Hapus user
+	_, err = h.client.User.FindUnique(
+		db.User.ID.Equals(req.ID),
+	).Delete().Exec(r.Context())
+	if err != nil {
+		fmt.Printf("Error deleting user: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to delete user"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("user deleted"))
 }

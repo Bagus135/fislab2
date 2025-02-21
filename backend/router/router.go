@@ -63,6 +63,7 @@ func NewRouter(
 	// ======================
 	adminAPI.HandleFunc("/register", authHandler.Register).Methods("POST")
 	adminAPI.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
+	adminAPI.HandleFunc("/users/delete", userHandler.DeleteUser).Methods("POST")
 	adminAPI.HandleFunc("/users/{role}", userHandler.GetUsersByRole).Methods("GET")
 	adminAPI.HandleFunc("/groups", groupHandler.GetAllGroups).Methods("GET")
 	adminAPI.HandleFunc("/groups/{id}", groupHandler.GetGroupById).Methods("GET")
@@ -71,7 +72,8 @@ func NewRouter(
 	adminAPI.HandleFunc("/practicum", practicumHandler.CreatePracticum).Methods("POST")
 	adminAPI.HandleFunc("/practicum", practicumHandler.UpdatePracticum).Methods("PUT")
 	adminAPI.HandleFunc("/practicum", practicumHandler.DeletePracticum).Methods("DELETE")
-	adminAPI.HandleFunc("/assistant", assistantHandler.SetAssistant).Methods("POST")
+	adminAPI.HandleFunc("/assistant-to-group", assistantHandler.SetAssistantToGroup).Methods("POST")
+	adminAPI.HandleFunc("/assistant-to-practicum", assistantHandler.SetAssistantToPracticum).Methods("POST")
 	adminAPI.HandleFunc("/assistant", assistantHandler.GetAssistants).Methods("GET")
 	adminAPI.HandleFunc("/assistant/status", assistantHandler.GetAssistantStatus).Methods("GET")
 
