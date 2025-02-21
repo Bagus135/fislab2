@@ -1,19 +1,10 @@
-import { getToken } from "@/action/auth.action"
 import { BarChartComponent, RadialChart } from "@/components/dashboard/dashboardchart"
 import AnnouncementCard from "@/components/dashboard/latest-announcement"
 import TimeCard from "@/components/dashboard/timecard"
 import UpcomingCard from "@/components/dashboard/upcoming-schedule"
-import Error from "next/error"
-import NotFound from "./not-found"
 
 export default async function DashboardPage (){
 
-  try {
-    const res = await getToken()
-
-  } catch (error : any) {
-    return NotFound({message : error.message})
-  }
 
   return (
       <div className="flex flex-1 flex-col md:grid md:grid-flow-row gap-4 p-2 pt-0">

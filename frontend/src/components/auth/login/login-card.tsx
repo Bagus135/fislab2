@@ -1,6 +1,6 @@
 'use client'
 
-import { loginAction } from "@/action/auth.action"
+import { setCookies } from "@/action/auth.action"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,7 @@ export default function LoginCard (){
             
             if(!res.ok) throw new Error(data.error)
             
-            loginAction(data.token)
+            setCookies(data.token)
             router.push("/dashboard")
             toast({
                 title : "Login Successfully" ,

@@ -1,10 +1,19 @@
+import { getDecodeToken } from "@/action/auth.action";
 import SideBar from "@/components/sidebar";
+import NotFound from "./not-found";
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
   }: Readonly<{
     children: React.ReactNode;
   }>) {
+
+    try {
+      const res = await getDecodeToken()
+  
+    } catch (error : any) {
+      return <NotFound message={error.message} code={error.code} />
+    }
     return ( 
     <>
        <div className="border-r shadow-sidebar-foreground h-[calc(100vh)] hidden md:flex md:w-16 lg:w-44 fixed">

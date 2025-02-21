@@ -1,37 +1,32 @@
-'use client'
-import { editGroupPractican, getPractican } from "@/action/admin.action";
+import { createGroupPractican, getPractican } from "@/action/admin.action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2Icon, Save, Search, X } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { Loader2Icon, Plus, Search, X } from "lucide-react";
+import { FormEvent, ReactNode, useState } from "react";
 
-type Props = {
-    group : getPracticanGroup|null,
-    practicans : Awaited<ReturnType<typeof getPractican>>,
-    open : boolean,
-    setOpen : (open : boolean) => void
-}
 
 type InputType = {
+    kelompok : string,
     member_ids : string[],
     nrp : string[],
 }
+type GetPracticanRes = Awaited<ReturnType<typeof getPractican>>
 
-export default function EditMemberPracticanModal ({group, open, setOpen ,practicans}: Props){
+export default function CreateGroupPractican ({children, practicans}:{children : ReactNode, practicans : GetPracticanRes}){
     const {toast} = useToast()
-    
     const [search , setSearch] = useState("")
     const [input, setInput] = useState<InputType>({
-        member_ids : !!group ? group.members.map(member => member.id) : [],
-        nrp : !!group ? group.members.map(member => member.nrp) : [],
+        kelompok : '',
+        member_ids : [],
+        nrp : [],
     })
-    console.log(group?.members.map(member => member.nrp) );
     const [loading, setLoading] = useState(false);
 
     const handleCheckboxChange = (checked : boolean|string , id : string, nrp : string)=> {
@@ -51,20 +46,15 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
         e.preventDefault();
         try {
             setLoading(true);
-            if(!group) throw new Error('Group is not defined') 
-            const res = await editGroupPractican({ 
-                    name : group.kelompok,
-                    member_ids : input.member_ids, 
-                    id :group.id 
-                });
+            const res = await createGroupPractican({ kelompok : Number(input.kelompok),member_ids : input.member_ids });
             toast({
-                title : "Updated Success",
+                title : "Practican group created",
                 variant : "success",
-                description : `Practican group ${res.kelompok} updated`
+                description : `Practican group ${res.kelompok} created`
             })
         } catch (error:any) {
             toast({
-                title : "Failed to Update Practican group",
+                title : "Failed to Create Practican group",
                 variant : "destructive",
                 description : error.message
             })
@@ -73,15 +63,33 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
         }
     };
     return (
-        <Dialog onOpenChange={setOpen} open={open}>
+        <Dialog>
+            <DialogTrigger asChild>
+                {children}
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit Group</DialogTitle>
-                    <DialogDescription>Group {group?.kelompok}</DialogDescription>
+                    <DialogTitle>Grouping Practican</DialogTitle>
+                    <DialogDescription>Create group for Practican</DialogDescription>
                 </DialogHeader>
                 <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">
                         <div className="flex flex-col gap-1">
+                            <Label htmlFor="group">No Group</Label>
+                            <Input
+                                id="group"
+                                type="text"
+                                className="peer invalid:border-red-500"
+                                required
+                                pattern="^(?:[1-9]|1[0-9]|20)$"
+                                placeholder="1 - 20"
+                                value={input.kelompok}
+                                onChange={(e)=>setInput({...input, kelompok : e.target.value})}
+                            /> 
+                            <p className="text-sm hidden peer-invalid:text-red-500 peer-invalid:block">The values are only permitted is 1-20 </p>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="group">Member</Label>
                              <div className="flex flex-wrap gap-2 rounded-md border p-2">
                                 { input.nrp.length === 0 ? 
                                         <p className="text-center w-full text-xs"> No Practican Selected</p>
@@ -91,6 +99,7 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
                                         ))
                                 }
                              </div>
+                            <p className="text-sm hidden peer-invalid:text-red-500 peer-invalid:block">The values are only permitted is 1-20 </p>
                         </div>
                         <div className="flex flex-col gap-1">        
                             <div className="relative ">
@@ -151,17 +160,18 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
                             </DialogClose>
                             <Button type="submit" 
                                     className="flex flex-row gap-2" 
-                                    disabled={input.member_ids.length ===0 || loading}>
+                                    disabled={input.member_ids.length ===0 || loading || !input.kelompok.trim() || !input.kelompok.match("^(?:[1-9]|1[0-9]|20)$")}>
                                 { loading ?
                                     <Loader2Icon className="animate-spin size-4"/>
                                     :
                                     <>
-                                        <Save className="size-4"/>
-                                        Save
+                                        <Plus className="size-4"/>
+                                        Create
                                     </>
                                 }
                             </Button>
                         </DialogFooter>
+
                     </div>
                 </form>
             </DialogContent>

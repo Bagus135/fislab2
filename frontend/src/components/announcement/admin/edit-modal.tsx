@@ -1,0 +1,94 @@
+'use client'
+
+import { createAnnouncement, editAnnouncement } from "@/action/announcement.action";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2Icon } from "lucide-react";
+import { FormEvent, useState } from "react";
+
+export default function EditAnnouncementModal ({announcement, open , setOpen}: {announcement : AllAnnouncementType, open:boolean, setOpen : (open : boolean)=> void}) {
+    const {toast} = useToast();
+    const [input, setInput] = useState({
+        title : announcement.title,
+        content : announcement.content
+    });
+    const [loading, setLoading] = useState(false);
+    const {id} = announcement
+
+    const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
+        e.preventDefault();
+        try {
+            setLoading(true)
+            const message = await editAnnouncement({ id, ...input});
+            toast({
+                title : "Success Create a New Announcement",
+                description : message,
+                variant : 'success'
+            })
+            
+        } catch (error : any) {
+            toast({
+                title : "Failed to Create a New Announcement",
+                description : error.message,
+                variant : 'destructive'
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen} >
+            <DialogContent onClick={(e)=> e.stopPropagation()} >
+                <DialogHeader>
+                    <DialogTitle> Edit Announcement</DialogTitle>
+                    <DialogDescription>Edit your announcement here</DialogDescription>
+                </DialogHeader>
+                <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-2">
+                    <div className="flex flex-col space-y-2">
+                        <Label htmlFor="title" className="font-medium">Title</Label>
+                        <div className="">
+                            <Input 
+                                id="title"
+                                type="text" 
+                                placeholder="Attention Please !!" 
+                                className="peer invalid:border-red-500"
+                                value={input.title!}
+                                required
+                                onChange={(e)=>setInput({...input, title : e.target.value })}
+                                />
+                                <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">required</span>
+                        </div>
+                    </div>
+                    <div className="flex flex-col space-y-2">
+                        <Label htmlFor="content" className="font-medium">Content</Label>
+                        <div className="">
+                            <Textarea 
+                                id="content"
+                                placeholder="Please to be Carefully in Madya Laboratory" 
+                                className="peer invalid:border-red-500"
+                                value={input.content!}
+                                required
+                                onChange={(e)=>setInput({...input, content : e.target.value })}
+                                />
+                                <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">required</span>
+                        </div>
+                    </div>
+                    <Button 
+                        disabled={loading || !input.content.trim() ||!input.title.trim()} 
+                        className="w-full text-lg font-bold mt-2">
+                        {loading?
+                            <Loader2Icon className="size-4 animate-spin"/>
+                            :
+                            "Edit"    
+                    }
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
