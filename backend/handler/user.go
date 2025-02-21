@@ -46,13 +46,14 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"id":    user.ID,
-		"nrp":   user.Nrp,
-		"name":  user.Name,
-		"phone": user.Phone,
-		"about": user.About,
-		"email": email,
-		"role":  string(user.Role),
+		"id":             user.ID,
+		"nrp":            user.Nrp,
+		"name":           user.Name,
+		"phone":          user.Phone,
+		"about":          user.About,
+		"email":          email,
+		"email-verified": user.EmailVerified,
+		"role":           string(user.Role),
 	}
 
 	w.WriteHeader(http.StatusOK)
