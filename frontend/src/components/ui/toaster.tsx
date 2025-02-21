@@ -21,7 +21,7 @@ export function Toaster() {
             <div className="grid gap-1">
               {title && <ToastTitle className="capitalize">{title}</ToastTitle>}
               {description && (
-                <ToastDescription>{description}</ToastDescription>
+                <ToastDescription className="capitalize">{description}</ToastDescription>
               )}
             </div>
             {action}

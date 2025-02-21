@@ -1,13 +1,12 @@
 "use client"
-import { Instagram, LinkIcon, MessageCircle, PencilIcon } from "lucide-react";
+import { Instagram, LinkIcon, Mail, MessageCircle, PencilIcon, SquareUser } from "lucide-react";
 import { Avatar, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { useRef } from "react";
-import { Input } from "../ui/input";
 import ProfileImageDialog from "./cropimg-dialog";
 
-export default function ProfilePreview(){
+export default function ProfilePreview({profile} : {profile : GetSelfProfileType}){
     const ref = useRef<HTMLInputElement | null>(null);
 
     const handleClickImg = ()=>{
@@ -34,30 +33,26 @@ export default function ProfilePreview(){
                             </Button> 
                         </Avatar>
                     </div>
-                    <h1 className="mt-4 text-2xl font-bold text-center">Alief Hisyam Al Hasany Nur Rahmat</h1>
-                    <p className="text-muted-foreground text-center">5001221060</p>
-                    <p className="mt-2 text-sm text-center">Saya adalah seorang pemula</p>
+                    <h1 className="mt-4 text-2xl font-bold text-center">{profile.name}</h1>
+                    <p className="text-muted-foreground text-center">{profile.name}</p>
+                    <p className="mt-2 text-sm text-center">{profile.about || "-"}</p>
 
-                    <div className="w-full mt-6 space-y-2 text-sm">
+                    <div className="w-full mt-8 space-y-2 text-sm">
+                        <div className="flex items-center text-muted-foreground">
+                            <SquareUser className="size-4 mr-2"/>
+                            {profile.role}
+                        </div>
+
                         <div className="flex items-center text-muted-foreground">
                             <MessageCircle className="size-4 mr-2"/>
-                            +6282336658441
+                            {profile.phone}
                         </div>
                         
-                    <div className="flex items-center text-muted-foreground">
-                        <Instagram className="size-4 mr-2"/>
-                        @bagustaqim_
-                    </div>
-
                         <div className="flex items-center text-muted-foreground">
-                            <LinkIcon className="size-4 mr-2"/>
-                            <a href={`https://a.com`}
-                                className="hover:underline"
-                                target="_blank"
-                                rel="noopener noreferrer">
-                                    https://a.com
-                                </a>
+                            <Mail className="size-4 mr-2"/>
+                            {profile.email}
                         </div>
+
                     </div>
                 </div>
             </CardContent>

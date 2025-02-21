@@ -4,18 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {  Filter, Search} from "lucide-react";
+import { PlusSquare, Search, } from "lucide-react";
 import { useState } from "react";
-import { FilterMonitoringAslab } from "./dropdownmenu-filter";
-import AslabMonitoringModal from "./detail-dialog";
+import DropdownMenuModul from "./dropdown-menu";
+import CreateModul from "./create-modal";
+import { getModul } from "@/action/admin.action";
 
-export default function AslabMonitoring (){
+type ModulListProps = Awaited<ReturnType<typeof getModul>>
+
+export default function ModulList({moduls} :{ moduls : ModulListProps}){
     const [search , setSearch] = useState("")
     return (
+        moduls.success &&
         <Card>
             <CardHeader>
-                <CardTitle>Asistant Laboratorium Monitor</CardTitle>
-                <CardDescription>See asistant laboratorium who haven't submit the practican score</CardDescription>
+                <CardTitle>Practicum Modul</CardTitle>
+                <CardDescription>Manage practicum modul</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-row gap-4 justify-between mb-4">
@@ -24,41 +28,40 @@ export default function AslabMonitoring (){
                             <Search className="size-4"/>
                         </span>
                         <Input
-                            placeholder="Search Code or Name..." 
+                            placeholder="Search group number..." 
                             className="pl-12"
                             value={search}
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <FilterMonitoringAslab>
+                    <CreateModul>
                         <Button>
-                            <Filter className="size-4"/>
+                            <PlusSquare className="size-4"/>
                         </Button>
-                    </FilterMonitoringAslab>
-
+                    </CreateModul>
                 </div>
                 <Table className="text-center">
                     <TableHeader>
                         <TableRow >
                         <TableHead className="text-center">No</TableHead>
                         <TableHead className="text-center">Code</TableHead>
-                        <TableHead className="text-center">Name</TableHead>
-                        <TableHead className="text-center">Progress</TableHead>
+                        <TableHead className="text-center">Title</TableHead>
+                        <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
-                    {/* <TableBody>{
-                        [...Array(20)].map((_,i) =>(
-                        <AslabMonitoringModal>
-                            <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
-                                <TableCell className="font-medium">{i}</TableCell>
-                                <TableCell>MP-{i}</TableCell>
-                                <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
-                                <TableCell>1/10</TableCell>
-                            </TableRow>
-                        </AslabMonitoringModal>
+                    <TableBody>{
+                        moduls.data && moduls.data.map((modul,idx) =>(
+                        <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
+                            <TableCell className="font-medium">{idx + 1}</TableCell>
+                            <TableCell>{modul.title}</TableCell>
+                            <TableCell>{modul.description}</TableCell>
+                            <TableCell>
+                              <DropdownMenuModul modul={modul} key={idx}/>
+                            </TableCell>
+                        </TableRow>
                         ))
                         }
-                    </TableBody> */}
+                    </TableBody>
                 </Table>
             </CardContent>
         </Card>

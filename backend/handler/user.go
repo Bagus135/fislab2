@@ -5,9 +5,10 @@ import (
 	"backend/types"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type UserHandler struct {
@@ -25,7 +26,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 
@@ -35,7 +36,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
@@ -73,7 +74,7 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("userID").(string)
 		if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 			return
 		}
 		requestedUserID = userID
@@ -86,7 +87,7 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 

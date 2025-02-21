@@ -28002,11 +28002,6 @@ type scheduleSetParam struct {
 	data builder.Field
 }
 
-// groupField implements ScheduleWithPrismaGroupSetParam.
-func (p scheduleSetParam) groupField() {
-	panic("unimplemented")
-}
-
 // practicumField implements ScheduleWithPrismaPracticumSetParam.
 func (p scheduleSetParam) practicumField() {
 	panic("unimplemented")
@@ -28017,8 +28012,13 @@ func (p scheduleSetParam) assistantField() {
 	panic("unimplemented")
 }
 
-// getQuery implements ScheduleWithPrismaAssistantSetParam.
+// getQuery implements ScheduleWithPrismaGroupSetParam.
 func (p scheduleSetParam) getQuery() builder.Query {
+	panic("unimplemented")
+}
+
+// groupField implements ScheduleWithPrismaGroupSetParam.
+func (p scheduleSetParam) groupField() {
 	panic("unimplemented")
 }
 

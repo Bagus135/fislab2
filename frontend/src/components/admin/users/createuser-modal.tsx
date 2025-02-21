@@ -1,15 +1,21 @@
+import { addUser } from "@/action/admin.action";
+import { getToken } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, X } from "lucide-react";
 import { FormEvent, ReactNode, useState } from "react";
 
 export default function CreateUserModal({children}: {children : ReactNode}){
+    const {toast} = useToast()
+
     const [input, setInput] = useState({
         nrp : "",
         name : "",
+        role : "",
         password : "",
 
     });
@@ -17,18 +23,22 @@ export default function CreateUserModal({children}: {children : ReactNode}){
     const handleSubmit = async(e : FormEvent<HTMLFormElement>)=>{
         e.preventDefault();
         try {
-            const res = await fetch("/api/register-first-super-admin", {
-                method : "POST",
-                headers : {
-                    "Content-Type" : "application/json",
-                },
-                body : JSON.stringify(input)
+            const res = await addUser(input)
+            toast({
+                title : "Success Creating User",
+                variant : "success",
+                description : res.token 
             })
-            console.log(res)
-        } catch (error : any) {
-            console.log(error.message)
+            
+        } catch (error:any) {
+            toast({
+                title : "Error Creating User",
+                variant : "destructive",
+                description : error.message 
+            })
         }
     }
+    
 
     return (
         <Dialog>
@@ -63,22 +73,21 @@ export default function CreateUserModal({children}: {children : ReactNode}){
                             />
                         </div>
 
-                        {/* <div className="flex flex-col gap-1">
-                            <Label htmlFor="aslab">Gender</Label>
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="aslab">Role</Label>
                             <Select required onValueChange={(value)=>setInput({...input, role: value})}>
                                 <SelectTrigger id="aslab">
                                     <SelectValue placeholder="Select Here"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="SUPER_ADMIN">SUPER_ADMIN</SelectItem>
                                         <SelectItem value="ADMIN">ADMIN</SelectItem>
                                         <SelectItem value="ASISTEN">ASISTEN</SelectItem>
                                         <SelectItem value="PRAKTIKAN">PRAKTIKAN</SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                        </div> */}
+                        </div>
 
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="pass">Password</Label>

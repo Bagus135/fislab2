@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRightCircle, Gauge, SquareActivity, SquareUser, User, UsersRound } from "lucide-react";
+import { ArrowRightCircle, BookCopy, Gauge, SquareActivity, SquareUser, User, UsersRound } from "lucide-react";
 import { TabsList, TabsTrigger } from "../ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet";
 import { Button } from "../ui/button";
@@ -25,6 +25,14 @@ export function AdminTabsListDesktop (){
                         <SquareActivity className="size-6"/>
                     </div>
                     <p className="hidden lg:flex ml-2 ">Monitoring</p>
+            </TabsTrigger>
+            <TabsTrigger
+                value="modul"
+                className=" p-2 text-xs md:text-sm w-full flex items-center justify-start gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
+                    <div className="w-8  flex justify-center">
+                        <BookCopy className="size-6"/>
+                    </div>
+                    <p className="hidden lg:flex ml-2 ">Modul</p>
             </TabsTrigger>
             <TabsTrigger
                 value="users"
