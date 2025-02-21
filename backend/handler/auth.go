@@ -44,6 +44,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.NRP == "" || req.Password == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("nrp and password are required"))
+		return
+	}
+
 	// Cari user berdasarkan NRP
 	user, err := h.client.User.FindFirst(
 		db.User.Nrp.Equals(req.NRP),
@@ -262,6 +268,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
 	// Ambil userID dari context (setelah user login)
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
@@ -288,6 +297,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if req.ConfirmNewPassword != req.NewPassword {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "new password are not matching"})
+		return
 	}
 
 	// Ambil user dari database

@@ -306,7 +306,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Id        string   `json:"id"`
-		Name      int      `json:"name"`
+		Name      int      `json:"kelompok"`
 		MemberIDs []string `json:"member_ids"`
 	}
 

@@ -142,9 +142,12 @@ func (h *AnnouncementHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.
 		fmt.Printf("Error updating announcement: %v\n", err)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "announcement updated"})
-	_ = json.NewEncoder(w).Encode(announcement)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "announcement updated",
+		"data":    announcement,
+	})
 }
 
 func (h *AnnouncementHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request) {

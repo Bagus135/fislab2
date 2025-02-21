@@ -16,7 +16,136 @@ func NewAssistantHandler(client *db.PrismaClient) *AssistantHandler {
 	return &AssistantHandler{client: client}
 }
 
-func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) {
+// SetAssistantToPracticum - Menetapkan asisten ke judul praktikum
+// SetAssistantToPracticum - Menetapkan asisten ke judul praktikum
+func (h *AssistantHandler) SetAssistantToPracticum(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userRole := r.Context().Value("role").(string)
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only SUPER_ADMIN and ADMIN can assign assistants"})
+		return
+	}
+
+	var req struct {
+		PracticumID int    `json:"practicumId"`
+		AssistantID string `json:"assistantId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
+		return
+	}
+
+	// Validasi apakah asisten ada
+	assistant, err := h.client.User.FindUnique(
+		db.User.ID.Equals(req.AssistantID),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "assistant not found"})
+		return
+	}
+
+	if assistant.Role != db.RoleAsisten {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user is not an assistant"})
+		return
+	}
+
+	// Validasi praktikum
+	practicum, err := h.client.Practicum.FindUnique(
+		db.Practicum.ID.Equals(req.PracticumID),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "practicum not found"})
+		return
+	}
+
+	// Cek apakah asisten sudah mengampu praktikum lain
+	existingSchedules, err := h.client.Schedule.FindMany(
+		db.Schedule.AssistantID.Equals(req.AssistantID),
+	).Exec(r.Context())
+
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing assignments"})
+		return
+	}
+
+	for _, schedule := range existingSchedules {
+		if schedule.PracticumID != req.PracticumID {
+			// Jika asisten sudah mengampu praktikum lain, tolak permintaan
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "assistant is already assigned to another practicum",
+			})
+			return
+		}
+	}
+
+	// Ambil satu group untuk dibuat sebagai example assignment
+	// Ini opsional, jika ingin langsung assign asisten ke praktikum tanpa kelompok
+	groups, err := h.client.Group.FindMany().Take(1).Exec(r.Context())
+	if err != nil || len(groups) == 0 {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "assistant assigned to practicum successfully, but no groups available",
+			"assistant": map[string]interface{}{
+				"id":   assistant.ID,
+				"name": assistant.Name,
+				"nrp":  assistant.Nrp,
+			},
+			"practicum": map[string]interface{}{
+				"id":    practicum.ID,
+				"title": practicum.Title,
+			},
+		})
+		return
+	}
+
+	// Buat jadwal "placeholder" untuk menunjukkan asisten diassign ke praktikum
+	schedule, err := h.client.Schedule.CreateOne(
+		db.Schedule.PracticumID.Set(req.PracticumID),
+		db.Schedule.GroupID.Set(groups[0].ID), // Gunakan group pertama sebagai placeholder
+		db.Schedule.AssistantID.Set(req.AssistantID),
+		db.Schedule.Status.Set(db.StatusUnscheduled),
+	).Exec(r.Context())
+
+	if err != nil {
+		fmt.Printf("Error creating schedule: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to assign assistant to practicum"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "assistant assigned to practicum successfully",
+		"assistant": map[string]interface{}{
+			"id":   assistant.ID,
+			"name": assistant.Name,
+			"nrp":  assistant.Nrp,
+		},
+		"practicum": map[string]interface{}{
+			"id":    practicum.ID,
+			"title": practicum.Title,
+		},
+		"schedule": map[string]interface{}{
+			"id":      schedule.ID,
+			"groupId": schedule.GroupID,
+			"status":  schedule.Status,
+		},
+	})
+}
+
+// SetAssistantToGroup - Menetapkan asisten ke kelompok dalam praktikum
+func (h *AssistantHandler) SetAssistantToGroup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	userRole := r.Context().Value("role").(string)
@@ -38,7 +167,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Validasi apakah asisten ada
+	// Validasi asisten
 	assistant, err := h.client.User.FindUnique(
 		db.User.ID.Equals(req.AssistantID),
 	).Exec(r.Context())
@@ -49,28 +178,15 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if assistant.Role != "ASISTEN" {
+	// Validasi role asisten
+	if assistant.Role != db.RoleAsisten {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user is not an assistant"})
 		return
 	}
 
-	// Cek apakah asisten sudah mengampu praktikum
-	existingAssistantPracticum, err := h.client.Schedule.FindFirst(
-		db.Schedule.AssistantID.Equals(req.AssistantID),
-	).Exec(r.Context())
-
-	if err == nil && existingAssistantPracticum.PracticumID != req.PracticumID {
-		// Jika asisten sudah mengampu praktikum lain, tolak permintaan
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": "assistant is already assigned to another practicum",
-		})
-		return
-	}
-
 	// Validasi praktikum
-	_, err = h.client.Practicum.FindUnique(
+	practicum, err := h.client.Practicum.FindUnique(
 		db.Practicum.ID.Equals(req.PracticumID),
 	).Exec(r.Context())
 
@@ -81,7 +197,7 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validasi group
-	_, err = h.client.Group.FindUnique(
+	group, err := h.client.Group.FindUnique(
 		db.Group.ID.Equals(req.GroupID),
 	).Exec(r.Context())
 
@@ -89,6 +205,28 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "group not found"})
 		return
+	}
+
+	// Cek apakah asisten sudah ditugaskan ke praktikum lain (yang berbeda)
+	existingSchedules, err := h.client.Schedule.FindMany(
+		db.Schedule.AssistantID.Equals(req.AssistantID),
+	).Exec(r.Context())
+
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing assignments"})
+		return
+	}
+
+	// Jika asisten sudah ditugaskan ke praktikum lain, tolak
+	for _, schedule := range existingSchedules {
+		if schedule.PracticumID != req.PracticumID {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "assistant is already assigned to another practicum",
+			})
+			return
+		}
 	}
 
 	// Cek apakah sudah ada jadwal untuk kombinasi praktikum, asisten, dan kelompok
@@ -126,16 +264,19 @@ func (h *AssistantHandler) SetAssistant(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		fmt.Printf("Error managing schedule: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to assign assistant"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to assign assistant to group"})
 		return
 	}
 
 	response := map[string]interface{}{
-		"id":          schedule.ID,
-		"practicumId": schedule.PracticumID,
-		"groupId":     schedule.GroupID,
-		"assistantId": schedule.AssistantID,
-		"status":      schedule.Status,
+		"id":             schedule.ID,
+		"practicumId":    schedule.PracticumID,
+		"practicumTitle": practicum.Title,
+		"groupId":        schedule.GroupID,
+		"kelompok":       group.Name,
+		"assistantId":    schedule.AssistantID,
+		"assistantName":  assistant.Name,
+		"status":         schedule.Status,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -152,6 +293,17 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Ambil semua user dengan role ASISTEN
+	assistants, err := h.client.User.FindMany(
+		db.User.Role.Equals(db.RoleAsisten),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch assistants"})
+		return
+	}
+
 	// Ambil semua jadwal dengan detil asisten dan praktikum
 	schedules, err := h.client.Schedule.FindMany().With(
 		db.Schedule.Assistant.Fetch(),
@@ -160,32 +312,43 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch assistant assignments"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
 		return
 	}
 
-	// Gunakan map untuk menyimpan asisten unik berdasarkan ID
-	assistantMap := make(map[string]map[string]interface{})
-
+	// Map untuk menyimpan ID asisten dan judul praktikum
+	// Jika asisten punya jadwal, judul akan diisi
+	scheduleMap := make(map[string]string)
 	for _, schedule := range schedules {
 		assistant := schedule.Assistant()
 		practicum := schedule.Practicum()
-
-		// Jika asisten belum ada di map, tambahkan
-		if _, exists := assistantMap[assistant.ID]; !exists {
-			assistantMap[assistant.ID] = map[string]interface{}{
-				"id":    assistant.ID,
-				"name":  assistant.Name,
-				"nrp":   assistant.Nrp,
-				"judul": practicum.Title, // Hanya ambil judul pertama karena semua harus sama
-			}
-		}
+		scheduleMap[assistant.ID] = practicum.Title
 	}
 
-	// Konversi map ke slice
+	// Buat response
 	var response []map[string]interface{}
-	for _, data := range assistantMap {
-		response = append(response, data)
+	for _, assistant := range assistants {
+		// Cek apakah asisten punya jadwal
+		judul, hasSchedule := scheduleMap[assistant.ID]
+
+		assistantData := map[string]interface{}{
+			"id":    assistant.ID,
+			"name":  assistant.Name,
+			"nrp":   assistant.Nrp,
+			"judul": nil,
+		}
+
+		// Jika asisten punya jadwal, tambahkan judul
+		if hasSchedule {
+			assistantData["judul"] = judul
+		}
+
+		response = append(response, assistantData)
+	}
+
+	// Jika tidak ada asisten, kirim array kosong
+	if len(response) == 0 {
+		response = []map[string]interface{}{}
 	}
 
 	w.WriteHeader(http.StatusOK)
