@@ -36,9 +36,9 @@ model User {
   id            String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp           String    @unique
   name          String
-  about         String
+  about         String?
   email         String?   @unique
-  phone         String
+  phone         String?
   password      String
   role          Role
   emailVerified Boolean   @default(false)
@@ -77,7 +77,7 @@ model Group {
 
 // praktikum
 model Practicum {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @unique
   title       String
   description String?
   createdAt   DateTime @default(now())
@@ -92,9 +92,10 @@ model Practicum {
 // Jadwal
 model Schedule {
   id          Int       @id @default(autoincrement())
-  practicumId Int
+  practicumId String
   groupId     String
   assistantId String
+  week        Int?      @db.SmallInt
   date        DateTime?
   startTime   DateTime?
   status      Status    @default(UNSCHEDULED)
@@ -109,23 +110,25 @@ model Schedule {
   @@unique([practicumId, assistantId, groupId])
 }
 
-// penilaian
 model Grade {
-  id           Int      @id @default(autoincrement())
-  scheduleId   Int
-  userId       String
-  prelab       Int?     @db.SmallInt
-  inlab        Int?     @db.SmallInt
-  abstract     Int?     @db.SmallInt
-  introduction Int?     @db.SmallInt
-  methodology  Int?     @db.SmallInt
-  discussion   Int?     @db.SmallInt
-  conclusion   Int?     @db.SmallInt
-  formatting   Int?     @db.SmallInt
-  feedback     String?
-  gradedBy     String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  scheduleId        Int
+  userId            String
+  punctuality       Int?     @db.SmallInt
+  preExam           Int?     @db.SmallInt
+  oralTest          Int?     @db.SmallInt
+  skillsAndAttitude Int?     @db.SmallInt
+  abstract          Int?     @db.SmallInt
+  introduction      Int?     @db.SmallInt
+  methodology       Int?     @db.SmallInt
+  discussion        Int?     @db.SmallInt
+  dataProcessing    Int?     @db.SmallInt
+  conclusion        Int?     @db.SmallInt
+  formatting        Int?     @db.SmallInt
+  feedback          String?
+  gradedBy          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
   user     User     @relation("UserGrades", fields: [userId], references: [id])

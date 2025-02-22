@@ -48,13 +48,16 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		score     int
 		maxScore  int
 	}{
-		{"prelab", req.Prelab, 30},
-		{"inlay", req.Inlab, 5},
+		{"punctuality", req.Punctuality, 5},
+		{"preExam", req.PreExam, 10},
+		{"oralTest", req.OralTest, 10},
+		{"skillsAndAttitude", req.SkillsAndAttitude, 5},
 		{"abstract", req.Abstract, 5},
 		{"introduction", req.Introduction, 10},
 		{"methodology", req.Methodology, 5},
 		{"discussion", req.Discussion, 30},
-		{"conclusion", req.Conclusion, 10},
+		{"dataProcessing", req.DataProcessing, 10},
+		{"conclusion", req.Conclusion, 5},
 		{"formatting", req.Formatting, 5},
 	}
 
@@ -65,9 +68,13 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	totalScore :=
-		req.Prelab + req.Inlab + req.Abstract + req.Introduction +
-			req.Methodology + req.Discussion + req.Conclusion + req.Formatting
+
+	// Hitung total untuk setiap kategori
+	prelabTotal := req.Punctuality + req.PreExam + req.OralTest
+	inlabTotal := req.SkillsAndAttitude
+	postlabTotal := req.Abstract + req.Introduction + req.Methodology + req.Discussion +
+		req.DataProcessing + req.Conclusion + req.Formatting
+	totalScore := prelabTotal + inlabTotal + postlabTotal
 
 	if totalScore > 100 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -94,7 +101,6 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 
 	if schedule.AssistantID != assistantId {
 		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("you are not the assistant for schedule ID %d", req.ScheduleID)})
 		return
 	}
 
@@ -153,12 +159,15 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		db.Grade.Schedule.Link(db.Schedule.ID.Equals(req.ScheduleID)),
 		db.Grade.User.Link(db.User.ID.Equals(req.UserID)),
 		db.Grade.Grader.Link(db.User.ID.Equals(assistantId)),
-		db.Grade.Prelab.Set(req.Prelab),
-		db.Grade.Inlab.Set(req.Inlab),
+		db.Grade.Punctuality.Set(req.Punctuality),
+		db.Grade.PreExam.Set(req.PreExam),
+		db.Grade.OralTest.Set(req.OralTest),
+		db.Grade.SkillsAndAttitude.Set(req.SkillsAndAttitude),
 		db.Grade.Abstract.Set(req.Abstract),
 		db.Grade.Introduction.Set(req.Introduction),
 		db.Grade.Methodology.Set(req.Methodology),
 		db.Grade.Discussion.Set(req.Discussion),
+		db.Grade.DataProcessing.Set(req.DataProcessing),
 		db.Grade.Conclusion.Set(req.Conclusion),
 		db.Grade.Formatting.Set(req.Formatting),
 		db.Grade.Feedback.Set(req.Feedback),
@@ -191,21 +200,35 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"id":           grade.ID,
-		"scheduleId":   grade.ScheduleID,
-		"userId":       grade.UserID,
-		"prelab":       grade.Prelab,
-		"inlab":        grade.Inlab,
-		"abstract":     grade.Abstract,
-		"introduction": grade.Introduction,
-		"methodology":  grade.Methodology,
-		"discussion":   grade.Discussion,
-		"conclusion":   grade.Conclusion,
-		"formatting":   grade.Formatting,
-		"feedback":     grade.Feedback,
-		"totalScore":   totalScore,
-		"gradedBy":     grade.GradedBy,
-		"createdAt":    grade.CreatedAt,
+		"id":         grade.ID,
+		"scheduleId": grade.ScheduleID,
+		"userId":     grade.UserID,
+		"scores": map[string]interface{}{
+			"prelab": map[string]interface{}{
+				"punctuality": grade.Punctuality,
+				"preExam":     grade.PreExam,
+				"oralTest":    grade.OralTest,
+				"total":       prelabTotal,
+			},
+			"inlab": map[string]interface{}{
+				"skillsAndAttitude": grade.SkillsAndAttitude,
+				"total":             inlabTotal,
+			},
+			"postlab": map[string]interface{}{
+				"abstract":       grade.Abstract,
+				"introduction":   grade.Introduction,
+				"methodology":    grade.Methodology,
+				"discussion":     grade.Discussion,
+				"dataProcessing": grade.DataProcessing,
+				"conclusion":     grade.Conclusion,
+				"formatting":     grade.Formatting,
+				"total":          postlabTotal,
+			},
+			"totalScore": totalScore,
+		},
+		"feedback":  grade.Feedback,
+		"gradedBy":  grade.GradedBy,
+		"createdAt": grade.CreatedAt,
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -213,7 +236,6 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
-
 	userRole := r.Context().Value("role").(string)
 	userID := r.Context().Value("userID").(string)
 
@@ -244,22 +266,24 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 		schedule := grade.Schedule()
 
 		// Ambil nilai dengan menggunakan fungsi getter untuk field nullable
-		prelab, _ := grade.Prelab()
-		inlab, _ := grade.Inlab()
+		punctuality, _ := grade.Punctuality()
+		preExam, _ := grade.PreExam()
+		oralTest, _ := grade.OralTest()
+		skillsAndAttitude, _ := grade.SkillsAndAttitude()
 		abstract, _ := grade.Abstract()
 		introduction, _ := grade.Introduction()
 		methodology, _ := grade.Methodology()
 		discussion, _ := grade.Discussion()
+		dataProcessing, _ := grade.DataProcessing()
 		conclusion, _ := grade.Conclusion()
 		formatting, _ := grade.Formatting()
 		feedback, _ := grade.Feedback()
 
-		// Field non-nullable
-		createdAt := grade.CreatedAt
-
-		// Hitung total score
-		totalScore := prelab + inlab + abstract + introduction +
-			methodology + discussion + conclusion + formatting
+		// Hitung total untuk setiap kategori
+		prelabTotal := punctuality + preExam + oralTest
+		inlabTotal := skillsAndAttitude
+		postlabTotal := abstract + introduction + methodology + discussion + dataProcessing + conclusion + formatting
+		totalScore := prelabTotal + inlabTotal + postlabTotal
 
 		gradeData := map[string]interface{}{
 			"id": grade.ID,
@@ -272,18 +296,30 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 				"nrp":  schedule.Assistant().Nrp,
 			},
 			"scores": map[string]interface{}{
-				"prelab":       prelab,
-				"inlab":        inlab,
-				"abstract":     abstract,
-				"introduction": introduction,
-				"methodology":  methodology,
-				"discussion":   discussion,
-				"conclusion":   conclusion,
-				"formatting":   formatting,
-				"total":        totalScore,
+				"prelab": map[string]interface{}{
+					"punctuality": punctuality,
+					"preExam":     preExam,
+					"oralTest":    oralTest,
+					"total":       prelabTotal,
+				},
+				"inlab": map[string]interface{}{
+					"skillsAndAttitude": skillsAndAttitude,
+					"total":             inlabTotal,
+				},
+				"postlab": map[string]interface{}{
+					"abstract":       abstract,
+					"introduction":   introduction,
+					"methodology":    methodology,
+					"discussion":     discussion,
+					"dataProcessing": dataProcessing,
+					"conclusion":     conclusion,
+					"formatting":     formatting,
+					"total":          postlabTotal,
+				},
+				"totalScore": totalScore,
 			},
 			"feedback": feedback,
-			"gradedAt": createdAt,
+			"gradedAt": grade.CreatedAt,
 		}
 		response = append(response, gradeData)
 	}
@@ -333,18 +369,24 @@ func (h *GradeHandler) GetGradeDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	schedule := grade.Schedule()
-	prelab, _ := grade.Prelab()
-	inlab, _ := grade.Inlab()
+	punctuality, _ := grade.Punctuality()
+	preExam, _ := grade.PreExam()
+	oralTest, _ := grade.OralTest()
+	skillsAndAttitude, _ := grade.SkillsAndAttitude()
 	abstract, _ := grade.Abstract()
 	introduction, _ := grade.Introduction()
 	methodology, _ := grade.Methodology()
 	discussion, _ := grade.Discussion()
+	dataProcessing, _ := grade.DataProcessing()
 	conclusion, _ := grade.Conclusion()
 	formatting, _ := grade.Formatting()
 	feedback, _ := grade.Feedback()
 
-	totalScore := prelab + inlab + abstract + introduction +
-		methodology + discussion + conclusion + formatting
+	// Hitung total untuk setiap kategori
+	prelabTotal := punctuality + preExam + oralTest
+	inlabTotal := skillsAndAttitude
+	postlabTotal := abstract + introduction + methodology + discussion + dataProcessing + conclusion + formatting
+	totalScore := prelabTotal + inlabTotal + postlabTotal
 
 	practicum := schedule.Practicum()
 	assistant := schedule.Assistant()
@@ -360,18 +402,191 @@ func (h *GradeHandler) GetGradeDetail(w http.ResponseWriter, r *http.Request) {
 			"nrp":  assistant.Nrp,
 		},
 		"scores": map[string]interface{}{
-			"prelab":       prelab,
-			"inlab":        inlab,
-			"abstract":     abstract,
-			"introduction": introduction,
-			"methodology":  methodology,
-			"discussion":   discussion,
-			"conclusion":   conclusion,
-			"formatting":   formatting,
-			"total":        totalScore,
+			"prelab": map[string]interface{}{
+				"punctuality": punctuality,
+				"preExam":     preExam,
+				"oralTest":    oralTest,
+				"total":       prelabTotal,
+			},
+			"inlab": map[string]interface{}{
+				"skillsAndAttitude": skillsAndAttitude,
+				"total":             inlabTotal,
+			},
+			"postlab": map[string]interface{}{
+				"abstract":       abstract,
+				"introduction":   introduction,
+				"methodology":    methodology,
+				"discussion":     discussion,
+				"dataProcessing": dataProcessing,
+				"conclusion":     conclusion,
+				"formatting":     formatting,
+				"total":          postlabTotal,
+			},
+			"totalScore": totalScore,
 		},
 		"feedback": feedback,
 		"gradedAt": grade.CreatedAt,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *GradeHandler) UpdateGrade(w http.ResponseWriter, r *http.Request) {
+	userRole := r.Context().Value("role").(string)
+	assistantId := r.Context().Value("userID").(string)
+
+	if userRole != "ASISTEN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// Extract grade ID from URL parameters
+	vars := mux.Vars(r)
+	gradeId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid grade ID"})
+		return
+	}
+
+	// Get the existing grade
+	existingGrade, err := h.client.Grade.FindUnique(
+		db.Grade.ID.Equals(gradeId),
+	).With(
+		db.Grade.Schedule.Fetch(),
+	).Exec(r.Context())
+
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "grade not found"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to retrieve grade"})
+		return
+	}
+
+	// Verify the assistant is authorized to update this grade
+	if existingGrade.GradedBy != assistantId {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you can only update grades you created"})
+		return
+	}
+
+	// Check if the grade's schedule is completed
+	schedule := existingGrade.Schedule()
+	if schedule.Status == db.StatusCompleted {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "cannot update grade for completed schedule"})
+		return
+	}
+
+	// Decode the update request
+	var req types.GradeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
+		return
+	}
+
+	// Validate the scores
+	scoreValidations := []struct {
+		component string
+		score     int
+		maxScore  int
+	}{
+		{"punctuality", req.Punctuality, 5},
+		{"preExam", req.PreExam, 10},
+		{"oralTest", req.OralTest, 10},
+		{"skillsAndAttitude", req.SkillsAndAttitude, 5},
+		{"abstract", req.Abstract, 5},
+		{"introduction", req.Introduction, 10},
+		{"methodology", req.Methodology, 5},
+		{"discussion", req.Discussion, 30},
+		{"dataProcessing", req.DataProcessing, 10},
+		{"conclusion", req.Conclusion, 5},
+		{"formatting", req.Formatting, 5},
+	}
+
+	for _, v := range scoreValidations {
+		if err := validateScore(v.component, v.score, v.maxScore); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+	}
+
+	// Calculate totals
+	prelabTotal := req.Punctuality + req.PreExam + req.OralTest
+	inlabTotal := req.SkillsAndAttitude
+	postlabTotal := req.Abstract + req.Introduction + req.Methodology + req.Discussion +
+		req.DataProcessing + req.Conclusion + req.Formatting
+	totalScore := prelabTotal + inlabTotal + postlabTotal
+
+	if totalScore > 100 {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "total score cannot exceed 100"})
+		return
+	}
+
+	// Update the grade
+	updatedGrade, err := h.client.Grade.FindUnique(
+		db.Grade.ID.Equals(gradeId),
+	).Update(
+		db.Grade.Punctuality.Set(req.Punctuality),
+		db.Grade.PreExam.Set(req.PreExam),
+		db.Grade.OralTest.Set(req.OralTest),
+		db.Grade.SkillsAndAttitude.Set(req.SkillsAndAttitude),
+		db.Grade.Abstract.Set(req.Abstract),
+		db.Grade.Introduction.Set(req.Introduction),
+		db.Grade.Methodology.Set(req.Methodology),
+		db.Grade.Discussion.Set(req.Discussion),
+		db.Grade.DataProcessing.Set(req.DataProcessing),
+		db.Grade.Conclusion.Set(req.Conclusion),
+		db.Grade.Formatting.Set(req.Formatting),
+		db.Grade.Feedback.Set(req.Feedback),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("failed to update grade: %v", err)})
+		return
+	}
+
+	// Prepare the response
+	response := map[string]interface{}{
+		"id":         updatedGrade.ID,
+		"scheduleId": updatedGrade.ScheduleID,
+		"userId":     updatedGrade.UserID,
+		"scores": map[string]interface{}{
+			"prelab": map[string]interface{}{
+				"punctuality": updatedGrade.Punctuality,
+				"preExam":     updatedGrade.PreExam,
+				"oralTest":    updatedGrade.OralTest,
+				"total":       prelabTotal,
+			},
+			"inlab": map[string]interface{}{
+				"skillsAndAttitude": updatedGrade.SkillsAndAttitude,
+				"total":             inlabTotal,
+			},
+			"postlab": map[string]interface{}{
+				"abstract":       updatedGrade.Abstract,
+				"introduction":   updatedGrade.Introduction,
+				"methodology":    updatedGrade.Methodology,
+				"discussion":     updatedGrade.Discussion,
+				"dataProcessing": updatedGrade.DataProcessing,
+				"conclusion":     updatedGrade.Conclusion,
+				"formatting":     updatedGrade.Formatting,
+				"total":          postlabTotal,
+			},
+			"totalScore": totalScore,
+		},
+		"feedback":  updatedGrade.Feedback,
+		"gradedBy":  updatedGrade.GradedBy,
+		"createdAt": updatedGrade.CreatedAt,
+		"updatedAt": updatedGrade.UpdatedAt,
 	}
 
 	w.WriteHeader(http.StatusOK)
