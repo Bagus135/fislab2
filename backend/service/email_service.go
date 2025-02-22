@@ -100,7 +100,7 @@ func (s *EmailService) SendResetPasswordEmail(email, token string) error {
 	m.SetHeader("Subject", "Reset Password")
 
 	// Gunakan FRONTEND_URL dari env untuk mengarah ke aplikasi frontend
-	resetLink := fmt.Sprintf("%s/reset-password?token=%s", os.Getenv("FRONTEND_URL"), token)
+	resetLink := fmt.Sprintf("%s/reset-password/%s", os.Getenv("FRONTEND_URL"), token)
 
 	// Template HTML dengan CSS inline
 	body := fmt.Sprintf(`

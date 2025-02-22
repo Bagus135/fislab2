@@ -83,7 +83,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	existingSchedule, err := h.client.Schedule.FindFirst(
-		db.Schedule.PracticumID.Equals(req.PracticumID),
+		db.Schedule.PracticumID.Equals(req.PracticumCode),
 		db.Schedule.GroupID.Equals(req.GroupID),
 		db.Schedule.AssistantID.Equals(assistantId),
 		db.Schedule.Status.Equals(db.StatusUnscheduled),
@@ -166,13 +166,13 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"id":          schedule.ID,
-		"practicumId": schedule.PracticumID,
-		"groupId":     schedule.GroupID,
-		"assistantId": schedule.AssistantID,
-		"date":        dateStr,
-		"startTime":   timeStr,
-		"status":      schedule.Status,
+		"id":            schedule.ID,
+		"practicumCode": schedule.PracticumID,
+		"groupId":       schedule.GroupID,
+		"assistantId":   schedule.AssistantID,
+		"date":          dateStr,
+		"startTime":     timeStr,
+		"status":        schedule.Status,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -245,7 +245,7 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 		data := map[string]interface{}{
 			"id": schedule.ID,
 			"practicum": map[string]interface{}{
-				"id":    schedule.Practicum().ID,
+				"code":  schedule.Practicum().ID,
 				"title": schedule.Practicum().Title,
 			},
 			"date":   dateStr,
@@ -255,7 +255,7 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 
 		if userRole == "ASISTEN" {
 			data["groupId"] = schedule.GroupID
-			data["kelompok"] = schedule.Group().Name
+			data["group"] = schedule.Group().Name
 		} else {
 			data["group"] = map[string]interface{}{
 				"id":   schedule.Group().ID,
@@ -351,9 +351,9 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":          updatedSchedule.ID,
-		"practicumId": updatedSchedule.PracticumID,
-		"groupId":     updatedSchedule.GroupID,
-		"status":      updatedSchedule.Status,
+		"id":            updatedSchedule.ID,
+		"practicumCode": updatedSchedule.PracticumID,
+		"groupId":       updatedSchedule.GroupID,
+		"status":        updatedSchedule.Status,
 	})
 }

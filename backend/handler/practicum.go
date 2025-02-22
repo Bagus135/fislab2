@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type PracticumHandler struct {
@@ -27,6 +28,7 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 	}
 
 	var req struct {
+		Code        string `json:"code"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
 	}
@@ -37,25 +39,46 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 	}
 
 	practicum, err := h.client.Practicum.CreateOne(
+		db.Practicum.ID.Set(req.Code),
 		db.Practicum.Title.Set(req.Title),
 		db.Practicum.Description.Set(req.Description),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error creating practicum: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Printf(err.Error())
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create practicum"})
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(practicum)
 
+	// Tangani nilai optional Description
+	description, ok := practicum.Description()
+	if !ok {
+		description = ""
+	}
+
+	// Buat response
+	response := struct {
+		Code        string    `json:"code"`
+		Title       string    `json:"title"`
+		Description string    `json:"description"`
+		CreatedAt   time.Time `json:"createdAt"`
+		UpdatedAt   time.Time `json:"updatedAt"`
+	}{
+		Code:        practicum.ID,
+		Title:       practicum.Title,
+		Description: description,
+		CreatedAt:   practicum.CreatedAt,
+		UpdatedAt:   practicum.UpdatedAt,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *PracticumHandler) GetPracticum(w http.ResponseWriter, r *http.Request) {
 	practicums, err := h.client.Practicum.FindMany().Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error getting practicums: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to find practicum"})
 		return
@@ -78,7 +101,7 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 	}
 
 	var req struct {
-		ID          int    `json:"id"`
+		Code        string `json:"code"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
 	}
@@ -89,7 +112,7 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 	}
 
 	practicum, err := h.client.Practicum.FindUnique(
-		db.Practicum.ID.Equals(req.ID),
+		db.Practicum.ID.Equals(req.Code),
 	).Update(
 		db.Practicum.Title.Set(req.Title),
 		db.Practicum.Description.Set(req.Description),
@@ -115,7 +138,7 @@ func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req struct {
-		ID int `json:"id"`
+		Code string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -123,7 +146,7 @@ func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	_, err := h.client.Practicum.FindUnique(
-		db.Practicum.ID.Equals(req.ID),
+		db.Practicum.ID.Equals(req.Code),
 	).Delete().Exec(r.Context())
 
 	if err != nil {

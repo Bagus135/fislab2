@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -33,11 +34,11 @@ func NewAuthHandler(
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var req types.LoginRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		fmt.Printf("Error decoding request: %v\n", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
 		return
@@ -54,7 +55,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		db.User.Nrp.Equals(req.NRP),
 	).Exec(r.Context())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
 		return
@@ -63,7 +63,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Verifikasi password
 	if !utils.CheckPasswordHash(req.Password, user.Password) {
 		fmt.Printf("Password mismatch\n")
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid credentials"))
 		return
@@ -72,7 +71,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Jika berhasil, kirim token
 	secretKey := os.Getenv("JWT_SECRET")
 	if secretKey == "" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(types.ErrorResponse("server error"))
 		return
@@ -93,7 +91,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
@@ -176,8 +173,8 @@ func (h *AuthHandler) RegisterFirstSuperAdmin(w http.ResponseWriter, r *http.Req
 		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
 		db.User.Email.SetOptional(nil),
-		db.User.Phone.Set(""),
-		db.User.About.Set(""),
+		db.User.Phone.SetOptional(nil),
+		db.User.About.SetOptional(nil),
 		db.User.Password.Set(hashedPassword),
 		db.User.Role.Set(db.RoleSuperAdmin),
 	).Exec(r.Context())
@@ -249,8 +246,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
 		db.User.Email.SetOptional(nil),
-		db.User.Phone.Set(""),
-		db.User.About.Set(""),
+		db.User.Phone.SetOptional(nil),
+		db.User.About.SetOptional(nil),
 		db.User.Password.Set(hashedPassword),
 		db.User.Role.Set(role),
 	).Exec(r.Context())
@@ -406,19 +403,25 @@ func (h *AuthHandler) SendVerificationCode(w http.ResponseWriter, r *http.Reques
 	// Generate kode
 	code := generateVerificationCode()
 
+	// Pastikan format kunci untuk cache konsisten
+	cacheKey := fmt.Sprintf("verify:%s", email)
+
 	// Simpan di cache
 	err = h.cacheService.Set(
-		fmt.Sprintf("verify: %s", email),
+		cacheKey,
 		code,
 		10*time.Minute,
 	)
 
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("Error setting cache: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to process request"})
 		return
 	}
+
+	// Log untuk debugging
+	fmt.Printf("Verification code for %s saved in cache with key: %s, code: %s\n", email, cacheKey, code)
 
 	// Kirim email
 	err = h.emailService.SendVerificationCode(email, code)
@@ -446,15 +449,33 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Pastikan format kunci untuk cache konsisten
+	cacheKey := fmt.Sprintf("verify:%s", req.Email)
+
+	// Log untuk debugging
+	fmt.Printf("Verifying email %s with code %s, looking for cache key: %s\n", req.Email, req.Code, cacheKey)
+
 	// Ambil kode dari cache
-	code, err := h.cacheService.Get(fmt.Sprintf("verify:%s", req.Email))
+	cachedCode, err := h.cacheService.Get(cacheKey)
+
+	// Log untuk debugging
+	if err != nil {
+		fmt.Printf("Error getting from cache: %v\n", err)
+	} else {
+		fmt.Printf("Code from cache: %s\n", cachedCode)
+	}
+
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid or expired code"})
 		return
 	}
 
-	if code != req.Code {
+	cachedCodeStr := strings.TrimSpace(fmt.Sprintf("%v", cachedCode))
+	requestCodeStr := strings.TrimSpace(req.Code)
+
+	if cachedCodeStr != requestCodeStr {
+		fmt.Printf("Code mismatch: cached: '%s' vs request: '%s'\n", cachedCodeStr, requestCodeStr)
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid code"})
 		return
@@ -468,13 +489,17 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
+		fmt.Printf("Error updating user: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to verify email"})
 		return
 	}
 
 	// Hapus kode dari cache
-	_ = h.cacheService.Delete(fmt.Sprintf("verify:%s", req.Email))
+	deleteErr := h.cacheService.Delete(cacheKey)
+	if deleteErr != nil {
+		fmt.Printf("Warning: failed to delete cache key %s: %v\n", cacheKey, deleteErr)
+	}
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"message": "email verified successfully"})

@@ -111,9 +111,9 @@ model User {
   id            String    @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
   nrp           String    @unique
   name          String
-  about         String
+  about         String?
   email         String?   @unique
-  phone         String
+  phone         String?
   password      String
   role          Role
   emailVerified Boolean   @default(false)
@@ -153,7 +153,7 @@ model Group {
 
 // praktikum
 model Practicum {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @unique
   title       String
   description String?
   createdAt   DateTime @default(now())
@@ -168,9 +168,10 @@ model Practicum {
 // Jadwal
 model Schedule {
   id          Int       @id @default(autoincrement())
-  practicumId Int
+  practicumId String
   groupId     String
   assistantId String
+  week        Int?      @db.SmallInt
   date        DateTime?
   startTime   DateTime?
   status      Status    @default(UNSCHEDULED)
@@ -185,23 +186,25 @@ model Schedule {
   @@unique([practicumId, assistantId, groupId])
 }
 
-// penilaian
 model Grade {
-  id           Int      @id @default(autoincrement())
-  scheduleId   Int
-  userId       String
-  prelab       Int?     @db.SmallInt
-  inlab        Int?     @db.SmallInt
-  abstract     Int?     @db.SmallInt
-  introduction Int?     @db.SmallInt
-  methodology  Int?     @db.SmallInt
-  discussion   Int?     @db.SmallInt
-  conclusion   Int?     @db.SmallInt
-  formatting   Int?     @db.SmallInt
-  feedback     String?
-  gradedBy     String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  scheduleId        Int
+  userId            String
+  punctuality       Int?     @db.SmallInt
+  preExam           Int?     @db.SmallInt
+  oralTest          Int?     @db.SmallInt
+  skillsAndAttitude Int?     @db.SmallInt
+  abstract          Int?     @db.SmallInt
+  introduction      Int?     @db.SmallInt
+  methodology       Int?     @db.SmallInt
+  discussion        Int?     @db.SmallInt
+  dataProcessing    Int?     @db.SmallInt
+  conclusion        Int?     @db.SmallInt
+  formatting        Int?     @db.SmallInt
+  feedback          String?
+  gradedBy          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
   user     User     @relation("UserGrades", fields: [userId], references: [id])
@@ -451,6 +454,7 @@ const (
 	ScheduleScalarFieldEnumPracticumID ScheduleScalarFieldEnum = "practicumId"
 	ScheduleScalarFieldEnumGroupID     ScheduleScalarFieldEnum = "groupId"
 	ScheduleScalarFieldEnumAssistantID ScheduleScalarFieldEnum = "assistantId"
+	ScheduleScalarFieldEnumWeek        ScheduleScalarFieldEnum = "week"
 	ScheduleScalarFieldEnumDate        ScheduleScalarFieldEnum = "date"
 	ScheduleScalarFieldEnumStartTime   ScheduleScalarFieldEnum = "startTime"
 	ScheduleScalarFieldEnumStatus      ScheduleScalarFieldEnum = "status"
@@ -459,21 +463,24 @@ const (
 type GradeScalarFieldEnum string
 
 const (
-	GradeScalarFieldEnumID           GradeScalarFieldEnum = "id"
-	GradeScalarFieldEnumScheduleID   GradeScalarFieldEnum = "scheduleId"
-	GradeScalarFieldEnumUserID       GradeScalarFieldEnum = "userId"
-	GradeScalarFieldEnumPrelab       GradeScalarFieldEnum = "prelab"
-	GradeScalarFieldEnumInlab        GradeScalarFieldEnum = "inlab"
-	GradeScalarFieldEnumAbstract     GradeScalarFieldEnum = "abstract"
-	GradeScalarFieldEnumIntroduction GradeScalarFieldEnum = "introduction"
-	GradeScalarFieldEnumMethodology  GradeScalarFieldEnum = "methodology"
-	GradeScalarFieldEnumDiscussion   GradeScalarFieldEnum = "discussion"
-	GradeScalarFieldEnumConclusion   GradeScalarFieldEnum = "conclusion"
-	GradeScalarFieldEnumFormatting   GradeScalarFieldEnum = "formatting"
-	GradeScalarFieldEnumFeedback     GradeScalarFieldEnum = "feedback"
-	GradeScalarFieldEnumGradedBy     GradeScalarFieldEnum = "gradedBy"
-	GradeScalarFieldEnumCreatedAt    GradeScalarFieldEnum = "createdAt"
-	GradeScalarFieldEnumUpdatedAt    GradeScalarFieldEnum = "updatedAt"
+	GradeScalarFieldEnumID                GradeScalarFieldEnum = "id"
+	GradeScalarFieldEnumScheduleID        GradeScalarFieldEnum = "scheduleId"
+	GradeScalarFieldEnumUserID            GradeScalarFieldEnum = "userId"
+	GradeScalarFieldEnumPunctuality       GradeScalarFieldEnum = "punctuality"
+	GradeScalarFieldEnumPreExam           GradeScalarFieldEnum = "preExam"
+	GradeScalarFieldEnumOralTest          GradeScalarFieldEnum = "oralTest"
+	GradeScalarFieldEnumSkillsAndAttitude GradeScalarFieldEnum = "skillsAndAttitude"
+	GradeScalarFieldEnumAbstract          GradeScalarFieldEnum = "abstract"
+	GradeScalarFieldEnumIntroduction      GradeScalarFieldEnum = "introduction"
+	GradeScalarFieldEnumMethodology       GradeScalarFieldEnum = "methodology"
+	GradeScalarFieldEnumDiscussion        GradeScalarFieldEnum = "discussion"
+	GradeScalarFieldEnumDataProcessing    GradeScalarFieldEnum = "dataProcessing"
+	GradeScalarFieldEnumConclusion        GradeScalarFieldEnum = "conclusion"
+	GradeScalarFieldEnumFormatting        GradeScalarFieldEnum = "formatting"
+	GradeScalarFieldEnumFeedback          GradeScalarFieldEnum = "feedback"
+	GradeScalarFieldEnumGradedBy          GradeScalarFieldEnum = "gradedBy"
+	GradeScalarFieldEnumCreatedAt         GradeScalarFieldEnum = "createdAt"
+	GradeScalarFieldEnumUpdatedAt         GradeScalarFieldEnum = "updatedAt"
 )
 
 type AnnouncementScalarFieldEnum string
@@ -629,6 +636,8 @@ const scheduleFieldGroupID schedulePrismaFields = "groupId"
 
 const scheduleFieldAssistantID schedulePrismaFields = "assistantId"
 
+const scheduleFieldWeek schedulePrismaFields = "week"
+
 const scheduleFieldDate schedulePrismaFields = "date"
 
 const scheduleFieldStartTime schedulePrismaFields = "startTime"
@@ -653,9 +662,13 @@ const gradeFieldScheduleID gradePrismaFields = "scheduleId"
 
 const gradeFieldUserID gradePrismaFields = "userId"
 
-const gradeFieldPrelab gradePrismaFields = "prelab"
+const gradeFieldPunctuality gradePrismaFields = "punctuality"
 
-const gradeFieldInlab gradePrismaFields = "inlab"
+const gradeFieldPreExam gradePrismaFields = "preExam"
+
+const gradeFieldOralTest gradePrismaFields = "oralTest"
+
+const gradeFieldSkillsAndAttitude gradePrismaFields = "skillsAndAttitude"
 
 const gradeFieldAbstract gradePrismaFields = "abstract"
 
@@ -664,6 +677,8 @@ const gradeFieldIntroduction gradePrismaFields = "introduction"
 const gradeFieldMethodology gradePrismaFields = "methodology"
 
 const gradeFieldDiscussion gradePrismaFields = "discussion"
+
+const gradeFieldDataProcessing gradePrismaFields = "dataProcessing"
 
 const gradeFieldConclusion gradePrismaFields = "conclusion"
 
@@ -1145,9 +1160,9 @@ type InnerUser struct {
 	ID            string    `json:"id"`
 	Nrp           string    `json:"nrp"`
 	Name          string    `json:"name"`
-	About         string    `json:"about"`
+	About         *string   `json:"about,omitempty"`
 	Email         *string   `json:"email,omitempty"`
-	Phone         string    `json:"phone"`
+	Phone         *string   `json:"phone,omitempty"`
 	Password      string    `json:"password"`
 	Role          Role      `json:"role"`
 	EmailVerified bool      `json:"emailVerified"`
@@ -1160,9 +1175,9 @@ type RawUserModel struct {
 	ID            RawString    `json:"id"`
 	Nrp           RawString    `json:"nrp"`
 	Name          RawString    `json:"name"`
-	About         RawString    `json:"about"`
+	About         *RawString   `json:"about,omitempty"`
 	Email         *RawString   `json:"email,omitempty"`
-	Phone         RawString    `json:"phone"`
+	Phone         *RawString   `json:"phone,omitempty"`
 	Password      RawString    `json:"password"`
 	Role          RawRole      `json:"role"`
 	EmailVerified RawBoolean   `json:"emailVerified"`
@@ -1180,11 +1195,25 @@ type RelationsUser struct {
 	Announcements      []AnnouncementModel `json:"announcements,omitempty"`
 }
 
+func (r UserModel) About() (value String, ok bool) {
+	if r.InnerUser.About == nil {
+		return value, false
+	}
+	return *r.InnerUser.About, true
+}
+
 func (r UserModel) Email() (value String, ok bool) {
 	if r.InnerUser.Email == nil {
 		return value, false
 	}
 	return *r.InnerUser.Email, true
+}
+
+func (r UserModel) Phone() (value String, ok bool) {
+	if r.InnerUser.Phone == nil {
+		return value, false
+	}
+	return *r.InnerUser.Phone, true
 }
 
 func (r UserModel) CreatedAt() (value DateTime, ok bool) {
@@ -1289,7 +1318,7 @@ type PracticumModel struct {
 
 // InnerPracticum holds the actual data
 type InnerPracticum struct {
-	ID          int      `json:"id"`
+	ID          string   `json:"id"`
 	Title       string   `json:"title"`
 	Description *string  `json:"description,omitempty"`
 	CreatedAt   DateTime `json:"createdAt"`
@@ -1298,7 +1327,7 @@ type InnerPracticum struct {
 
 // RawPracticumModel is a struct for Practicum when used in raw queries
 type RawPracticumModel struct {
-	ID          RawInt      `json:"id"`
+	ID          RawString   `json:"id"`
 	Title       RawString   `json:"title"`
 	Description *RawString  `json:"description,omitempty"`
 	CreatedAt   RawDateTime `json:"createdAt"`
@@ -1330,12 +1359,18 @@ type ScheduleModel struct {
 	RelationsSchedule
 }
 
+func (r ScheduleModel) Error() string {
+	//TODO implement me
+	panic("implement me")
+}
+
 // InnerSchedule holds the actual data
 type InnerSchedule struct {
 	ID          int       `json:"id"`
-	PracticumID int       `json:"practicumId"`
+	PracticumID string    `json:"practicumId"`
 	GroupID     string    `json:"groupId"`
 	AssistantID string    `json:"assistantId"`
+	Week        *int      `json:"week,omitempty"`
 	Date        *DateTime `json:"date,omitempty"`
 	StartTime   *DateTime `json:"startTime,omitempty"`
 	Status      Status    `json:"status"`
@@ -1344,9 +1379,10 @@ type InnerSchedule struct {
 // RawScheduleModel is a struct for Schedule when used in raw queries
 type RawScheduleModel struct {
 	ID          RawInt       `json:"id"`
-	PracticumID RawInt       `json:"practicumId"`
+	PracticumID RawString    `json:"practicumId"`
 	GroupID     RawString    `json:"groupId"`
 	AssistantID RawString    `json:"assistantId"`
+	Week        *RawInt      `json:"week,omitempty"`
 	Date        *RawDateTime `json:"date,omitempty"`
 	StartTime   *RawDateTime `json:"startTime,omitempty"`
 	Status      RawStatus    `json:"status"`
@@ -1359,6 +1395,13 @@ type RelationsSchedule struct {
 	Assistant       *UserModel            `json:"assistant,omitempty"`
 	AttendanceCodes []AttendanceCodeModel `json:"attendanceCodes,omitempty"`
 	Grades          []GradeModel          `json:"grades,omitempty"`
+}
+
+func (r ScheduleModel) Week() (value Int, ok bool) {
+	if r.InnerSchedule.Week == nil {
+		return value, false
+	}
+	return *r.InnerSchedule.Week, true
 }
 
 func (r ScheduleModel) Date() (value DateTime, ok bool) {
@@ -1418,40 +1461,46 @@ type GradeModel struct {
 
 // InnerGrade holds the actual data
 type InnerGrade struct {
-	ID           int      `json:"id"`
-	ScheduleID   int      `json:"scheduleId"`
-	UserID       string   `json:"userId"`
-	Prelab       *int     `json:"prelab,omitempty"`
-	Inlab        *int     `json:"inlab,omitempty"`
-	Abstract     *int     `json:"abstract,omitempty"`
-	Introduction *int     `json:"introduction,omitempty"`
-	Methodology  *int     `json:"methodology,omitempty"`
-	Discussion   *int     `json:"discussion,omitempty"`
-	Conclusion   *int     `json:"conclusion,omitempty"`
-	Formatting   *int     `json:"formatting,omitempty"`
-	Feedback     *string  `json:"feedback,omitempty"`
-	GradedBy     string   `json:"gradedBy"`
-	CreatedAt    DateTime `json:"createdAt"`
-	UpdatedAt    DateTime `json:"updatedAt"`
+	ID                int      `json:"id"`
+	ScheduleID        int      `json:"scheduleId"`
+	UserID            string   `json:"userId"`
+	Punctuality       *int     `json:"punctuality,omitempty"`
+	PreExam           *int     `json:"preExam,omitempty"`
+	OralTest          *int     `json:"oralTest,omitempty"`
+	SkillsAndAttitude *int     `json:"skillsAndAttitude,omitempty"`
+	Abstract          *int     `json:"abstract,omitempty"`
+	Introduction      *int     `json:"introduction,omitempty"`
+	Methodology       *int     `json:"methodology,omitempty"`
+	Discussion        *int     `json:"discussion,omitempty"`
+	DataProcessing    *int     `json:"dataProcessing,omitempty"`
+	Conclusion        *int     `json:"conclusion,omitempty"`
+	Formatting        *int     `json:"formatting,omitempty"`
+	Feedback          *string  `json:"feedback,omitempty"`
+	GradedBy          string   `json:"gradedBy"`
+	CreatedAt         DateTime `json:"createdAt"`
+	UpdatedAt         DateTime `json:"updatedAt"`
 }
 
 // RawGradeModel is a struct for Grade when used in raw queries
 type RawGradeModel struct {
-	ID           RawInt      `json:"id"`
-	ScheduleID   RawInt      `json:"scheduleId"`
-	UserID       RawString   `json:"userId"`
-	Prelab       *RawInt     `json:"prelab,omitempty"`
-	Inlab        *RawInt     `json:"inlab,omitempty"`
-	Abstract     *RawInt     `json:"abstract,omitempty"`
-	Introduction *RawInt     `json:"introduction,omitempty"`
-	Methodology  *RawInt     `json:"methodology,omitempty"`
-	Discussion   *RawInt     `json:"discussion,omitempty"`
-	Conclusion   *RawInt     `json:"conclusion,omitempty"`
-	Formatting   *RawInt     `json:"formatting,omitempty"`
-	Feedback     *RawString  `json:"feedback,omitempty"`
-	GradedBy     RawString   `json:"gradedBy"`
-	CreatedAt    RawDateTime `json:"createdAt"`
-	UpdatedAt    RawDateTime `json:"updatedAt"`
+	ID                RawInt      `json:"id"`
+	ScheduleID        RawInt      `json:"scheduleId"`
+	UserID            RawString   `json:"userId"`
+	Punctuality       *RawInt     `json:"punctuality,omitempty"`
+	PreExam           *RawInt     `json:"preExam,omitempty"`
+	OralTest          *RawInt     `json:"oralTest,omitempty"`
+	SkillsAndAttitude *RawInt     `json:"skillsAndAttitude,omitempty"`
+	Abstract          *RawInt     `json:"abstract,omitempty"`
+	Introduction      *RawInt     `json:"introduction,omitempty"`
+	Methodology       *RawInt     `json:"methodology,omitempty"`
+	Discussion        *RawInt     `json:"discussion,omitempty"`
+	DataProcessing    *RawInt     `json:"dataProcessing,omitempty"`
+	Conclusion        *RawInt     `json:"conclusion,omitempty"`
+	Formatting        *RawInt     `json:"formatting,omitempty"`
+	Feedback          *RawString  `json:"feedback,omitempty"`
+	GradedBy          RawString   `json:"gradedBy"`
+	CreatedAt         RawDateTime `json:"createdAt"`
+	UpdatedAt         RawDateTime `json:"updatedAt"`
 }
 
 // RelationsGrade holds the relation data separately
@@ -1461,18 +1510,32 @@ type RelationsGrade struct {
 	Grader   *UserModel     `json:"grader,omitempty"`
 }
 
-func (r GradeModel) Prelab() (value Int, ok bool) {
-	if r.InnerGrade.Prelab == nil {
+func (r GradeModel) Punctuality() (value Int, ok bool) {
+	if r.InnerGrade.Punctuality == nil {
 		return value, false
 	}
-	return *r.InnerGrade.Prelab, true
+	return *r.InnerGrade.Punctuality, true
 }
 
-func (r GradeModel) Inlab() (value Int, ok bool) {
-	if r.InnerGrade.Inlab == nil {
+func (r GradeModel) PreExam() (value Int, ok bool) {
+	if r.InnerGrade.PreExam == nil {
 		return value, false
 	}
-	return *r.InnerGrade.Inlab, true
+	return *r.InnerGrade.PreExam, true
+}
+
+func (r GradeModel) OralTest() (value Int, ok bool) {
+	if r.InnerGrade.OralTest == nil {
+		return value, false
+	}
+	return *r.InnerGrade.OralTest, true
+}
+
+func (r GradeModel) SkillsAndAttitude() (value Int, ok bool) {
+	if r.InnerGrade.SkillsAndAttitude == nil {
+		return value, false
+	}
+	return *r.InnerGrade.SkillsAndAttitude, true
 }
 
 func (r GradeModel) Abstract() (value Int, ok bool) {
@@ -1501,6 +1564,13 @@ func (r GradeModel) Discussion() (value Int, ok bool) {
 		return value, false
 	}
 	return *r.InnerGrade.Discussion, true
+}
+
+func (r GradeModel) DataProcessing() (value Int, ok bool) {
+	if r.InnerGrade.DataProcessing == nil {
+		return value, false
+	}
+	return *r.InnerGrade.DataProcessing, true
 }
 
 func (r GradeModel) Conclusion() (value Int, ok bool) {
@@ -1697,7 +1767,7 @@ type userQuery struct {
 
 	// About
 	//
-	// @required
+	// @optional
 	About userQueryAboutString
 
 	// Email
@@ -1708,7 +1778,7 @@ type userQuery struct {
 
 	// Phone
 	//
-	// @required
+	// @optional
 	Phone userQueryPhoneString
 
 	// Password
@@ -2844,10 +2914,10 @@ func (r userQueryNameString) Field() userPrismaFields {
 // base struct
 type userQueryAboutString struct{}
 
-// Set the required value of About
-func (r userQueryAboutString) Set(value string) userWithPrismaAboutSetParam {
+// Set the optional value of About
+func (r userQueryAboutString) Set(value string) userSetParam {
 
-	return userWithPrismaAboutSetParam{
+	return userSetParam{
 		data: builder.Field{
 			Name:  "about",
 			Value: value,
@@ -2857,9 +2927,25 @@ func (r userQueryAboutString) Set(value string) userWithPrismaAboutSetParam {
 }
 
 // Set the optional value of About dynamically
-func (r userQueryAboutString) SetIfPresent(value *String) userWithPrismaAboutSetParam {
+func (r userQueryAboutString) SetIfPresent(value *String) userSetParam {
 	if value == nil {
-		return userWithPrismaAboutSetParam{}
+		return userSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of About dynamically
+func (r userQueryAboutString) SetOptional(value *String) userSetParam {
+	if value == nil {
+
+		var v *string
+		return userSetParam{
+			data: builder.Field{
+				Name:  "about",
+				Value: v,
+			},
+		}
 	}
 
 	return r.Set(*value)
@@ -2885,6 +2971,35 @@ func (r userQueryAboutString) EqualsIfPresent(value *string) userWithPrismaAbout
 		return userWithPrismaAboutEqualsParam{}
 	}
 	return r.Equals(*value)
+}
+
+func (r userQueryAboutString) EqualsOptional(value *String) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryAboutString) IsNull() userDefaultParam {
+	var str *string = nil
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "about",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
 }
 
 func (r userQueryAboutString) Order(direction SortOrder) userDefaultParam {
@@ -3583,10 +3698,10 @@ func (r userQueryEmailString) Field() userPrismaFields {
 // base struct
 type userQueryPhoneString struct{}
 
-// Set the required value of Phone
-func (r userQueryPhoneString) Set(value string) userWithPrismaPhoneSetParam {
+// Set the optional value of Phone
+func (r userQueryPhoneString) Set(value string) userSetParam {
 
-	return userWithPrismaPhoneSetParam{
+	return userSetParam{
 		data: builder.Field{
 			Name:  "phone",
 			Value: value,
@@ -3596,9 +3711,25 @@ func (r userQueryPhoneString) Set(value string) userWithPrismaPhoneSetParam {
 }
 
 // Set the optional value of Phone dynamically
-func (r userQueryPhoneString) SetIfPresent(value *String) userWithPrismaPhoneSetParam {
+func (r userQueryPhoneString) SetIfPresent(value *String) userSetParam {
 	if value == nil {
-		return userWithPrismaPhoneSetParam{}
+		return userSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of Phone dynamically
+func (r userQueryPhoneString) SetOptional(value *String) userSetParam {
+	if value == nil {
+
+		var v *string
+		return userSetParam{
+			data: builder.Field{
+				Name:  "phone",
+				Value: v,
+			},
+		}
 	}
 
 	return r.Set(*value)
@@ -3624,6 +3755,35 @@ func (r userQueryPhoneString) EqualsIfPresent(value *string) userWithPrismaPhone
 		return userWithPrismaPhoneEqualsParam{}
 	}
 	return r.Equals(*value)
+}
+
+func (r userQueryPhoneString) EqualsOptional(value *String) userDefaultParam {
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r userQueryPhoneString) IsNull() userDefaultParam {
+	var str *string = nil
+	return userDefaultParam{
+		data: builder.Field{
+			Name: "phone",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
 }
 
 func (r userQueryPhoneString) Order(direction SortOrder) userDefaultParam {
@@ -7389,7 +7549,7 @@ type practicumQuery struct {
 	// ID
 	//
 	// @required
-	ID practicumQueryIDInt
+	ID practicumQueryIDString
 
 	// Title
 	//
@@ -7466,12 +7626,12 @@ func (practicumQuery) And(params ...PracticumWhereParam) practicumDefaultParam {
 }
 
 // base struct
-type practicumQueryIDInt struct{}
+type practicumQueryIDString struct{}
 
 // Set the required value of ID
-func (r practicumQueryIDInt) Set(value int) practicumSetParam {
+func (r practicumQueryIDString) Set(value string) practicumWithPrismaIDSetParam {
 
-	return practicumSetParam{
+	return practicumWithPrismaIDSetParam{
 		data: builder.Field{
 			Name:  "id",
 			Value: value,
@@ -7481,103 +7641,15 @@ func (r practicumQueryIDInt) Set(value int) practicumSetParam {
 }
 
 // Set the optional value of ID dynamically
-func (r practicumQueryIDInt) SetIfPresent(value *Int) practicumSetParam {
+func (r practicumQueryIDString) SetIfPresent(value *String) practicumWithPrismaIDSetParam {
 	if value == nil {
-		return practicumSetParam{}
+		return practicumWithPrismaIDSetParam{}
 	}
 
 	return r.Set(*value)
 }
 
-// Increment the required value of ID
-func (r practicumQueryIDInt) Increment(value int) practicumSetParam {
-	return practicumSetParam{
-		data: builder.Field{
-			Name: "id",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "increment",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r practicumQueryIDInt) IncrementIfPresent(value *int) practicumSetParam {
-	if value == nil {
-		return practicumSetParam{}
-	}
-	return r.Increment(*value)
-}
-
-// Decrement the required value of ID
-func (r practicumQueryIDInt) Decrement(value int) practicumSetParam {
-	return practicumSetParam{
-		data: builder.Field{
-			Name: "id",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "decrement",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r practicumQueryIDInt) DecrementIfPresent(value *int) practicumSetParam {
-	if value == nil {
-		return practicumSetParam{}
-	}
-	return r.Decrement(*value)
-}
-
-// Multiply the required value of ID
-func (r practicumQueryIDInt) Multiply(value int) practicumSetParam {
-	return practicumSetParam{
-		data: builder.Field{
-			Name: "id",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "multiply",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r practicumQueryIDInt) MultiplyIfPresent(value *int) practicumSetParam {
-	if value == nil {
-		return practicumSetParam{}
-	}
-	return r.Multiply(*value)
-}
-
-// Divide the required value of ID
-func (r practicumQueryIDInt) Divide(value int) practicumSetParam {
-	return practicumSetParam{
-		data: builder.Field{
-			Name: "id",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "divide",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r practicumQueryIDInt) DivideIfPresent(value *int) practicumSetParam {
-	if value == nil {
-		return practicumSetParam{}
-	}
-	return r.Divide(*value)
-}
-
-func (r practicumQueryIDInt) Equals(value int) practicumWithPrismaIDEqualsUniqueParam {
+func (r practicumQueryIDString) Equals(value string) practicumWithPrismaIDEqualsUniqueParam {
 
 	return practicumWithPrismaIDEqualsUniqueParam{
 		data: builder.Field{
@@ -7592,14 +7664,14 @@ func (r practicumQueryIDInt) Equals(value int) practicumWithPrismaIDEqualsUnique
 	}
 }
 
-func (r practicumQueryIDInt) EqualsIfPresent(value *int) practicumWithPrismaIDEqualsUniqueParam {
+func (r practicumQueryIDString) EqualsIfPresent(value *string) practicumWithPrismaIDEqualsUniqueParam {
 	if value == nil {
 		return practicumWithPrismaIDEqualsUniqueParam{}
 	}
 	return r.Equals(*value)
 }
 
-func (r practicumQueryIDInt) Order(direction SortOrder) practicumDefaultParam {
+func (r practicumQueryIDString) Order(direction SortOrder) practicumDefaultParam {
 	return practicumDefaultParam{
 		data: builder.Field{
 			Name:  "id",
@@ -7608,7 +7680,7 @@ func (r practicumQueryIDInt) Order(direction SortOrder) practicumDefaultParam {
 	}
 }
 
-func (r practicumQueryIDInt) Cursor(cursor int) practicumCursorParam {
+func (r practicumQueryIDString) Cursor(cursor string) practicumCursorParam {
 	return practicumCursorParam{
 		data: builder.Field{
 			Name:  "id",
@@ -7617,7 +7689,7 @@ func (r practicumQueryIDInt) Cursor(cursor int) practicumCursorParam {
 	}
 }
 
-func (r practicumQueryIDInt) In(value []int) practicumParamUnique {
+func (r practicumQueryIDString) In(value []string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7631,14 +7703,14 @@ func (r practicumQueryIDInt) In(value []int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) InIfPresent(value []int) practicumParamUnique {
+func (r practicumQueryIDString) InIfPresent(value []string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.In(value)
 }
 
-func (r practicumQueryIDInt) NotIn(value []int) practicumParamUnique {
+func (r practicumQueryIDString) NotIn(value []string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7652,14 +7724,14 @@ func (r practicumQueryIDInt) NotIn(value []int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) NotInIfPresent(value []int) practicumParamUnique {
+func (r practicumQueryIDString) NotInIfPresent(value []string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.NotIn(value)
 }
 
-func (r practicumQueryIDInt) Lt(value int) practicumParamUnique {
+func (r practicumQueryIDString) Lt(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7673,14 +7745,14 @@ func (r practicumQueryIDInt) Lt(value int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) LtIfPresent(value *int) practicumParamUnique {
+func (r practicumQueryIDString) LtIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.Lt(*value)
 }
 
-func (r practicumQueryIDInt) Lte(value int) practicumParamUnique {
+func (r practicumQueryIDString) Lte(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7694,14 +7766,14 @@ func (r practicumQueryIDInt) Lte(value int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) LteIfPresent(value *int) practicumParamUnique {
+func (r practicumQueryIDString) LteIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.Lte(*value)
 }
 
-func (r practicumQueryIDInt) Gt(value int) practicumParamUnique {
+func (r practicumQueryIDString) Gt(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7715,14 +7787,14 @@ func (r practicumQueryIDInt) Gt(value int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) GtIfPresent(value *int) practicumParamUnique {
+func (r practicumQueryIDString) GtIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.Gt(*value)
 }
 
-func (r practicumQueryIDInt) Gte(value int) practicumParamUnique {
+func (r practicumQueryIDString) Gte(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7736,14 +7808,98 @@ func (r practicumQueryIDInt) Gte(value int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) GteIfPresent(value *int) practicumParamUnique {
+func (r practicumQueryIDString) GteIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.Gte(*value)
 }
 
-func (r practicumQueryIDInt) Not(value int) practicumParamUnique {
+func (r practicumQueryIDString) Contains(value string) practicumParamUnique {
+	return practicumParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r practicumQueryIDString) ContainsIfPresent(value *string) practicumParamUnique {
+	if value == nil {
+		return practicumParamUnique{}
+	}
+	return r.Contains(*value)
+}
+
+func (r practicumQueryIDString) StartsWith(value string) practicumParamUnique {
+	return practicumParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r practicumQueryIDString) StartsWithIfPresent(value *string) practicumParamUnique {
+	if value == nil {
+		return practicumParamUnique{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r practicumQueryIDString) EndsWith(value string) practicumParamUnique {
+	return practicumParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r practicumQueryIDString) EndsWithIfPresent(value *string) practicumParamUnique {
+	if value == nil {
+		return practicumParamUnique{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r practicumQueryIDString) Mode(value QueryMode) practicumParamUnique {
+	return practicumParamUnique{
+		data: builder.Field{
+			Name: "id",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r practicumQueryIDString) ModeIfPresent(value *QueryMode) practicumParamUnique {
+	if value == nil {
+		return practicumParamUnique{}
+	}
+	return r.Mode(*value)
+}
+
+func (r practicumQueryIDString) Not(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
@@ -7757,22 +7913,22 @@ func (r practicumQueryIDInt) Not(value int) practicumParamUnique {
 	}
 }
 
-func (r practicumQueryIDInt) NotIfPresent(value *int) practicumParamUnique {
+func (r practicumQueryIDString) NotIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
 	return r.Not(*value)
 }
 
-// deprecated: Use Lt instead.
+// deprecated: Use StartsWith instead.
 
-func (r practicumQueryIDInt) LT(value int) practicumParamUnique {
+func (r practicumQueryIDString) HasPrefix(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
 			Fields: []builder.Field{
 				{
-					Name:  "lt",
+					Name:  "starts_with",
 					Value: value,
 				},
 			},
@@ -7780,23 +7936,23 @@ func (r practicumQueryIDInt) LT(value int) practicumParamUnique {
 	}
 }
 
-// deprecated: Use LtIfPresent instead.
-func (r practicumQueryIDInt) LTIfPresent(value *int) practicumParamUnique {
+// deprecated: Use StartsWithIfPresent instead.
+func (r practicumQueryIDString) HasPrefixIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
-	return r.LT(*value)
+	return r.HasPrefix(*value)
 }
 
-// deprecated: Use Lte instead.
+// deprecated: Use EndsWith instead.
 
-func (r practicumQueryIDInt) LTE(value int) practicumParamUnique {
+func (r practicumQueryIDString) HasSuffix(value string) practicumParamUnique {
 	return practicumParamUnique{
 		data: builder.Field{
 			Name: "id",
 			Fields: []builder.Field{
 				{
-					Name:  "lte",
+					Name:  "ends_with",
 					Value: value,
 				},
 			},
@@ -7804,63 +7960,15 @@ func (r practicumQueryIDInt) LTE(value int) practicumParamUnique {
 	}
 }
 
-// deprecated: Use LteIfPresent instead.
-func (r practicumQueryIDInt) LTEIfPresent(value *int) practicumParamUnique {
+// deprecated: Use EndsWithIfPresent instead.
+func (r practicumQueryIDString) HasSuffixIfPresent(value *string) practicumParamUnique {
 	if value == nil {
 		return practicumParamUnique{}
 	}
-	return r.LTE(*value)
+	return r.HasSuffix(*value)
 }
 
-// deprecated: Use Gt instead.
-
-func (r practicumQueryIDInt) GT(value int) practicumParamUnique {
-	return practicumParamUnique{
-		data: builder.Field{
-			Name: "id",
-			Fields: []builder.Field{
-				{
-					Name:  "gt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use GtIfPresent instead.
-func (r practicumQueryIDInt) GTIfPresent(value *int) practicumParamUnique {
-	if value == nil {
-		return practicumParamUnique{}
-	}
-	return r.GT(*value)
-}
-
-// deprecated: Use Gte instead.
-
-func (r practicumQueryIDInt) GTE(value int) practicumParamUnique {
-	return practicumParamUnique{
-		data: builder.Field{
-			Name: "id",
-			Fields: []builder.Field{
-				{
-					Name:  "gte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use GteIfPresent instead.
-func (r practicumQueryIDInt) GTEIfPresent(value *int) practicumParamUnique {
-	if value == nil {
-		return practicumParamUnique{}
-	}
-	return r.GTE(*value)
-}
-
-func (r practicumQueryIDInt) Field() practicumPrismaFields {
+func (r practicumQueryIDString) Field() practicumPrismaFields {
 	return practicumFieldID
 }
 
@@ -9411,7 +9519,7 @@ type scheduleQuery struct {
 	// PracticumID
 	//
 	// @required
-	PracticumID scheduleQueryPracticumIDInt
+	PracticumID scheduleQueryPracticumIDString
 
 	// GroupID
 	//
@@ -9422,6 +9530,11 @@ type scheduleQuery struct {
 	//
 	// @required
 	AssistantID scheduleQueryAssistantIDString
+
+	// Week
+	//
+	// @optional
+	Week scheduleQueryWeekInt
 
 	// Date
 	//
@@ -9921,10 +10034,10 @@ func (r scheduleQueryIDInt) Field() schedulePrismaFields {
 }
 
 // base struct
-type scheduleQueryPracticumIDInt struct{}
+type scheduleQueryPracticumIDString struct{}
 
 // Set the required value of PracticumID
-func (r scheduleQueryPracticumIDInt) Set(value int) scheduleSetParam {
+func (r scheduleQueryPracticumIDString) Set(value string) scheduleSetParam {
 
 	return scheduleSetParam{
 		data: builder.Field{
@@ -9936,7 +10049,7 @@ func (r scheduleQueryPracticumIDInt) Set(value int) scheduleSetParam {
 }
 
 // Set the optional value of PracticumID dynamically
-func (r scheduleQueryPracticumIDInt) SetIfPresent(value *Int) scheduleSetParam {
+func (r scheduleQueryPracticumIDString) SetIfPresent(value *String) scheduleSetParam {
 	if value == nil {
 		return scheduleSetParam{}
 	}
@@ -9944,95 +10057,7 @@ func (r scheduleQueryPracticumIDInt) SetIfPresent(value *Int) scheduleSetParam {
 	return r.Set(*value)
 }
 
-// Increment the required value of PracticumID
-func (r scheduleQueryPracticumIDInt) Increment(value int) scheduleSetParam {
-	return scheduleSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "increment",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r scheduleQueryPracticumIDInt) IncrementIfPresent(value *int) scheduleSetParam {
-	if value == nil {
-		return scheduleSetParam{}
-	}
-	return r.Increment(*value)
-}
-
-// Decrement the required value of PracticumID
-func (r scheduleQueryPracticumIDInt) Decrement(value int) scheduleSetParam {
-	return scheduleSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "decrement",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r scheduleQueryPracticumIDInt) DecrementIfPresent(value *int) scheduleSetParam {
-	if value == nil {
-		return scheduleSetParam{}
-	}
-	return r.Decrement(*value)
-}
-
-// Multiply the required value of PracticumID
-func (r scheduleQueryPracticumIDInt) Multiply(value int) scheduleSetParam {
-	return scheduleSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "multiply",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r scheduleQueryPracticumIDInt) MultiplyIfPresent(value *int) scheduleSetParam {
-	if value == nil {
-		return scheduleSetParam{}
-	}
-	return r.Multiply(*value)
-}
-
-// Divide the required value of PracticumID
-func (r scheduleQueryPracticumIDInt) Divide(value int) scheduleSetParam {
-	return scheduleSetParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				builder.Field{
-					Name:  "divide",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-func (r scheduleQueryPracticumIDInt) DivideIfPresent(value *int) scheduleSetParam {
-	if value == nil {
-		return scheduleSetParam{}
-	}
-	return r.Divide(*value)
-}
-
-func (r scheduleQueryPracticumIDInt) Equals(value int) scheduleWithPrismaPracticumIDEqualsParam {
+func (r scheduleQueryPracticumIDString) Equals(value string) scheduleWithPrismaPracticumIDEqualsParam {
 
 	return scheduleWithPrismaPracticumIDEqualsParam{
 		data: builder.Field{
@@ -10047,14 +10072,14 @@ func (r scheduleQueryPracticumIDInt) Equals(value int) scheduleWithPrismaPractic
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) EqualsIfPresent(value *int) scheduleWithPrismaPracticumIDEqualsParam {
+func (r scheduleQueryPracticumIDString) EqualsIfPresent(value *string) scheduleWithPrismaPracticumIDEqualsParam {
 	if value == nil {
 		return scheduleWithPrismaPracticumIDEqualsParam{}
 	}
 	return r.Equals(*value)
 }
 
-func (r scheduleQueryPracticumIDInt) Order(direction SortOrder) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) Order(direction SortOrder) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name:  "practicumId",
@@ -10063,7 +10088,7 @@ func (r scheduleQueryPracticumIDInt) Order(direction SortOrder) scheduleDefaultP
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) Cursor(cursor int) scheduleCursorParam {
+func (r scheduleQueryPracticumIDString) Cursor(cursor string) scheduleCursorParam {
 	return scheduleCursorParam{
 		data: builder.Field{
 			Name:  "practicumId",
@@ -10072,7 +10097,7 @@ func (r scheduleQueryPracticumIDInt) Cursor(cursor int) scheduleCursorParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) In(value []int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) In(value []string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10086,14 +10111,14 @@ func (r scheduleQueryPracticumIDInt) In(value []int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) InIfPresent(value []int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) InIfPresent(value []string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.In(value)
 }
 
-func (r scheduleQueryPracticumIDInt) NotIn(value []int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) NotIn(value []string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10107,14 +10132,14 @@ func (r scheduleQueryPracticumIDInt) NotIn(value []int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) NotInIfPresent(value []int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) NotInIfPresent(value []string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.NotIn(value)
 }
 
-func (r scheduleQueryPracticumIDInt) Lt(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) Lt(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10128,14 +10153,14 @@ func (r scheduleQueryPracticumIDInt) Lt(value int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) LtIfPresent(value *int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) LtIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Lt(*value)
 }
 
-func (r scheduleQueryPracticumIDInt) Lte(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) Lte(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10149,14 +10174,14 @@ func (r scheduleQueryPracticumIDInt) Lte(value int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) LteIfPresent(value *int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) LteIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Lte(*value)
 }
 
-func (r scheduleQueryPracticumIDInt) Gt(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) Gt(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10170,14 +10195,14 @@ func (r scheduleQueryPracticumIDInt) Gt(value int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) GtIfPresent(value *int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) GtIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Gt(*value)
 }
 
-func (r scheduleQueryPracticumIDInt) Gte(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) Gte(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10191,14 +10216,98 @@ func (r scheduleQueryPracticumIDInt) Gte(value int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) GteIfPresent(value *int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) GteIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Gte(*value)
 }
 
-func (r scheduleQueryPracticumIDInt) Not(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) Contains(value string) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "practicumId",
+			Fields: []builder.Field{
+				{
+					Name:  "contains",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryPracticumIDString) ContainsIfPresent(value *string) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Contains(*value)
+}
+
+func (r scheduleQueryPracticumIDString) StartsWith(value string) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "practicumId",
+			Fields: []builder.Field{
+				{
+					Name:  "startsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryPracticumIDString) StartsWithIfPresent(value *string) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.StartsWith(*value)
+}
+
+func (r scheduleQueryPracticumIDString) EndsWith(value string) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "practicumId",
+			Fields: []builder.Field{
+				{
+					Name:  "endsWith",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryPracticumIDString) EndsWithIfPresent(value *string) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.EndsWith(*value)
+}
+
+func (r scheduleQueryPracticumIDString) Mode(value QueryMode) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "practicumId",
+			Fields: []builder.Field{
+				{
+					Name:  "mode",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryPracticumIDString) ModeIfPresent(value *QueryMode) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Mode(*value)
+}
+
+func (r scheduleQueryPracticumIDString) Not(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
@@ -10212,22 +10321,22 @@ func (r scheduleQueryPracticumIDInt) Not(value int) scheduleDefaultParam {
 	}
 }
 
-func (r scheduleQueryPracticumIDInt) NotIfPresent(value *int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) NotIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
 	return r.Not(*value)
 }
 
-// deprecated: Use Lt instead.
+// deprecated: Use StartsWith instead.
 
-func (r scheduleQueryPracticumIDInt) LT(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) HasPrefix(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
 			Fields: []builder.Field{
 				{
-					Name:  "lt",
+					Name:  "starts_with",
 					Value: value,
 				},
 			},
@@ -10235,23 +10344,23 @@ func (r scheduleQueryPracticumIDInt) LT(value int) scheduleDefaultParam {
 	}
 }
 
-// deprecated: Use LtIfPresent instead.
-func (r scheduleQueryPracticumIDInt) LTIfPresent(value *int) scheduleDefaultParam {
+// deprecated: Use StartsWithIfPresent instead.
+func (r scheduleQueryPracticumIDString) HasPrefixIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
-	return r.LT(*value)
+	return r.HasPrefix(*value)
 }
 
-// deprecated: Use Lte instead.
+// deprecated: Use EndsWith instead.
 
-func (r scheduleQueryPracticumIDInt) LTE(value int) scheduleDefaultParam {
+func (r scheduleQueryPracticumIDString) HasSuffix(value string) scheduleDefaultParam {
 	return scheduleDefaultParam{
 		data: builder.Field{
 			Name: "practicumId",
 			Fields: []builder.Field{
 				{
-					Name:  "lte",
+					Name:  "ends_with",
 					Value: value,
 				},
 			},
@@ -10259,63 +10368,15 @@ func (r scheduleQueryPracticumIDInt) LTE(value int) scheduleDefaultParam {
 	}
 }
 
-// deprecated: Use LteIfPresent instead.
-func (r scheduleQueryPracticumIDInt) LTEIfPresent(value *int) scheduleDefaultParam {
+// deprecated: Use EndsWithIfPresent instead.
+func (r scheduleQueryPracticumIDString) HasSuffixIfPresent(value *string) scheduleDefaultParam {
 	if value == nil {
 		return scheduleDefaultParam{}
 	}
-	return r.LTE(*value)
+	return r.HasSuffix(*value)
 }
 
-// deprecated: Use Gt instead.
-
-func (r scheduleQueryPracticumIDInt) GT(value int) scheduleDefaultParam {
-	return scheduleDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "gt",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use GtIfPresent instead.
-func (r scheduleQueryPracticumIDInt) GTIfPresent(value *int) scheduleDefaultParam {
-	if value == nil {
-		return scheduleDefaultParam{}
-	}
-	return r.GT(*value)
-}
-
-// deprecated: Use Gte instead.
-
-func (r scheduleQueryPracticumIDInt) GTE(value int) scheduleDefaultParam {
-	return scheduleDefaultParam{
-		data: builder.Field{
-			Name: "practicumId",
-			Fields: []builder.Field{
-				{
-					Name:  "gte",
-					Value: value,
-				},
-			},
-		},
-	}
-}
-
-// deprecated: Use GteIfPresent instead.
-func (r scheduleQueryPracticumIDInt) GTEIfPresent(value *int) scheduleDefaultParam {
-	if value == nil {
-		return scheduleDefaultParam{}
-	}
-	return r.GTE(*value)
-}
-
-func (r scheduleQueryPracticumIDInt) Field() schedulePrismaFields {
+func (r scheduleQueryPracticumIDString) Field() schedulePrismaFields {
 	return scheduleFieldPracticumID
 }
 
@@ -11011,6 +11072,450 @@ func (r scheduleQueryAssistantIDString) HasSuffixIfPresent(value *string) schedu
 
 func (r scheduleQueryAssistantIDString) Field() schedulePrismaFields {
 	return scheduleFieldAssistantID
+}
+
+// base struct
+type scheduleQueryWeekInt struct{}
+
+// Set the optional value of Week
+func (r scheduleQueryWeekInt) Set(value int) scheduleSetParam {
+
+	return scheduleSetParam{
+		data: builder.Field{
+			Name:  "week",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of Week dynamically
+func (r scheduleQueryWeekInt) SetIfPresent(value *Int) scheduleSetParam {
+	if value == nil {
+		return scheduleSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of Week dynamically
+func (r scheduleQueryWeekInt) SetOptional(value *Int) scheduleSetParam {
+	if value == nil {
+
+		var v *int
+		return scheduleSetParam{
+			data: builder.Field{
+				Name:  "week",
+				Value: v,
+			},
+		}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the optional value of Week
+func (r scheduleQueryWeekInt) Increment(value int) scheduleSetParam {
+	return scheduleSetParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) IncrementIfPresent(value *int) scheduleSetParam {
+	if value == nil {
+		return scheduleSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the optional value of Week
+func (r scheduleQueryWeekInt) Decrement(value int) scheduleSetParam {
+	return scheduleSetParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) DecrementIfPresent(value *int) scheduleSetParam {
+	if value == nil {
+		return scheduleSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the optional value of Week
+func (r scheduleQueryWeekInt) Multiply(value int) scheduleSetParam {
+	return scheduleSetParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) MultiplyIfPresent(value *int) scheduleSetParam {
+	if value == nil {
+		return scheduleSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the optional value of Week
+func (r scheduleQueryWeekInt) Divide(value int) scheduleSetParam {
+	return scheduleSetParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) DivideIfPresent(value *int) scheduleSetParam {
+	if value == nil {
+		return scheduleSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r scheduleQueryWeekInt) Equals(value int) scheduleWithPrismaWeekEqualsParam {
+
+	return scheduleWithPrismaWeekEqualsParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) EqualsIfPresent(value *int) scheduleWithPrismaWeekEqualsParam {
+	if value == nil {
+		return scheduleWithPrismaWeekEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r scheduleQueryWeekInt) EqualsOptional(value *Int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) IsNull() scheduleDefaultParam {
+	var str *string = nil
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) Order(direction SortOrder) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name:  "week",
+			Value: direction,
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) Cursor(cursor int) scheduleCursorParam {
+	return scheduleCursorParam{
+		data: builder.Field{
+			Name:  "week",
+			Value: cursor,
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) In(value []int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) InIfPresent(value []int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r scheduleQueryWeekInt) NotIn(value []int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) NotInIfPresent(value []int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r scheduleQueryWeekInt) Lt(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) LtIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r scheduleQueryWeekInt) Lte(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) LteIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r scheduleQueryWeekInt) Gt(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) GtIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r scheduleQueryWeekInt) Gte(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) GteIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r scheduleQueryWeekInt) Not(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r scheduleQueryWeekInt) NotIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r scheduleQueryWeekInt) LT(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r scheduleQueryWeekInt) LTIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r scheduleQueryWeekInt) LTE(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r scheduleQueryWeekInt) LTEIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r scheduleQueryWeekInt) GT(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r scheduleQueryWeekInt) GTIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r scheduleQueryWeekInt) GTE(value int) scheduleDefaultParam {
+	return scheduleDefaultParam{
+		data: builder.Field{
+			Name: "week",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r scheduleQueryWeekInt) GTEIfPresent(value *int) scheduleDefaultParam {
+	if value == nil {
+		return scheduleDefaultParam{}
+	}
+	return r.GTE(*value)
+}
+
+func (r scheduleQueryWeekInt) Field() schedulePrismaFields {
+	return scheduleFieldWeek
 }
 
 // base struct
@@ -12485,15 +12990,25 @@ type gradeQuery struct {
 	// @required
 	UserID gradeQueryUserIDString
 
-	// Prelab
+	// Punctuality
 	//
 	// @optional
-	Prelab gradeQueryPrelabInt
+	Punctuality gradeQueryPunctualityInt
 
-	// Inlab
+	// PreExam
 	//
 	// @optional
-	Inlab gradeQueryInlabInt
+	PreExam gradeQueryPreExamInt
+
+	// OralTest
+	//
+	// @optional
+	OralTest gradeQueryOralTestInt
+
+	// SkillsAndAttitude
+	//
+	// @optional
+	SkillsAndAttitude gradeQuerySkillsAndAttitudeInt
 
 	// Abstract
 	//
@@ -12514,6 +13029,11 @@ type gradeQuery struct {
 	//
 	// @optional
 	Discussion gradeQueryDiscussionInt
+
+	// DataProcessing
+	//
+	// @optional
+	DataProcessing gradeQueryDataProcessingInt
 
 	// Conclusion
 	//
@@ -13749,22 +14269,22 @@ func (r gradeQueryUserIDString) Field() gradePrismaFields {
 }
 
 // base struct
-type gradeQueryPrelabInt struct{}
+type gradeQueryPunctualityInt struct{}
 
-// Set the optional value of Prelab
-func (r gradeQueryPrelabInt) Set(value int) gradeSetParam {
+// Set the optional value of Punctuality
+func (r gradeQueryPunctualityInt) Set(value int) gradeSetParam {
 
 	return gradeSetParam{
 		data: builder.Field{
-			Name:  "prelab",
+			Name:  "punctuality",
 			Value: value,
 		},
 	}
 
 }
 
-// Set the optional value of Prelab dynamically
-func (r gradeQueryPrelabInt) SetIfPresent(value *Int) gradeSetParam {
+// Set the optional value of Punctuality dynamically
+func (r gradeQueryPunctualityInt) SetIfPresent(value *Int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
@@ -13772,14 +14292,14 @@ func (r gradeQueryPrelabInt) SetIfPresent(value *Int) gradeSetParam {
 	return r.Set(*value)
 }
 
-// Set the optional value of Prelab dynamically
-func (r gradeQueryPrelabInt) SetOptional(value *Int) gradeSetParam {
+// Set the optional value of Punctuality dynamically
+func (r gradeQueryPunctualityInt) SetOptional(value *Int) gradeSetParam {
 	if value == nil {
 
 		var v *int
 		return gradeSetParam{
 			data: builder.Field{
-				Name:  "prelab",
+				Name:  "punctuality",
 				Value: v,
 			},
 		}
@@ -13788,11 +14308,11 @@ func (r gradeQueryPrelabInt) SetOptional(value *Int) gradeSetParam {
 	return r.Set(*value)
 }
 
-// Increment the optional value of Prelab
-func (r gradeQueryPrelabInt) Increment(value int) gradeSetParam {
+// Increment the optional value of Punctuality
+func (r gradeQueryPunctualityInt) Increment(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "increment",
@@ -13803,18 +14323,18 @@ func (r gradeQueryPrelabInt) Increment(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) IncrementIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPunctualityInt) IncrementIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Increment(*value)
 }
 
-// Decrement the optional value of Prelab
-func (r gradeQueryPrelabInt) Decrement(value int) gradeSetParam {
+// Decrement the optional value of Punctuality
+func (r gradeQueryPunctualityInt) Decrement(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "decrement",
@@ -13825,18 +14345,18 @@ func (r gradeQueryPrelabInt) Decrement(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) DecrementIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPunctualityInt) DecrementIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Decrement(*value)
 }
 
-// Multiply the optional value of Prelab
-func (r gradeQueryPrelabInt) Multiply(value int) gradeSetParam {
+// Multiply the optional value of Punctuality
+func (r gradeQueryPunctualityInt) Multiply(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "multiply",
@@ -13847,18 +14367,18 @@ func (r gradeQueryPrelabInt) Multiply(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) MultiplyIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPunctualityInt) MultiplyIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Multiply(*value)
 }
 
-// Divide the optional value of Prelab
-func (r gradeQueryPrelabInt) Divide(value int) gradeSetParam {
+// Divide the optional value of Punctuality
+func (r gradeQueryPunctualityInt) Divide(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "divide",
@@ -13869,18 +14389,18 @@ func (r gradeQueryPrelabInt) Divide(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) DivideIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPunctualityInt) DivideIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Divide(*value)
 }
 
-func (r gradeQueryPrelabInt) Equals(value int) gradeWithPrismaPrelabEqualsParam {
+func (r gradeQueryPunctualityInt) Equals(value int) gradeWithPrismaPunctualityEqualsParam {
 
-	return gradeWithPrismaPrelabEqualsParam{
+	return gradeWithPrismaPunctualityEqualsParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -13891,17 +14411,17 @@ func (r gradeQueryPrelabInt) Equals(value int) gradeWithPrismaPrelabEqualsParam 
 	}
 }
 
-func (r gradeQueryPrelabInt) EqualsIfPresent(value *int) gradeWithPrismaPrelabEqualsParam {
+func (r gradeQueryPunctualityInt) EqualsIfPresent(value *int) gradeWithPrismaPunctualityEqualsParam {
 	if value == nil {
-		return gradeWithPrismaPrelabEqualsParam{}
+		return gradeWithPrismaPunctualityEqualsParam{}
 	}
 	return r.Equals(*value)
 }
 
-func (r gradeQueryPrelabInt) EqualsOptional(value *Int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) EqualsOptional(value *Int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -13912,11 +14432,11 @@ func (r gradeQueryPrelabInt) EqualsOptional(value *Int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) IsNull() gradeDefaultParam {
+func (r gradeQueryPunctualityInt) IsNull() gradeDefaultParam {
 	var str *string = nil
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -13927,28 +14447,28 @@ func (r gradeQueryPrelabInt) IsNull() gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) Order(direction SortOrder) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) Order(direction SortOrder) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name:  "prelab",
+			Name:  "punctuality",
 			Value: direction,
 		},
 	}
 }
 
-func (r gradeQueryPrelabInt) Cursor(cursor int) gradeCursorParam {
+func (r gradeQueryPunctualityInt) Cursor(cursor int) gradeCursorParam {
 	return gradeCursorParam{
 		data: builder.Field{
-			Name:  "prelab",
+			Name:  "punctuality",
 			Value: cursor,
 		},
 	}
 }
 
-func (r gradeQueryPrelabInt) In(value []int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) In(value []int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "in",
@@ -13959,17 +14479,17 @@ func (r gradeQueryPrelabInt) In(value []int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) InIfPresent(value []int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) InIfPresent(value []int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.In(value)
 }
 
-func (r gradeQueryPrelabInt) NotIn(value []int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) NotIn(value []int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "notIn",
@@ -13980,17 +14500,17 @@ func (r gradeQueryPrelabInt) NotIn(value []int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) NotInIfPresent(value []int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) NotInIfPresent(value []int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.NotIn(value)
 }
 
-func (r gradeQueryPrelabInt) Lt(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) Lt(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "lt",
@@ -14001,17 +14521,17 @@ func (r gradeQueryPrelabInt) Lt(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) LtIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) LtIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Lt(*value)
 }
 
-func (r gradeQueryPrelabInt) Lte(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) Lte(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "lte",
@@ -14022,17 +14542,17 @@ func (r gradeQueryPrelabInt) Lte(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) LteIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) LteIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Lte(*value)
 }
 
-func (r gradeQueryPrelabInt) Gt(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) Gt(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "gt",
@@ -14043,17 +14563,17 @@ func (r gradeQueryPrelabInt) Gt(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) GtIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) GtIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Gt(*value)
 }
 
-func (r gradeQueryPrelabInt) Gte(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) Gte(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "gte",
@@ -14064,17 +14584,17 @@ func (r gradeQueryPrelabInt) Gte(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) GteIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) GteIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Gte(*value)
 }
 
-func (r gradeQueryPrelabInt) Not(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) Not(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "not",
@@ -14085,7 +14605,7 @@ func (r gradeQueryPrelabInt) Not(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryPrelabInt) NotIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) NotIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14094,10 +14614,10 @@ func (r gradeQueryPrelabInt) NotIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Lt instead.
 
-func (r gradeQueryPrelabInt) LT(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) LT(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "lt",
@@ -14109,7 +14629,7 @@ func (r gradeQueryPrelabInt) LT(value int) gradeDefaultParam {
 }
 
 // deprecated: Use LtIfPresent instead.
-func (r gradeQueryPrelabInt) LTIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) LTIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14118,10 +14638,10 @@ func (r gradeQueryPrelabInt) LTIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Lte instead.
 
-func (r gradeQueryPrelabInt) LTE(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) LTE(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "lte",
@@ -14133,7 +14653,7 @@ func (r gradeQueryPrelabInt) LTE(value int) gradeDefaultParam {
 }
 
 // deprecated: Use LteIfPresent instead.
-func (r gradeQueryPrelabInt) LTEIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) LTEIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14142,10 +14662,10 @@ func (r gradeQueryPrelabInt) LTEIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Gt instead.
 
-func (r gradeQueryPrelabInt) GT(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) GT(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "gt",
@@ -14157,7 +14677,7 @@ func (r gradeQueryPrelabInt) GT(value int) gradeDefaultParam {
 }
 
 // deprecated: Use GtIfPresent instead.
-func (r gradeQueryPrelabInt) GTIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) GTIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14166,10 +14686,10 @@ func (r gradeQueryPrelabInt) GTIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Gte instead.
 
-func (r gradeQueryPrelabInt) GTE(value int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) GTE(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "prelab",
+			Name: "punctuality",
 			Fields: []builder.Field{
 				{
 					Name:  "gte",
@@ -14181,34 +14701,34 @@ func (r gradeQueryPrelabInt) GTE(value int) gradeDefaultParam {
 }
 
 // deprecated: Use GteIfPresent instead.
-func (r gradeQueryPrelabInt) GTEIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPunctualityInt) GTEIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.GTE(*value)
 }
 
-func (r gradeQueryPrelabInt) Field() gradePrismaFields {
-	return gradeFieldPrelab
+func (r gradeQueryPunctualityInt) Field() gradePrismaFields {
+	return gradeFieldPunctuality
 }
 
 // base struct
-type gradeQueryInlabInt struct{}
+type gradeQueryPreExamInt struct{}
 
-// Set the optional value of Inlab
-func (r gradeQueryInlabInt) Set(value int) gradeSetParam {
+// Set the optional value of PreExam
+func (r gradeQueryPreExamInt) Set(value int) gradeSetParam {
 
 	return gradeSetParam{
 		data: builder.Field{
-			Name:  "inlab",
+			Name:  "preExam",
 			Value: value,
 		},
 	}
 
 }
 
-// Set the optional value of Inlab dynamically
-func (r gradeQueryInlabInt) SetIfPresent(value *Int) gradeSetParam {
+// Set the optional value of PreExam dynamically
+func (r gradeQueryPreExamInt) SetIfPresent(value *Int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
@@ -14216,14 +14736,14 @@ func (r gradeQueryInlabInt) SetIfPresent(value *Int) gradeSetParam {
 	return r.Set(*value)
 }
 
-// Set the optional value of Inlab dynamically
-func (r gradeQueryInlabInt) SetOptional(value *Int) gradeSetParam {
+// Set the optional value of PreExam dynamically
+func (r gradeQueryPreExamInt) SetOptional(value *Int) gradeSetParam {
 	if value == nil {
 
 		var v *int
 		return gradeSetParam{
 			data: builder.Field{
-				Name:  "inlab",
+				Name:  "preExam",
 				Value: v,
 			},
 		}
@@ -14232,11 +14752,11 @@ func (r gradeQueryInlabInt) SetOptional(value *Int) gradeSetParam {
 	return r.Set(*value)
 }
 
-// Increment the optional value of Inlab
-func (r gradeQueryInlabInt) Increment(value int) gradeSetParam {
+// Increment the optional value of PreExam
+func (r gradeQueryPreExamInt) Increment(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "increment",
@@ -14247,18 +14767,18 @@ func (r gradeQueryInlabInt) Increment(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryInlabInt) IncrementIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPreExamInt) IncrementIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Increment(*value)
 }
 
-// Decrement the optional value of Inlab
-func (r gradeQueryInlabInt) Decrement(value int) gradeSetParam {
+// Decrement the optional value of PreExam
+func (r gradeQueryPreExamInt) Decrement(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "decrement",
@@ -14269,18 +14789,18 @@ func (r gradeQueryInlabInt) Decrement(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryInlabInt) DecrementIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPreExamInt) DecrementIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Decrement(*value)
 }
 
-// Multiply the optional value of Inlab
-func (r gradeQueryInlabInt) Multiply(value int) gradeSetParam {
+// Multiply the optional value of PreExam
+func (r gradeQueryPreExamInt) Multiply(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "multiply",
@@ -14291,18 +14811,18 @@ func (r gradeQueryInlabInt) Multiply(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryInlabInt) MultiplyIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPreExamInt) MultiplyIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Multiply(*value)
 }
 
-// Divide the optional value of Inlab
-func (r gradeQueryInlabInt) Divide(value int) gradeSetParam {
+// Divide the optional value of PreExam
+func (r gradeQueryPreExamInt) Divide(value int) gradeSetParam {
 	return gradeSetParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				builder.Field{
 					Name:  "divide",
@@ -14313,18 +14833,18 @@ func (r gradeQueryInlabInt) Divide(value int) gradeSetParam {
 	}
 }
 
-func (r gradeQueryInlabInt) DivideIfPresent(value *int) gradeSetParam {
+func (r gradeQueryPreExamInt) DivideIfPresent(value *int) gradeSetParam {
 	if value == nil {
 		return gradeSetParam{}
 	}
 	return r.Divide(*value)
 }
 
-func (r gradeQueryInlabInt) Equals(value int) gradeWithPrismaInlabEqualsParam {
+func (r gradeQueryPreExamInt) Equals(value int) gradeWithPrismaPreExamEqualsParam {
 
-	return gradeWithPrismaInlabEqualsParam{
+	return gradeWithPrismaPreExamEqualsParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -14335,17 +14855,17 @@ func (r gradeQueryInlabInt) Equals(value int) gradeWithPrismaInlabEqualsParam {
 	}
 }
 
-func (r gradeQueryInlabInt) EqualsIfPresent(value *int) gradeWithPrismaInlabEqualsParam {
+func (r gradeQueryPreExamInt) EqualsIfPresent(value *int) gradeWithPrismaPreExamEqualsParam {
 	if value == nil {
-		return gradeWithPrismaInlabEqualsParam{}
+		return gradeWithPrismaPreExamEqualsParam{}
 	}
 	return r.Equals(*value)
 }
 
-func (r gradeQueryInlabInt) EqualsOptional(value *Int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) EqualsOptional(value *Int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -14356,11 +14876,11 @@ func (r gradeQueryInlabInt) EqualsOptional(value *Int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) IsNull() gradeDefaultParam {
+func (r gradeQueryPreExamInt) IsNull() gradeDefaultParam {
 	var str *string = nil
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "equals",
@@ -14371,28 +14891,28 @@ func (r gradeQueryInlabInt) IsNull() gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) Order(direction SortOrder) gradeDefaultParam {
+func (r gradeQueryPreExamInt) Order(direction SortOrder) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name:  "inlab",
+			Name:  "preExam",
 			Value: direction,
 		},
 	}
 }
 
-func (r gradeQueryInlabInt) Cursor(cursor int) gradeCursorParam {
+func (r gradeQueryPreExamInt) Cursor(cursor int) gradeCursorParam {
 	return gradeCursorParam{
 		data: builder.Field{
-			Name:  "inlab",
+			Name:  "preExam",
 			Value: cursor,
 		},
 	}
 }
 
-func (r gradeQueryInlabInt) In(value []int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) In(value []int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "in",
@@ -14403,17 +14923,17 @@ func (r gradeQueryInlabInt) In(value []int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) InIfPresent(value []int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) InIfPresent(value []int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.In(value)
 }
 
-func (r gradeQueryInlabInt) NotIn(value []int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) NotIn(value []int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "notIn",
@@ -14424,17 +14944,17 @@ func (r gradeQueryInlabInt) NotIn(value []int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) NotInIfPresent(value []int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) NotInIfPresent(value []int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.NotIn(value)
 }
 
-func (r gradeQueryInlabInt) Lt(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) Lt(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "lt",
@@ -14445,17 +14965,17 @@ func (r gradeQueryInlabInt) Lt(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) LtIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) LtIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Lt(*value)
 }
 
-func (r gradeQueryInlabInt) Lte(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) Lte(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "lte",
@@ -14466,17 +14986,17 @@ func (r gradeQueryInlabInt) Lte(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) LteIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) LteIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Lte(*value)
 }
 
-func (r gradeQueryInlabInt) Gt(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) Gt(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "gt",
@@ -14487,17 +15007,17 @@ func (r gradeQueryInlabInt) Gt(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) GtIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) GtIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Gt(*value)
 }
 
-func (r gradeQueryInlabInt) Gte(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) Gte(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "gte",
@@ -14508,17 +15028,17 @@ func (r gradeQueryInlabInt) Gte(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) GteIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) GteIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.Gte(*value)
 }
 
-func (r gradeQueryInlabInt) Not(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) Not(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "not",
@@ -14529,7 +15049,7 @@ func (r gradeQueryInlabInt) Not(value int) gradeDefaultParam {
 	}
 }
 
-func (r gradeQueryInlabInt) NotIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) NotIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14538,10 +15058,10 @@ func (r gradeQueryInlabInt) NotIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Lt instead.
 
-func (r gradeQueryInlabInt) LT(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) LT(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "lt",
@@ -14553,7 +15073,7 @@ func (r gradeQueryInlabInt) LT(value int) gradeDefaultParam {
 }
 
 // deprecated: Use LtIfPresent instead.
-func (r gradeQueryInlabInt) LTIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) LTIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14562,10 +15082,10 @@ func (r gradeQueryInlabInt) LTIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Lte instead.
 
-func (r gradeQueryInlabInt) LTE(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) LTE(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "lte",
@@ -14577,7 +15097,7 @@ func (r gradeQueryInlabInt) LTE(value int) gradeDefaultParam {
 }
 
 // deprecated: Use LteIfPresent instead.
-func (r gradeQueryInlabInt) LTEIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) LTEIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14586,10 +15106,10 @@ func (r gradeQueryInlabInt) LTEIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Gt instead.
 
-func (r gradeQueryInlabInt) GT(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) GT(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "gt",
@@ -14601,7 +15121,7 @@ func (r gradeQueryInlabInt) GT(value int) gradeDefaultParam {
 }
 
 // deprecated: Use GtIfPresent instead.
-func (r gradeQueryInlabInt) GTIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) GTIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
@@ -14610,10 +15130,10 @@ func (r gradeQueryInlabInt) GTIfPresent(value *int) gradeDefaultParam {
 
 // deprecated: Use Gte instead.
 
-func (r gradeQueryInlabInt) GTE(value int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) GTE(value int) gradeDefaultParam {
 	return gradeDefaultParam{
 		data: builder.Field{
-			Name: "inlab",
+			Name: "preExam",
 			Fields: []builder.Field{
 				{
 					Name:  "gte",
@@ -14625,15 +15145,903 @@ func (r gradeQueryInlabInt) GTE(value int) gradeDefaultParam {
 }
 
 // deprecated: Use GteIfPresent instead.
-func (r gradeQueryInlabInt) GTEIfPresent(value *int) gradeDefaultParam {
+func (r gradeQueryPreExamInt) GTEIfPresent(value *int) gradeDefaultParam {
 	if value == nil {
 		return gradeDefaultParam{}
 	}
 	return r.GTE(*value)
 }
 
-func (r gradeQueryInlabInt) Field() gradePrismaFields {
-	return gradeFieldInlab
+func (r gradeQueryPreExamInt) Field() gradePrismaFields {
+	return gradeFieldPreExam
+}
+
+// base struct
+type gradeQueryOralTestInt struct{}
+
+// Set the optional value of OralTest
+func (r gradeQueryOralTestInt) Set(value int) gradeSetParam {
+
+	return gradeSetParam{
+		data: builder.Field{
+			Name:  "oralTest",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of OralTest dynamically
+func (r gradeQueryOralTestInt) SetIfPresent(value *Int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of OralTest dynamically
+func (r gradeQueryOralTestInt) SetOptional(value *Int) gradeSetParam {
+	if value == nil {
+
+		var v *int
+		return gradeSetParam{
+			data: builder.Field{
+				Name:  "oralTest",
+				Value: v,
+			},
+		}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the optional value of OralTest
+func (r gradeQueryOralTestInt) Increment(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) IncrementIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the optional value of OralTest
+func (r gradeQueryOralTestInt) Decrement(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) DecrementIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the optional value of OralTest
+func (r gradeQueryOralTestInt) Multiply(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) MultiplyIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the optional value of OralTest
+func (r gradeQueryOralTestInt) Divide(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) DivideIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r gradeQueryOralTestInt) Equals(value int) gradeWithPrismaOralTestEqualsParam {
+
+	return gradeWithPrismaOralTestEqualsParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) EqualsIfPresent(value *int) gradeWithPrismaOralTestEqualsParam {
+	if value == nil {
+		return gradeWithPrismaOralTestEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r gradeQueryOralTestInt) EqualsOptional(value *Int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) IsNull() gradeDefaultParam {
+	var str *string = nil
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) Order(direction SortOrder) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name:  "oralTest",
+			Value: direction,
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) Cursor(cursor int) gradeCursorParam {
+	return gradeCursorParam{
+		data: builder.Field{
+			Name:  "oralTest",
+			Value: cursor,
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) In(value []int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) InIfPresent(value []int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r gradeQueryOralTestInt) NotIn(value []int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) NotInIfPresent(value []int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r gradeQueryOralTestInt) Lt(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) LtIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r gradeQueryOralTestInt) Lte(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) LteIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r gradeQueryOralTestInt) Gt(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) GtIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r gradeQueryOralTestInt) Gte(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) GteIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r gradeQueryOralTestInt) Not(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryOralTestInt) NotIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r gradeQueryOralTestInt) LT(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r gradeQueryOralTestInt) LTIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r gradeQueryOralTestInt) LTE(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r gradeQueryOralTestInt) LTEIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r gradeQueryOralTestInt) GT(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r gradeQueryOralTestInt) GTIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r gradeQueryOralTestInt) GTE(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "oralTest",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r gradeQueryOralTestInt) GTEIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.GTE(*value)
+}
+
+func (r gradeQueryOralTestInt) Field() gradePrismaFields {
+	return gradeFieldOralTest
+}
+
+// base struct
+type gradeQuerySkillsAndAttitudeInt struct{}
+
+// Set the optional value of SkillsAndAttitude
+func (r gradeQuerySkillsAndAttitudeInt) Set(value int) gradeSetParam {
+
+	return gradeSetParam{
+		data: builder.Field{
+			Name:  "skillsAndAttitude",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of SkillsAndAttitude dynamically
+func (r gradeQuerySkillsAndAttitudeInt) SetIfPresent(value *Int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of SkillsAndAttitude dynamically
+func (r gradeQuerySkillsAndAttitudeInt) SetOptional(value *Int) gradeSetParam {
+	if value == nil {
+
+		var v *int
+		return gradeSetParam{
+			data: builder.Field{
+				Name:  "skillsAndAttitude",
+				Value: v,
+			},
+		}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the optional value of SkillsAndAttitude
+func (r gradeQuerySkillsAndAttitudeInt) Increment(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) IncrementIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the optional value of SkillsAndAttitude
+func (r gradeQuerySkillsAndAttitudeInt) Decrement(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) DecrementIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the optional value of SkillsAndAttitude
+func (r gradeQuerySkillsAndAttitudeInt) Multiply(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) MultiplyIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the optional value of SkillsAndAttitude
+func (r gradeQuerySkillsAndAttitudeInt) Divide(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) DivideIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Equals(value int) gradeWithPrismaSkillsAndAttitudeEqualsParam {
+
+	return gradeWithPrismaSkillsAndAttitudeEqualsParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) EqualsIfPresent(value *int) gradeWithPrismaSkillsAndAttitudeEqualsParam {
+	if value == nil {
+		return gradeWithPrismaSkillsAndAttitudeEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) EqualsOptional(value *Int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) IsNull() gradeDefaultParam {
+	var str *string = nil
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Order(direction SortOrder) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name:  "skillsAndAttitude",
+			Value: direction,
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Cursor(cursor int) gradeCursorParam {
+	return gradeCursorParam{
+		data: builder.Field{
+			Name:  "skillsAndAttitude",
+			Value: cursor,
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) In(value []int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) InIfPresent(value []int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) NotIn(value []int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) NotInIfPresent(value []int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Lt(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) LtIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Lte(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) LteIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Gt(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) GtIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Gte(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) GteIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Not(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) NotIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r gradeQuerySkillsAndAttitudeInt) LT(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r gradeQuerySkillsAndAttitudeInt) LTIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r gradeQuerySkillsAndAttitudeInt) LTE(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r gradeQuerySkillsAndAttitudeInt) LTEIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r gradeQuerySkillsAndAttitudeInt) GT(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r gradeQuerySkillsAndAttitudeInt) GTIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r gradeQuerySkillsAndAttitudeInt) GTE(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "skillsAndAttitude",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r gradeQuerySkillsAndAttitudeInt) GTEIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.GTE(*value)
+}
+
+func (r gradeQuerySkillsAndAttitudeInt) Field() gradePrismaFields {
+	return gradeFieldSkillsAndAttitude
 }
 
 // base struct
@@ -16410,6 +17818,450 @@ func (r gradeQueryDiscussionInt) GTEIfPresent(value *int) gradeDefaultParam {
 
 func (r gradeQueryDiscussionInt) Field() gradePrismaFields {
 	return gradeFieldDiscussion
+}
+
+// base struct
+type gradeQueryDataProcessingInt struct{}
+
+// Set the optional value of DataProcessing
+func (r gradeQueryDataProcessingInt) Set(value int) gradeSetParam {
+
+	return gradeSetParam{
+		data: builder.Field{
+			Name:  "dataProcessing",
+			Value: value,
+		},
+	}
+
+}
+
+// Set the optional value of DataProcessing dynamically
+func (r gradeQueryDataProcessingInt) SetIfPresent(value *Int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+
+	return r.Set(*value)
+}
+
+// Set the optional value of DataProcessing dynamically
+func (r gradeQueryDataProcessingInt) SetOptional(value *Int) gradeSetParam {
+	if value == nil {
+
+		var v *int
+		return gradeSetParam{
+			data: builder.Field{
+				Name:  "dataProcessing",
+				Value: v,
+			},
+		}
+	}
+
+	return r.Set(*value)
+}
+
+// Increment the optional value of DataProcessing
+func (r gradeQueryDataProcessingInt) Increment(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "increment",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) IncrementIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Increment(*value)
+}
+
+// Decrement the optional value of DataProcessing
+func (r gradeQueryDataProcessingInt) Decrement(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "decrement",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) DecrementIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Decrement(*value)
+}
+
+// Multiply the optional value of DataProcessing
+func (r gradeQueryDataProcessingInt) Multiply(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "multiply",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) MultiplyIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Multiply(*value)
+}
+
+// Divide the optional value of DataProcessing
+func (r gradeQueryDataProcessingInt) Divide(value int) gradeSetParam {
+	return gradeSetParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				builder.Field{
+					Name:  "divide",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) DivideIfPresent(value *int) gradeSetParam {
+	if value == nil {
+		return gradeSetParam{}
+	}
+	return r.Divide(*value)
+}
+
+func (r gradeQueryDataProcessingInt) Equals(value int) gradeWithPrismaDataProcessingEqualsParam {
+
+	return gradeWithPrismaDataProcessingEqualsParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) EqualsIfPresent(value *int) gradeWithPrismaDataProcessingEqualsParam {
+	if value == nil {
+		return gradeWithPrismaDataProcessingEqualsParam{}
+	}
+	return r.Equals(*value)
+}
+
+func (r gradeQueryDataProcessingInt) EqualsOptional(value *Int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) IsNull() gradeDefaultParam {
+	var str *string = nil
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "equals",
+					Value: str,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) Order(direction SortOrder) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name:  "dataProcessing",
+			Value: direction,
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) Cursor(cursor int) gradeCursorParam {
+	return gradeCursorParam{
+		data: builder.Field{
+			Name:  "dataProcessing",
+			Value: cursor,
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) In(value []int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "in",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) InIfPresent(value []int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.In(value)
+}
+
+func (r gradeQueryDataProcessingInt) NotIn(value []int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "notIn",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) NotInIfPresent(value []int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.NotIn(value)
+}
+
+func (r gradeQueryDataProcessingInt) Lt(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) LtIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Lt(*value)
+}
+
+func (r gradeQueryDataProcessingInt) Lte(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) LteIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Lte(*value)
+}
+
+func (r gradeQueryDataProcessingInt) Gt(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) GtIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Gt(*value)
+}
+
+func (r gradeQueryDataProcessingInt) Gte(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) GteIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Gte(*value)
+}
+
+func (r gradeQueryDataProcessingInt) Not(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "not",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+func (r gradeQueryDataProcessingInt) NotIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.Not(*value)
+}
+
+// deprecated: Use Lt instead.
+
+func (r gradeQueryDataProcessingInt) LT(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "lt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LtIfPresent instead.
+func (r gradeQueryDataProcessingInt) LTIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.LT(*value)
+}
+
+// deprecated: Use Lte instead.
+
+func (r gradeQueryDataProcessingInt) LTE(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "lte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use LteIfPresent instead.
+func (r gradeQueryDataProcessingInt) LTEIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.LTE(*value)
+}
+
+// deprecated: Use Gt instead.
+
+func (r gradeQueryDataProcessingInt) GT(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "gt",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GtIfPresent instead.
+func (r gradeQueryDataProcessingInt) GTIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.GT(*value)
+}
+
+// deprecated: Use Gte instead.
+
+func (r gradeQueryDataProcessingInt) GTE(value int) gradeDefaultParam {
+	return gradeDefaultParam{
+		data: builder.Field{
+			Name: "dataProcessing",
+			Fields: []builder.Field{
+				{
+					Name:  "gte",
+					Value: value,
+				},
+			},
+		},
+	}
+}
+
+// deprecated: Use GteIfPresent instead.
+func (r gradeQueryDataProcessingInt) GTEIfPresent(value *int) gradeDefaultParam {
+	if value == nil {
+		return gradeDefaultParam{}
+	}
+	return r.GTE(*value)
+}
+
+func (r gradeQueryDataProcessingInt) Field() gradePrismaFields {
+	return gradeFieldDataProcessing
 }
 
 // base struct
@@ -25346,12 +27198,17 @@ type userSetParam struct {
 	data builder.Field
 }
 
+func (p userSetParam) roleField() {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (p userSetParam) getQuery() builder.Query {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p userSetParam) aboutField() {
+func (p userSetParam) passwordField() {
 	//TODO implement me
 	panic("implement me")
 }
@@ -25618,11 +27475,6 @@ type userWithPrismaAboutSetParam struct {
 	query builder.Query
 }
 
-func (p userWithPrismaAboutSetParam) passwordField() {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (p userWithPrismaAboutSetParam) field() builder.Field {
 	return p.data
 }
@@ -25855,11 +27707,6 @@ type UserWithPrismaPasswordSetParam interface {
 type userWithPrismaPasswordSetParam struct {
 	data  builder.Field
 	query builder.Query
-}
-
-func (p userWithPrismaPasswordSetParam) roleField() {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (p userWithPrismaPasswordSetParam) field() builder.Field {
@@ -27841,6 +29688,7 @@ var scheduleOutput = []builder.Output{
 	{Name: "practicumId"},
 	{Name: "groupId"},
 	{Name: "assistantId"},
+	{Name: "week"},
 	{Name: "date"},
 	{Name: "startTime"},
 	{Name: "status"},
@@ -28341,6 +30189,84 @@ func (p scheduleWithPrismaAssistantIDEqualsUniqueParam) assistantIDField() {}
 
 func (scheduleWithPrismaAssistantIDEqualsUniqueParam) unique() {}
 func (scheduleWithPrismaAssistantIDEqualsUniqueParam) equals() {}
+
+type ScheduleWithPrismaWeekEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	scheduleModel()
+	weekField()
+}
+
+type ScheduleWithPrismaWeekSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	scheduleModel()
+	weekField()
+}
+
+type scheduleWithPrismaWeekSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p scheduleWithPrismaWeekSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p scheduleWithPrismaWeekSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p scheduleWithPrismaWeekSetParam) scheduleModel() {}
+
+func (p scheduleWithPrismaWeekSetParam) weekField() {}
+
+type ScheduleWithPrismaWeekWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	scheduleModel()
+	weekField()
+}
+
+type scheduleWithPrismaWeekEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p scheduleWithPrismaWeekEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p scheduleWithPrismaWeekEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p scheduleWithPrismaWeekEqualsParam) scheduleModel() {}
+
+func (p scheduleWithPrismaWeekEqualsParam) weekField() {}
+
+func (scheduleWithPrismaWeekSetParam) settable()  {}
+func (scheduleWithPrismaWeekEqualsParam) equals() {}
+
+type scheduleWithPrismaWeekEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p scheduleWithPrismaWeekEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p scheduleWithPrismaWeekEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p scheduleWithPrismaWeekEqualsUniqueParam) scheduleModel() {}
+func (p scheduleWithPrismaWeekEqualsUniqueParam) weekField()     {}
+
+func (scheduleWithPrismaWeekEqualsUniqueParam) unique() {}
+func (scheduleWithPrismaWeekEqualsUniqueParam) equals() {}
 
 type ScheduleWithPrismaDateEqualsSetParam interface {
 	field() builder.Field
@@ -28975,12 +30901,15 @@ var gradeOutput = []builder.Output{
 	{Name: "id"},
 	{Name: "scheduleId"},
 	{Name: "userId"},
-	{Name: "prelab"},
-	{Name: "inlab"},
+	{Name: "punctuality"},
+	{Name: "preExam"},
+	{Name: "oralTest"},
+	{Name: "skillsAndAttitude"},
 	{Name: "abstract"},
 	{Name: "introduction"},
 	{Name: "methodology"},
 	{Name: "discussion"},
+	{Name: "dataProcessing"},
 	{Name: "conclusion"},
 	{Name: "formatting"},
 	{Name: "feedback"},
@@ -29387,161 +31316,317 @@ func (p gradeWithPrismaUserIDEqualsUniqueParam) userIDField() {}
 func (gradeWithPrismaUserIDEqualsUniqueParam) unique() {}
 func (gradeWithPrismaUserIDEqualsUniqueParam) equals() {}
 
-type GradeWithPrismaPrelabEqualsSetParam interface {
+type GradeWithPrismaPunctualityEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	equals()
 	gradeModel()
-	prelabField()
+	punctualityField()
 }
 
-type GradeWithPrismaPrelabSetParam interface {
+type GradeWithPrismaPunctualitySetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	gradeModel()
-	prelabField()
+	punctualityField()
 }
 
-type gradeWithPrismaPrelabSetParam struct {
+type gradeWithPrismaPunctualitySetParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p gradeWithPrismaPrelabSetParam) field() builder.Field {
+func (p gradeWithPrismaPunctualitySetParam) field() builder.Field {
 	return p.data
 }
 
-func (p gradeWithPrismaPrelabSetParam) getQuery() builder.Query {
+func (p gradeWithPrismaPunctualitySetParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p gradeWithPrismaPrelabSetParam) gradeModel() {}
+func (p gradeWithPrismaPunctualitySetParam) gradeModel() {}
 
-func (p gradeWithPrismaPrelabSetParam) prelabField() {}
+func (p gradeWithPrismaPunctualitySetParam) punctualityField() {}
 
-type GradeWithPrismaPrelabWhereParam interface {
+type GradeWithPrismaPunctualityWhereParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	gradeModel()
-	prelabField()
+	punctualityField()
 }
 
-type gradeWithPrismaPrelabEqualsParam struct {
+type gradeWithPrismaPunctualityEqualsParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p gradeWithPrismaPrelabEqualsParam) field() builder.Field {
+func (p gradeWithPrismaPunctualityEqualsParam) field() builder.Field {
 	return p.data
 }
 
-func (p gradeWithPrismaPrelabEqualsParam) getQuery() builder.Query {
+func (p gradeWithPrismaPunctualityEqualsParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p gradeWithPrismaPrelabEqualsParam) gradeModel() {}
+func (p gradeWithPrismaPunctualityEqualsParam) gradeModel() {}
 
-func (p gradeWithPrismaPrelabEqualsParam) prelabField() {}
+func (p gradeWithPrismaPunctualityEqualsParam) punctualityField() {}
 
-func (gradeWithPrismaPrelabSetParam) settable()  {}
-func (gradeWithPrismaPrelabEqualsParam) equals() {}
+func (gradeWithPrismaPunctualitySetParam) settable()  {}
+func (gradeWithPrismaPunctualityEqualsParam) equals() {}
 
-type gradeWithPrismaPrelabEqualsUniqueParam struct {
+type gradeWithPrismaPunctualityEqualsUniqueParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p gradeWithPrismaPrelabEqualsUniqueParam) field() builder.Field {
+func (p gradeWithPrismaPunctualityEqualsUniqueParam) field() builder.Field {
 	return p.data
 }
 
-func (p gradeWithPrismaPrelabEqualsUniqueParam) getQuery() builder.Query {
+func (p gradeWithPrismaPunctualityEqualsUniqueParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p gradeWithPrismaPrelabEqualsUniqueParam) gradeModel()  {}
-func (p gradeWithPrismaPrelabEqualsUniqueParam) prelabField() {}
+func (p gradeWithPrismaPunctualityEqualsUniqueParam) gradeModel()       {}
+func (p gradeWithPrismaPunctualityEqualsUniqueParam) punctualityField() {}
 
-func (gradeWithPrismaPrelabEqualsUniqueParam) unique() {}
-func (gradeWithPrismaPrelabEqualsUniqueParam) equals() {}
+func (gradeWithPrismaPunctualityEqualsUniqueParam) unique() {}
+func (gradeWithPrismaPunctualityEqualsUniqueParam) equals() {}
 
-type GradeWithPrismaInlabEqualsSetParam interface {
+type GradeWithPrismaPreExamEqualsSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	equals()
 	gradeModel()
-	inlabField()
+	preExamField()
 }
 
-type GradeWithPrismaInlabSetParam interface {
+type GradeWithPrismaPreExamSetParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	gradeModel()
-	inlabField()
+	preExamField()
 }
 
-type gradeWithPrismaInlabSetParam struct {
+type gradeWithPrismaPreExamSetParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p gradeWithPrismaInlabSetParam) field() builder.Field {
+func (p gradeWithPrismaPreExamSetParam) field() builder.Field {
 	return p.data
 }
 
-func (p gradeWithPrismaInlabSetParam) getQuery() builder.Query {
+func (p gradeWithPrismaPreExamSetParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p gradeWithPrismaInlabSetParam) gradeModel() {}
+func (p gradeWithPrismaPreExamSetParam) gradeModel() {}
 
-func (p gradeWithPrismaInlabSetParam) inlabField() {}
+func (p gradeWithPrismaPreExamSetParam) preExamField() {}
 
-type GradeWithPrismaInlabWhereParam interface {
+type GradeWithPrismaPreExamWhereParam interface {
 	field() builder.Field
 	getQuery() builder.Query
 	gradeModel()
-	inlabField()
+	preExamField()
 }
 
-type gradeWithPrismaInlabEqualsParam struct {
+type gradeWithPrismaPreExamEqualsParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p gradeWithPrismaInlabEqualsParam) field() builder.Field {
+func (p gradeWithPrismaPreExamEqualsParam) field() builder.Field {
 	return p.data
 }
 
-func (p gradeWithPrismaInlabEqualsParam) getQuery() builder.Query {
+func (p gradeWithPrismaPreExamEqualsParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p gradeWithPrismaInlabEqualsParam) gradeModel() {}
+func (p gradeWithPrismaPreExamEqualsParam) gradeModel() {}
 
-func (p gradeWithPrismaInlabEqualsParam) inlabField() {}
+func (p gradeWithPrismaPreExamEqualsParam) preExamField() {}
 
-func (gradeWithPrismaInlabSetParam) settable()  {}
-func (gradeWithPrismaInlabEqualsParam) equals() {}
+func (gradeWithPrismaPreExamSetParam) settable()  {}
+func (gradeWithPrismaPreExamEqualsParam) equals() {}
 
-type gradeWithPrismaInlabEqualsUniqueParam struct {
+type gradeWithPrismaPreExamEqualsUniqueParam struct {
 	data  builder.Field
 	query builder.Query
 }
 
-func (p gradeWithPrismaInlabEqualsUniqueParam) field() builder.Field {
+func (p gradeWithPrismaPreExamEqualsUniqueParam) field() builder.Field {
 	return p.data
 }
 
-func (p gradeWithPrismaInlabEqualsUniqueParam) getQuery() builder.Query {
+func (p gradeWithPrismaPreExamEqualsUniqueParam) getQuery() builder.Query {
 	return p.query
 }
 
-func (p gradeWithPrismaInlabEqualsUniqueParam) gradeModel() {}
-func (p gradeWithPrismaInlabEqualsUniqueParam) inlabField() {}
+func (p gradeWithPrismaPreExamEqualsUniqueParam) gradeModel()   {}
+func (p gradeWithPrismaPreExamEqualsUniqueParam) preExamField() {}
 
-func (gradeWithPrismaInlabEqualsUniqueParam) unique() {}
-func (gradeWithPrismaInlabEqualsUniqueParam) equals() {}
+func (gradeWithPrismaPreExamEqualsUniqueParam) unique() {}
+func (gradeWithPrismaPreExamEqualsUniqueParam) equals() {}
+
+type GradeWithPrismaOralTestEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	gradeModel()
+	oralTestField()
+}
+
+type GradeWithPrismaOralTestSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	gradeModel()
+	oralTestField()
+}
+
+type gradeWithPrismaOralTestSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaOralTestSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaOralTestSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaOralTestSetParam) gradeModel() {}
+
+func (p gradeWithPrismaOralTestSetParam) oralTestField() {}
+
+type GradeWithPrismaOralTestWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	gradeModel()
+	oralTestField()
+}
+
+type gradeWithPrismaOralTestEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaOralTestEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaOralTestEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaOralTestEqualsParam) gradeModel() {}
+
+func (p gradeWithPrismaOralTestEqualsParam) oralTestField() {}
+
+func (gradeWithPrismaOralTestSetParam) settable()  {}
+func (gradeWithPrismaOralTestEqualsParam) equals() {}
+
+type gradeWithPrismaOralTestEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaOralTestEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaOralTestEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaOralTestEqualsUniqueParam) gradeModel()    {}
+func (p gradeWithPrismaOralTestEqualsUniqueParam) oralTestField() {}
+
+func (gradeWithPrismaOralTestEqualsUniqueParam) unique() {}
+func (gradeWithPrismaOralTestEqualsUniqueParam) equals() {}
+
+type GradeWithPrismaSkillsAndAttitudeEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	gradeModel()
+	skillsAndAttitudeField()
+}
+
+type GradeWithPrismaSkillsAndAttitudeSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	gradeModel()
+	skillsAndAttitudeField()
+}
+
+type gradeWithPrismaSkillsAndAttitudeSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeSetParam) gradeModel() {}
+
+func (p gradeWithPrismaSkillsAndAttitudeSetParam) skillsAndAttitudeField() {}
+
+type GradeWithPrismaSkillsAndAttitudeWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	gradeModel()
+	skillsAndAttitudeField()
+}
+
+type gradeWithPrismaSkillsAndAttitudeEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsParam) gradeModel() {}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsParam) skillsAndAttitudeField() {}
+
+func (gradeWithPrismaSkillsAndAttitudeSetParam) settable()  {}
+func (gradeWithPrismaSkillsAndAttitudeEqualsParam) equals() {}
+
+type gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam) gradeModel()             {}
+func (p gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam) skillsAndAttitudeField() {}
+
+func (gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam) unique() {}
+func (gradeWithPrismaSkillsAndAttitudeEqualsUniqueParam) equals() {}
 
 type GradeWithPrismaAbstractEqualsSetParam interface {
 	field() builder.Field
@@ -29854,6 +31939,84 @@ func (p gradeWithPrismaDiscussionEqualsUniqueParam) discussionField() {}
 
 func (gradeWithPrismaDiscussionEqualsUniqueParam) unique() {}
 func (gradeWithPrismaDiscussionEqualsUniqueParam) equals() {}
+
+type GradeWithPrismaDataProcessingEqualsSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	equals()
+	gradeModel()
+	dataProcessingField()
+}
+
+type GradeWithPrismaDataProcessingSetParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	gradeModel()
+	dataProcessingField()
+}
+
+type gradeWithPrismaDataProcessingSetParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaDataProcessingSetParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaDataProcessingSetParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaDataProcessingSetParam) gradeModel() {}
+
+func (p gradeWithPrismaDataProcessingSetParam) dataProcessingField() {}
+
+type GradeWithPrismaDataProcessingWhereParam interface {
+	field() builder.Field
+	getQuery() builder.Query
+	gradeModel()
+	dataProcessingField()
+}
+
+type gradeWithPrismaDataProcessingEqualsParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaDataProcessingEqualsParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaDataProcessingEqualsParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaDataProcessingEqualsParam) gradeModel() {}
+
+func (p gradeWithPrismaDataProcessingEqualsParam) dataProcessingField() {}
+
+func (gradeWithPrismaDataProcessingSetParam) settable()  {}
+func (gradeWithPrismaDataProcessingEqualsParam) equals() {}
+
+type gradeWithPrismaDataProcessingEqualsUniqueParam struct {
+	data  builder.Field
+	query builder.Query
+}
+
+func (p gradeWithPrismaDataProcessingEqualsUniqueParam) field() builder.Field {
+	return p.data
+}
+
+func (p gradeWithPrismaDataProcessingEqualsUniqueParam) getQuery() builder.Query {
+	return p.query
+}
+
+func (p gradeWithPrismaDataProcessingEqualsUniqueParam) gradeModel()          {}
+func (p gradeWithPrismaDataProcessingEqualsUniqueParam) dataProcessingField() {}
+
+func (gradeWithPrismaDataProcessingEqualsUniqueParam) unique() {}
+func (gradeWithPrismaDataProcessingEqualsUniqueParam) equals() {}
 
 type GradeWithPrismaConclusionEqualsSetParam interface {
 	field() builder.Field
@@ -32748,8 +34911,6 @@ func (attendanceWithPrismaUserEqualsUniqueParam) equals() {}
 func (r userActions) CreateOne(
 	_nrp UserWithPrismaNrpSetParam,
 	_name UserWithPrismaNameSetParam,
-	_about UserWithPrismaAboutSetParam,
-	_phone UserWithPrismaPhoneSetParam,
 	_password UserWithPrismaPasswordSetParam,
 	_role UserWithPrismaRoleSetParam,
 
@@ -32768,8 +34929,6 @@ func (r userActions) CreateOne(
 
 	fields = append(fields, _nrp.field())
 	fields = append(fields, _name.field())
-	fields = append(fields, _about.field())
-	fields = append(fields, _phone.field())
 	fields = append(fields, _password.field())
 	fields = append(fields, _role.field())
 
@@ -32892,6 +35051,7 @@ func (r groupCreateOne) Tx() GroupUniqueTxResult {
 
 // Creates a single practicum.
 func (r practicumActions) CreateOne(
+	_id PracticumWithPrismaIDSetParam,
 	_title PracticumWithPrismaTitleSetParam,
 
 	optional ...PracticumSetParam,
@@ -32907,6 +35067,7 @@ func (r practicumActions) CreateOne(
 
 	var fields []builder.Field
 
+	fields = append(fields, _id.field())
 	fields = append(fields, _title.field())
 
 	for _, q := range optional {
@@ -51134,8 +53295,6 @@ func (r userUpsertOne) Create(
 
 	_nrp UserWithPrismaNrpSetParam,
 	_name UserWithPrismaNameSetParam,
-	_about UserWithPrismaAboutSetParam,
-	_phone UserWithPrismaPhoneSetParam,
 	_password UserWithPrismaPasswordSetParam,
 	_role UserWithPrismaRoleSetParam,
 
@@ -51147,8 +53306,6 @@ func (r userUpsertOne) Create(
 	var fields []builder.Field
 	fields = append(fields, _nrp.field())
 	fields = append(fields, _name.field())
-	fields = append(fields, _about.field())
-	fields = append(fields, _phone.field())
 	fields = append(fields, _password.field())
 	fields = append(fields, _role.field())
 
@@ -51190,6 +53347,41 @@ func (r userUpsertOne) Update(
 
 		fields = append(fields, field)
 	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r userUpsertOne) CreateOrUpdate(
+
+	_nrp UserWithPrismaNrpSetParam,
+	_name UserWithPrismaNameSetParam,
+	_password UserWithPrismaPasswordSetParam,
+	_role UserWithPrismaRoleSetParam,
+
+	optional ...UserSetParam,
+) userUpsertOne {
+	var v userUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _nrp.field())
+	fields = append(fields, _name.field())
+	fields = append(fields, _password.field())
+	fields = append(fields, _role.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
 
 	v.query.Inputs = append(v.query.Inputs, builder.Input{
 		Name:   "update",
@@ -51309,6 +53501,35 @@ func (r groupUpsertOne) Update(
 	return v
 }
 
+func (r groupUpsertOne) CreateOrUpdate(
+
+	_name GroupWithPrismaNameSetParam,
+
+	optional ...GroupSetParam,
+) groupUpsertOne {
+	var v groupUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _name.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
 func (r groupUpsertOne) Exec(ctx context.Context) (*GroupModel, error) {
 	var v GroupModel
 	if err := r.query.Exec(ctx, &v); err != nil {
@@ -51362,6 +53583,7 @@ func (r practicumActions) UpsertOne(
 
 func (r practicumUpsertOne) Create(
 
+	_id PracticumWithPrismaIDSetParam,
 	_title PracticumWithPrismaTitleSetParam,
 
 	optional ...PracticumSetParam,
@@ -51370,6 +53592,7 @@ func (r practicumUpsertOne) Create(
 	v.query = r.query
 
 	var fields []builder.Field
+	fields = append(fields, _id.field())
 	fields = append(fields, _title.field())
 
 	for _, q := range optional {
@@ -51410,6 +53633,37 @@ func (r practicumUpsertOne) Update(
 
 		fields = append(fields, field)
 	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r practicumUpsertOne) CreateOrUpdate(
+
+	_id PracticumWithPrismaIDSetParam,
+	_title PracticumWithPrismaTitleSetParam,
+
+	optional ...PracticumSetParam,
+) practicumUpsertOne {
+	var v practicumUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _id.field())
+	fields = append(fields, _title.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
 
 	v.query.Inputs = append(v.query.Inputs, builder.Input{
 		Name:   "update",
@@ -51533,6 +53787,39 @@ func (r scheduleUpsertOne) Update(
 	return v
 }
 
+func (r scheduleUpsertOne) CreateOrUpdate(
+
+	_practicum ScheduleWithPrismaPracticumSetParam,
+	_group ScheduleWithPrismaGroupSetParam,
+	_assistant ScheduleWithPrismaAssistantSetParam,
+
+	optional ...ScheduleSetParam,
+) scheduleUpsertOne {
+	var v scheduleUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _practicum.field())
+	fields = append(fields, _group.field())
+	fields = append(fields, _assistant.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
 func (r scheduleUpsertOne) Exec(ctx context.Context) (*ScheduleModel, error) {
 	var v ScheduleModel
 	if err := r.query.Exec(ctx, &v); err != nil {
@@ -51638,6 +53925,39 @@ func (r gradeUpsertOne) Update(
 
 		fields = append(fields, field)
 	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r gradeUpsertOne) CreateOrUpdate(
+
+	_schedule GradeWithPrismaScheduleSetParam,
+	_user GradeWithPrismaUserSetParam,
+	_grader GradeWithPrismaGraderSetParam,
+
+	optional ...GradeSetParam,
+) gradeUpsertOne {
+	var v gradeUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _schedule.field())
+	fields = append(fields, _user.field())
+	fields = append(fields, _grader.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
 
 	v.query.Inputs = append(v.query.Inputs, builder.Input{
 		Name:   "update",
@@ -51761,6 +54081,39 @@ func (r announcementUpsertOne) Update(
 	return v
 }
 
+func (r announcementUpsertOne) CreateOrUpdate(
+
+	_title AnnouncementWithPrismaTitleSetParam,
+	_content AnnouncementWithPrismaContentSetParam,
+	_author AnnouncementWithPrismaAuthorSetParam,
+
+	optional ...AnnouncementSetParam,
+) announcementUpsertOne {
+	var v announcementUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _title.field())
+	fields = append(fields, _content.field())
+	fields = append(fields, _author.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
 func (r announcementUpsertOne) Exec(ctx context.Context) (*AnnouncementModel, error) {
 	var v AnnouncementModel
 	if err := r.query.Exec(ctx, &v); err != nil {
@@ -51875,6 +54228,39 @@ func (r attendanceCodeUpsertOne) Update(
 	return v
 }
 
+func (r attendanceCodeUpsertOne) CreateOrUpdate(
+
+	_code AttendanceCodeWithPrismaCodeSetParam,
+	_expiredAt AttendanceCodeWithPrismaExpiredAtSetParam,
+	_schedule AttendanceCodeWithPrismaScheduleSetParam,
+
+	optional ...AttendanceCodeSetParam,
+) attendanceCodeUpsertOne {
+	var v attendanceCodeUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _code.field())
+	fields = append(fields, _expiredAt.field())
+	fields = append(fields, _schedule.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
 func (r attendanceCodeUpsertOne) Exec(ctx context.Context) (*AttendanceCodeModel, error) {
 	var v AttendanceCodeModel
 	if err := r.query.Exec(ctx, &v); err != nil {
@@ -51978,6 +54364,37 @@ func (r attendanceUpsertOne) Update(
 
 		fields = append(fields, field)
 	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "update",
+		Fields: fields,
+	})
+
+	return v
+}
+
+func (r attendanceUpsertOne) CreateOrUpdate(
+
+	_code AttendanceWithPrismaCodeSetParam,
+	_user AttendanceWithPrismaUserSetParam,
+
+	optional ...AttendanceSetParam,
+) attendanceUpsertOne {
+	var v attendanceUpsertOne
+	v.query = r.query
+
+	var fields []builder.Field
+	fields = append(fields, _code.field())
+	fields = append(fields, _user.field())
+
+	for _, q := range optional {
+		fields = append(fields, q.field())
+	}
+
+	v.query.Inputs = append(v.query.Inputs, builder.Input{
+		Name:   "create",
+		Fields: fields,
+	})
 
 	v.query.Inputs = append(v.query.Inputs, builder.Input{
 		Name:   "update",

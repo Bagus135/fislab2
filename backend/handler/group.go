@@ -30,12 +30,11 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only admin can create groups"})
 		return
 	}
 
 	var req struct {
-		Name      int      `json:"kelompok"`
+		Name      int      `json:"group"`
 		MemberIDs []string `json:"member_ids"`
 	}
 
@@ -161,9 +160,9 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":       createdGroup.ID,
-		"kelompok": createdGroup.Name,
-		"members":  filteredMembers,
+		"id":      createdGroup.ID,
+		"group":   createdGroup.Name,
+		"members": filteredMembers,
 	})
 }
 
@@ -245,9 +244,9 @@ func (h *GroupHandler) GetGroupById(w http.ResponseWriter, r *http.Request) {
 			}
 
 			response = append(response, map[string]interface{}{
-				"id":       group.ID,
-				"kelompok": group.Name,
-				"members":  members,
+				"id":      group.ID,
+				"group":   group.Name,
+				"members": members,
 			})
 		}
 
@@ -279,9 +278,9 @@ func (h *GroupHandler) GetGroupById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"id":       group.ID,
-		"kelompok": group.Name,
-		"members":  members,
+		"id":      group.ID,
+		"group":   group.Name,
+		"members": members,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -306,7 +305,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Id        string   `json:"id"`
-		Name      int      `json:"kelompok"`
+		Name      int      `json:"group"`
 		MemberIDs []string `json:"member_ids"`
 	}
 
@@ -442,8 +441,58 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":       updatedGroup.ID,
-		"kelompok": updatedGroup.Name,
-		"members":  members,
+		"id":      updatedGroup.ID,
+		"group":   updatedGroup.Name,
+		"members": members,
 	})
+}
+
+func (h *GroupHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil role dari context
+	userRole := r.Context().Value("role").(string)
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("you are not allowed to delete groups"))
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		GroupID string `json:"group_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("invalid request"))
+		return
+	}
+
+	// Validasi input
+	if req.GroupID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(types.ErrorResponse("group_id is required"))
+		return
+	}
+
+	// Hapus kelompok
+	_, err := h.client.Group.FindUnique(
+		db.Group.ID.Equals(req.GroupID),
+	).Delete().Exec(r.Context())
+
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(types.ErrorResponse("group not found"))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(types.ErrorResponse("failed to delete group"))
+		}
+		return
+	}
+
+	// Kirim response sukses
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("group deleted"))
 }

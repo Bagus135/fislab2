@@ -44,15 +44,24 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	if emailVal, ok := user.Email(); ok {
 		email = emailVal
 	}
+	about := ""
+	if aboutVal, ok := user.About(); ok {
+		about = aboutVal
+	}
+
+	phone := ""
+	if phoneVal, ok := user.Phone(); ok {
+		phone = phoneVal
+	}
 
 	response := map[string]interface{}{
 		"id":             user.ID,
 		"nrp":            user.Nrp,
 		"name":           user.Name,
-		"phone":          user.Phone,
-		"about":          user.About,
+		"phone":          phone,
+		"about":          about,
 		"email":          email,
-		"email-verified": user.EmailVerified,
+		"email_verified": user.EmailVerified,
 		"role":           string(user.Role),
 	}
 
@@ -90,18 +99,16 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Menggunakan metode accessor untuk email yang nullable
-	email := ""
-	if emailVal, ok := user.Email(); ok {
-		email = emailVal
-	}
+	email, _ := user.Email()
+	phone, _ := user.Phone()
+	about, _ := user.About()
 
 	response := map[string]interface{}{
 		"id":    user.ID,
 		"nrp":   user.Nrp,
 		"name":  user.Name,
-		"phone": user.Phone,
-		"about": user.About,
+		"phone": phone,
+		"about": about,
 		"email": email,
 		"role":  string(user.Role),
 	}
@@ -114,6 +121,8 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -166,19 +175,22 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		db.User.About.Set(req.About),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error updating profile: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update profile"})
 		return
 	}
 
+	email, _ := updatedUser.Email()
+	phone, _ := updatedUser.Phone()
+	about, _ := updatedUser.About()
+
 	// Buat response
 	response := map[string]interface{}{
 		"nrp":   updatedUser.Nrp,
 		"name":  updatedUser.Name,
-		"email": updatedUser.Email,
-		"phone": updatedUser.Phone,
-		"about": updatedUser.About,
+		"email": email,
+		"phone": phone,
+		"about": about,
 	}
 
 	// Kirim response sukses
@@ -204,7 +216,6 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error fetching users: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
 		return
