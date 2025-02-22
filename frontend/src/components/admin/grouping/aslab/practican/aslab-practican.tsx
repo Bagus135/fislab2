@@ -7,14 +7,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {PlusSquare, Search, Trash} from "lucide-react";
 import { useState } from "react";
 import CreateSesionPracticum from "./createsession-modal";
+import { getAllAssistant, getPracticanGroup } from "@/action/admin.action";
 
-export default function AslabPracticanGroup (){
+type PropsType = {
+    assistant : Awaited<ReturnType<typeof getAllAssistant>>,
+    groups : Awaited<ReturnType<typeof getPracticanGroup>>, 
+}
+export default function AslabPracticanGroup ({assistant,groups}: PropsType){
     const [search , setSearch] = useState("")
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Aslab-Modul Grouping</CardTitle>
-                <CardDescription>Connect Asistant Laboratorium to Modul</CardDescription>
+                <CardTitle>Aslab-Practican Grouping</CardTitle>
+                <CardDescription>Connect Asistant Laboratorium to Practican Group</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-row gap-4 justify-between mb-4">
@@ -46,7 +51,7 @@ export default function AslabPracticanGroup (){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        [...Array(20)].map((_,i) =>(
+                        [...Array(20)].map((group,i) =>(
 
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">Group {i}</TableCell>

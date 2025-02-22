@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
+const a = {
+    email_verif : true,
+
+}
 export default function ThemeButton () {
     const {setTheme, theme} = useTheme()
     return(

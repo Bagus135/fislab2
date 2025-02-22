@@ -4,20 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {  PlusSquare, Search, Trash} from "lucide-react";
+import {  Edit, PlusSquare, Search, Trash} from "lucide-react";
 import { useState } from "react";
-import CreateModulAslabModal from "./create-modal";
+import { getAllAssistant, getModul } from "@/action/admin.action";
+import EditModulAslabModal from "./edit-modal";
 
-export default function AslabModulGroup (){
+type PropsType = {
+    assistants : Awaited<ReturnType<typeof getAllAssistant>>,
+    moduls : Awaited<ReturnType<typeof getModul>>,
+}
+
+export default function AslabModulGroup ({assistants, moduls}: PropsType){
     const [search , setSearch] = useState("")
+    const [openEdit , setOpenEdit] = useState(false)
+    const [selectedAssistant, setSelectedAssistant] = useState<getAllAssistant|null>(null)
+    
     return (
+        assistants.success && moduls.success &&
         <Card>
+            <EditModulAslabModal setopen={setOpenEdit}  open={openEdit} assistant={selectedAssistant} moduls={moduls.data}/>
             <CardHeader>
                 <CardTitle>Aslab-Modul Grouping</CardTitle>
                 <CardDescription>Connect Asistant Laboratorium to Modul</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-row gap-4 justify-between mb-4">
+                    <div className="flex flex-row gap-4 justify-between mb-4">
                     <div className="relative ">
                         <span className="absolute p-1 pl-3 inset-y-0 left-0 flex items-center">
                             <Search className="size-4"/>
@@ -29,11 +40,6 @@ export default function AslabModulGroup (){
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <CreateModulAslabModal>
-                        <Button>
-                            <PlusSquare className="size-4"/>
-                        </Button>
-                    </CreateModulAslabModal>
                 </div>
                 <Table className="text-center">
                     <TableHeader>
@@ -45,17 +51,21 @@ export default function AslabModulGroup (){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        [...Array(20)].map((_,i) =>(
-
+                        assistants.data.map((assistant,i) =>(
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
-                            <TableCell className="font-medium">{i}</TableCell>
-                            <TableCell>MP-{i}</TableCell>
-                            <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
-                            <TableCell>
-                                <Button size={"sm"} className="bg-red-500 hover:bg-red-600 text-black">
-                                    <Trash className="size-4"/>
-                                </Button>
-                            </TableCell>
+                                <TableCell className="font-medium">{i}</TableCell>
+                                <TableCell>{assistant.judul}</TableCell>
+                                <TableCell>{assistant.name}</TableCell>
+                                <TableCell>
+                                    <Button 
+                                        size={"sm"} 
+                                        onClick={()=> {
+                                            setSelectedAssistant(assistant);
+                                            setOpenEdit(true);
+                                        }}>
+                                        <Edit className="size-4"/>
+                                    </Button>
+                                </TableCell>
                         </TableRow>
                         ))
                         }

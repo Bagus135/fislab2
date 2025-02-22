@@ -2,11 +2,12 @@
 
 import { setCookies } from "@/action/auth.action"
 import { Button } from "@/components/ui/button"
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2Icon, LockIcon, User } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 
@@ -55,7 +56,7 @@ export default function LoginCard (){
     } 
 
     return (
-        <>
+        <Card className="max-w-[400px] w-[calc(100vw-2rem)]">
             <CardHeader>
                 <div className="flex flex-col justify-center mx-auto items-center">
                     <img src="/logofisika.png" className="visible dark:hidden" width="50" alt="Fisika ITS"/>
@@ -111,7 +112,10 @@ export default function LoginCard (){
                         </Button>
                     </div>
                 </form>
+                <Link className="text-sm hover:text-sidebar-foreground text-sidebar-foreground/80" href={'/reset-password'}>
+                    Forgot Password ?
+                </Link>
             </CardContent>
-    </>
+     </Card>
     )
 } 

@@ -11,18 +11,30 @@ import { TabsContent } from "@/components/ui/tabs";
 import { Fragment } from "react";
 
 export default async function AdminPage (){
-    const [users, moduls, practicans, practicanGroups, assistants]  = await Promise.all([getAllUsers(), getModul(), getPractican(), getPracticanGroup(), getAllAssistant()]);
+    const [
+        users, 
+        moduls, 
+        practicans, 
+        practicanGroups, 
+        assistants
+                    ]  = await Promise.all([
+                        getAllUsers(), 
+                        getModul(),
+                        getPractican(),
+                        getPracticanGroup(), 
+                        getAllAssistant()
+                    ]);
     
     return (
        <Fragment>
             <TabsContent value="grouping" className="flex flex-col gap-4 " >
-                <AslabPracticanGroup/>
                 <div className="lg:grid lg:grid-cols-10 gap-4  w-full flex flex-col">
-                    <div className="col-span-5">
+                    <div className="col-span-5 flex flex-col gap-4">
                         <PracticanGroup practicans={practicans} groups={practicanGroups}/>
+                        <AslabModulGroup assistants={assistants} moduls={moduls}/>
                     </div>
                     <div className="col-span-5">
-                        <AslabModulGroup/>
+                        <AslabPracticanGroup/>
                     </div>
                 </div>
             </TabsContent>

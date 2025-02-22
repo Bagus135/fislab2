@@ -278,33 +278,34 @@ type getPracticanGroupReturn =
             }
         }
         
-        export const editGroupPractican = async (payload : { id : string, name : number, member_ids : string[]}) =>{
-            try {
-                const token = await getToken();
-                const res = await fetch(`${process.env.URL_BE}/admin/groups`, {
-                    method : "PUT",
-                    headers : {
-                        "Content-Type" : "application/json",
-                        "Authorization" : token,
-                    },
-                    body : JSON.stringify(payload)
-                })
-                const data = await res.json();
-                
-                if(!res.ok) throw new Error(data.error)
-                    
-                    revalidatePath('/')
-                    return data
-                    
-                } catch (error:any) {
-                    throw new Error(error.message)
-                }
-            }
+export const editGroupPractican = async (payload : { id : string, name : number, member_ids : string[]}) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/groups`, {
+            method : "PUT",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            body : JSON.stringify(payload)
+        })
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error)
             
-type getAllAssistantReturn =
+            revalidatePath('/')
+            return data
+            
+        } catch (error:any) {
+            throw new Error(error.message)
+        }
+    }
+    
+    
+    type getAllAssistantReturn =
     | { success: true; data: getAllAssistant[] } // Successful response
     | { success: false; data: RejectPromiseType }; // Error response
-export const getAllAssistant = async () : Promise<getAllAssistantReturn> =>{
+    export const getAllAssistant = async () : Promise<getAllAssistantReturn> =>{
     try {
         const token = await getToken();
         const res = await fetch(`${process.env.URL_BE}/admin/assistant`, {
@@ -315,13 +316,64 @@ export const getAllAssistant = async () : Promise<getAllAssistantReturn> =>{
             },
         })
         const data = await res.json();
-        console.log(data)
-        if(!res.ok) throw new Error(data.error)
-        
-        return data
-        
-    } catch (error:any) {
-        throw new Error(error.message)
-    }
+        if(!res.ok) throw data
+            
+            return {
+                success : true,
+                data
+            }
+            
+        } catch (error:any) {
+            return {
+                success : false,
+                data : error
+            }
+        }
 }
 
+
+export const editAslabtoModul = async (payload : { practicumId : number, assistantId : string, }) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant-to-practicum`, {
+            method : "POST",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            body : JSON.stringify(payload)
+        })
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error)
+            
+            revalidatePath('/')
+            return data
+            
+        } catch (error:any) {
+            throw new Error(error.message)
+        }
+    }
+
+export const cretaeAslabtoGroup = async (payload : { practicumId : number, assistantId : string, groupId : string }) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant-to-group`, {
+            method : "POST",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            body : JSON.stringify(payload)
+        })
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error)
+            
+            revalidatePath('/')
+            return data
+            
+        } catch (error:any) {
+            throw new Error(error.message)
+        }
+    }

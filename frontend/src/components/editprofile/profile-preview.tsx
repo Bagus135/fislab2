@@ -1,5 +1,5 @@
 "use client"
-import { Instagram, LinkIcon, Mail, MessageCircle, PencilIcon, SquareUser } from "lucide-react";
+import { Mail, MessageCircle, PencilIcon, SquareUser } from "lucide-react";
 import { Avatar, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -48,7 +48,7 @@ export default function ProfilePreview({profile} : {profile : GetSelfProfileType
                             {profile.phone}
                         </div>
                         
-                        <div className="flex items-center text-muted-foreground">
+                        <div className="flex items-center text-muted-foreground text-xs">
                             <Mail className="size-4 mr-2"/>
                             {profile.email}
                         </div>

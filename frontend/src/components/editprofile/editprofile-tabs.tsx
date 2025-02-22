@@ -1,6 +1,6 @@
 'use client'
 
-import { ContactRound, Loader2Icon, Lock, User } from "lucide-react";
+import { CheckCircle, ContactRound, Loader2Icon, Lock, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
@@ -8,9 +8,10 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UpdateSelfProfile } from "@/action/profile.action";
-import { FormEvent, useState } from "react";
+import { UpdateSelfProfile, verifyEmail } from "@/action/profile.action";
+import { FormEvent, useRef, useState } from "react";
 import { updatePass } from "@/action/auth.action";
+import EmailVerifyDialog from "./emailverify-dialog";
 
 export default function EditProfileTabs({profile} : {profile : GetSelfProfileType}){
     const [profileInput, setProfileInput] = useState({
@@ -26,8 +27,12 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
     })
     const [loading, setLoading] = useState({
         profile : false,
-        pass : false
+        pass : false,
+        verifyemail : false
     })
+
+    const btnRef = useRef<HTMLButtonElement | null>(null);
+
     const {toast} = useToast()
 
     const handleUpdateProfile = async(e : FormEvent<HTMLFormElement>) => {
@@ -73,7 +78,28 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
         }
     }
 
-
+    const handleVerifyEmail = async () =>{
+        try {
+            setLoading({...loading, verifyemail : true})
+            const res = await verifyEmail(profileInput.email)
+            toast({
+                title : ` Verify code is send to ${profileInput.email} `,
+                description : res.message,
+                variant : "success"
+            })
+            if(btnRef.current){
+                btnRef.current.click()
+            }
+        } catch (error:any) {
+            toast({
+                title : `Failed to send code to ${profileInput.email}`,
+                description : profileInput.email,
+                variant : "destructive"
+            })
+        } finally{
+            setLoading({...loading, verifyemail : false})
+        }
+    }
 
     return (
     <Card className="max-w-[800px] w-full  mx-auto">
@@ -143,11 +169,28 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                         <CardContent className="flex flex-col gap-6 pt-2">
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="Email" className="font-bold tracking-wide text-sm ">Email</Label>
-                                <Input  id="Email"
-                                         placeholder="Email" 
-                                         className="w-3/4"
-                                         value={profileInput.email}
-                                         onChange={(e)=> setProfileInput({...profileInput, email : e.target.value})}/>
+                                <div className="flex flex-row gap-2">
+                                    <Input  id="Email"
+                                            placeholder="Email" 
+                                            className="w-3/4"
+                                            value={profileInput.email}
+                                            onChange={(e)=> setProfileInput({...profileInput, email : e.target.value})}
+                                    />
+                                        <Button type="button" className="flex flex-row gap-2" onClick={handleVerifyEmail}>
+                                            {loading.verifyemail ?
+                                                <Loader2Icon className="size-4 animate-spin"/>
+                                                :
+                                                <>
+                                                    <CheckCircle className="size-4"/>
+                                                    Verify
+                                                </>
+                                            }
+                                        </Button>
+                                    <EmailVerifyDialog email={profileInput.email}>
+                                        <Button className="hidden" ref={btnRef}/>
+                                    </EmailVerifyDialog>
+                                </div>
+                                <p className={`text-xs`}>Email not verified</p>
                             </div>
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="Whatsapp" className="font-bold tracking-wide text-sm ">Whatsapp</Label>

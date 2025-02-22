@@ -44,6 +44,7 @@ type GetSelfProfileType ={
 	nrp: string,
 	phone: string,
 	role: string,
+    email_verified : boolean,
 }
 
 type getModul = {

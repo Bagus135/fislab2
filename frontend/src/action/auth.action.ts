@@ -81,3 +81,54 @@ export const updatePass = async(payload : UpdatePassType)=>{
     }
 
 }
+
+export const getTokenResetPass = async(payload: {email : string}) =>{
+    try {
+        const token = await getToken();
+        const res =  await fetch(`${process.env.URL_BE}/forgot-password`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "POST",
+            body : JSON.stringify(payload)
+        })
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error)
+        revalidatePath('/')
+        return {
+            message : data.token
+        }
+    } catch (error : any) {
+        throw new Error(error.message)
+    }
+}
+
+type ResetPassProps = {
+    token : string,
+    new_password : string,
+    confirm_password : string
+}
+export const resetPass = async(payload: ResetPassProps) =>{
+    try {
+        const token = await getToken();
+        const res =  await fetch(`${process.env.URL_BE}/reset-password`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "POST",
+            body : JSON.stringify(payload)
+        })
+        const data = await res.json();
+        console.log(data);
+        
+        if(!res.ok) throw new Error(data.error)
+        revalidatePath('/')
+        return {
+            message : data.token
+        }
+    } catch (error : any) {
+        throw new Error(error.message)
+    }
+}

@@ -8,12 +8,6 @@ export default async function RootLayout({
     children: React.ReactNode;
   }>) {
 
-    try {
-      const res = await getDecodeToken()
-  
-    } catch (error : any) {
-      return <NotFound message={error.message} code={error.code} />
-    }
     return ( 
     <>
        <div className="border-r shadow-sidebar-foreground h-[calc(100vh)] hidden md:flex md:w-16 lg:w-44 fixed">

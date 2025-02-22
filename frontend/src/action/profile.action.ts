@@ -68,3 +68,53 @@ export const UpdateSelfProfile = async(payload : UpdateSelfProfileType)=> {
         throw new Error(error.message)
     }
 }
+
+export const verifyEmail = async (email : string)=>{
+    try {
+        const token = await getToken()
+        const res =  await fetch(`${process.env.URL_BE}/send-verification-code`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "POST",
+            body : JSON.stringify({email})
+        })
+        
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error)
+        
+        revalidatePath('/')
+        return data
+        
+    } catch (error : any) {
+        throw new Error(error.message)
+    }
+}
+
+export const verifyEmailCode = async (payload : {email : string, code : string})=>{
+    try {
+        console.log('body :', payload);
+        
+        const token = await getToken()
+        const res =  await fetch(`${process.env.URL_BE}/verify-email`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "POST",
+            body : JSON.stringify(payload)
+        })
+        
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error)
+        
+        revalidatePath('/')
+        return data
+        
+    } catch (error : any) {
+        throw new Error(error.message)
+    }
+}

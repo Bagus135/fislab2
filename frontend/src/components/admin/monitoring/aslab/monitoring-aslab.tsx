@@ -46,7 +46,7 @@ export default function AslabMonitoring (){
                         <TableHead className="text-center">Progress</TableHead>
                         </TableRow>
                     </TableHeader>
-                    {/* <TableBody>{
+                    <TableBody>{
                         [...Array(20)].map((_,i) =>(
                         <AslabMonitoringModal>
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
@@ -58,7 +58,7 @@ export default function AslabMonitoring (){
                         </AslabMonitoringModal>
                         ))
                         }
-                    </TableBody> */}
+                    </TableBody>
                 </Table>
             </CardContent>
         </Card>
