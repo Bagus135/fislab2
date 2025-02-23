@@ -155,7 +155,7 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Buat grade baru
-	grade, err := h.client.Grade.CreateOne(
+	_, err = h.client.Grade.CreateOne(
 		db.Grade.Schedule.Link(db.Schedule.ID.Equals(req.ScheduleID)),
 		db.Grade.User.Link(db.User.ID.Equals(req.UserID)),
 		db.Grade.Grader.Link(db.User.ID.Equals(assistantId)),
@@ -198,41 +198,8 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Error updating schedule status: %v\n", err)
 		}
 	}
-
-	response := map[string]interface{}{
-		"id":         grade.ID,
-		"scheduleId": grade.ScheduleID,
-		"userId":     grade.UserID,
-		"scores": map[string]interface{}{
-			"prelab": map[string]interface{}{
-				"punctuality": grade.Punctuality,
-				"preExam":     grade.PreExam,
-				"oralTest":    grade.OralTest,
-				"total":       prelabTotal,
-			},
-			"inlab": map[string]interface{}{
-				"skillsAndAttitude": grade.SkillsAndAttitude,
-				"total":             inlabTotal,
-			},
-			"postlab": map[string]interface{}{
-				"abstract":       grade.Abstract,
-				"introduction":   grade.Introduction,
-				"methodology":    grade.Methodology,
-				"discussion":     grade.Discussion,
-				"dataProcessing": grade.DataProcessing,
-				"conclusion":     grade.Conclusion,
-				"formatting":     grade.Formatting,
-				"total":          postlabTotal,
-			},
-			"totalScore": totalScore,
-		},
-		"feedback":  grade.Feedback,
-		"gradedBy":  grade.GradedBy,
-		"createdAt": grade.CreatedAt,
-	}
-
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "grading success"})
 }
 
 func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
@@ -532,7 +499,7 @@ func (h *GradeHandler) UpdateGrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the grade
-	updatedGrade, err := h.client.Grade.FindUnique(
+	_, err = h.client.Grade.FindUnique(
 		db.Grade.ID.Equals(gradeId),
 	).Update(
 		db.Grade.Punctuality.Set(req.Punctuality),
@@ -555,42 +522,8 @@ func (h *GradeHandler) UpdateGrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Prepare the response
-	response := map[string]interface{}{
-		"id":         updatedGrade.ID,
-		"scheduleId": updatedGrade.ScheduleID,
-		"userId":     updatedGrade.UserID,
-		"scores": map[string]interface{}{
-			"prelab": map[string]interface{}{
-				"punctuality": updatedGrade.Punctuality,
-				"preExam":     updatedGrade.PreExam,
-				"oralTest":    updatedGrade.OralTest,
-				"total":       prelabTotal,
-			},
-			"inlab": map[string]interface{}{
-				"skillsAndAttitude": updatedGrade.SkillsAndAttitude,
-				"total":             inlabTotal,
-			},
-			"postlab": map[string]interface{}{
-				"abstract":       updatedGrade.Abstract,
-				"introduction":   updatedGrade.Introduction,
-				"methodology":    updatedGrade.Methodology,
-				"discussion":     updatedGrade.Discussion,
-				"dataProcessing": updatedGrade.DataProcessing,
-				"conclusion":     updatedGrade.Conclusion,
-				"formatting":     updatedGrade.Formatting,
-				"total":          postlabTotal,
-			},
-			"totalScore": totalScore,
-		},
-		"feedback":  updatedGrade.Feedback,
-		"gradedBy":  updatedGrade.GradedBy,
-		"createdAt": updatedGrade.CreatedAt,
-		"updatedAt": updatedGrade.UpdatedAt,
-	}
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "grade updated"})
 }
 
 func (h *GradeHandler) GetAssistantScoringDetails(w http.ResponseWriter, r *http.Request) {

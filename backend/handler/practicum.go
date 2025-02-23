@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 )
 
 type PracticumHandler struct {
@@ -39,7 +38,7 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	practicum, err := h.client.Practicum.CreateOne(
+	_, err := h.client.Practicum.CreateOne(
 		db.Practicum.ID.Set(req.Code),
 		db.Practicum.Title.Set(req.Title),
 		db.Practicum.Description.Set(req.Description),
@@ -51,29 +50,8 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Tangani nilai optional Description
-	description, ok := practicum.Description()
-	if !ok {
-		description = ""
-	}
-
-	// Buat response
-	response := struct {
-		Code        string    `json:"code"`
-		Title       string    `json:"title"`
-		Description string    `json:"description"`
-		CreatedAt   time.Time `json:"createdAt"`
-		UpdatedAt   time.Time `json:"updatedAt"`
-	}{
-		Code:        practicum.ID,
-		Title:       practicum.Title,
-		Description: description,
-		CreatedAt:   practicum.CreatedAt,
-		UpdatedAt:   practicum.UpdatedAt,
-	}
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "module created"})
 }
 
 func (h *PracticumHandler) GetPracticum(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +108,7 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	practicum, err := h.client.Practicum.FindUnique(
+	_, err := h.client.Practicum.FindUnique(
 		db.Practicum.ID.Equals(req.Code),
 	).Update(
 		db.Practicum.Title.Set(req.Title),
@@ -143,7 +121,7 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(practicum)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "module updated"})
 }
 
 func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Request) {

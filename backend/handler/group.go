@@ -159,11 +159,7 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":      createdGroup.ID,
-		"group":   createdGroup.Name,
-		"members": filteredMembers,
-	})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "group created"})
 }
 
 func (h *GroupHandler) GetAllGroups(w http.ResponseWriter, r *http.Request) {
@@ -419,7 +415,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ambil data group yang sudah diupdate
-	updatedGroup, err := h.client.Group.FindUnique(
+	_, err = h.client.Group.FindUnique(
 		db.Group.ID.Equals(group.ID),
 	).With(
 		db.Group.Members.Fetch(),
@@ -431,20 +427,8 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var members []map[string]string
-	for _, member := range updatedGroup.Members() {
-		members = append(members, map[string]string{
-			"nrp":  member.Nrp,
-			"name": member.Name,
-		})
-	}
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":      updatedGroup.ID,
-		"group":   updatedGroup.Name,
-		"members": members,
-	})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "group updated"})
 }
 
 func (h *GroupHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {

@@ -157,7 +157,7 @@ func (h *AttendanceHandler) SubmitAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	attendance, err := h.client.Attendance.UpsertOne(
+	_, err = h.client.Attendance.UpsertOne(
 		db.Attendance.CodeIDUserID(
 			db.Attendance.CodeID.Equals(attendanceCode.ID),
 			db.Attendance.UserID.Equals(userID),
@@ -178,8 +178,7 @@ func (h *AttendanceHandler) SubmitAttendance(w http.ResponseWriter, r *http.Requ
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":     attendance.ID,
-		"status": attendance.Status,
+		"message": "attendance success",
 	})
 }
 
@@ -298,7 +297,7 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Query ulang untuk mendapatkan data lengkap dengan User
-	attendance, err := h.client.Attendance.FindUnique(
+	_, err = h.client.Attendance.FindUnique(
 		db.Attendance.CodeIDUserID(
 			db.Attendance.CodeID.Equals(attendanceCodeID),
 			db.Attendance.UserID.Equals(req.UserID),
@@ -315,14 +314,7 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 
 	// Kirim response
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":         attendance.ID,
-		"name":       attendance.User().Name,
-		"nrp":        attendance.User().Nrp,
-		"scheduleId": req.ScheduleID,
-		"userId":     req.UserID,
-		"status":     attendance.Status,
-	})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "atendance updated"})
 }
 
 func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.Request) {
