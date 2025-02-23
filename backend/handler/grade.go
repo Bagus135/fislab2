@@ -592,3 +592,96 @@ func (h *GradeHandler) UpdateGrade(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
 }
+
+func (h *GradeHandler) GetAssistantScoringDetails(w http.ResponseWriter, r *http.Request) {
+	// Pastikan hanya admin yang bisa mengakses endpoint ini
+	userRole := r.Context().Value("role").(string)
+	if userRole != "ADMIN" && userRole != "SUPER_ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	requestedUserID := vars["id"]
+
+	if requestedUserID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "id is required"})
+		return
+	}
+
+	// Ambil semua jadwal yang terkait dengan asisten ini
+	schedules, err := h.client.Schedule.FindMany(
+		db.Schedule.AssistantID.Equals(requestedUserID),
+	).With(
+		db.Schedule.Group.Fetch(),
+		db.Schedule.Grades.Fetch(),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
+		return
+	}
+
+	// Siapkan response
+	response := make(map[string]interface{})
+	groupDetails := make([]map[string]interface{}, 0)
+
+	for _, schedule := range schedules {
+		group := schedule.Group()
+		grades := schedule.Grades()
+
+		// Hitung jumlah anggota grup
+		memberCount := len(group.Members())
+
+		// Hitung jumlah nilai yang sudah diberikan
+		gradedCount := len(grades)
+
+		// Ambil status dari jadwal
+		scheduleStatus := schedule.Status
+
+		// Tentukan status penilaian dan pesan berdasarkan status jadwal
+		var status, message string
+
+		switch scheduleStatus {
+		case db.StatusUnscheduled:
+			status = "UNSCHEDULED"
+			message = "Belum dijadwalkan"
+		case db.StatusScheduled:
+			status = "SCHEDULED"
+			message = "Belum dilaksanakan"
+		case db.StatusFinished:
+			status = "FINISHED"
+			message = "Selesai"
+		case db.StatusCompleted:
+			status = "COMPLETED"
+			message = "Sudah dilaksanakan"
+		case db.StatusCancelled:
+			status = "CANCELLED"
+			message = "Dibatalkan"
+		default:
+			status = "UNSCHEDULED"
+			message = "Belum dijadwalkan"
+		}
+
+		// Tambahkan detail grup ke response
+		groupDetails = append(groupDetails, map[string]interface{}{
+			"groupId":      group.ID,
+			"groupName":    group.Name,
+			"memberCount":  memberCount,
+			"gradedCount":  gradedCount,
+			"status":       status,
+			"message":      message,
+			"scheduleId":   schedule.ID,
+			"practicumId":  schedule.PracticumID,
+			"scheduleDate": schedule.Date,
+		})
+	}
+
+	response["assistantId"] = requestedUserID
+	response["groups"] = groupDetails
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}

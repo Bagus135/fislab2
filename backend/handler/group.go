@@ -460,7 +460,7 @@ func (h *GroupHandler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body
 	var req struct {
-		GroupID string `json:"group_id"`
+		GroupID string `json:"groupId"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -869,12 +869,19 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 		Code  string
 		Title string
 		Group string
+		Week  int
 	})
 
 	for _, schedule := range schedules {
 		assistant := schedule.Assistant()
 		practicum := schedule.Practicum()
 		group := schedule.Group()
+		weekValue, weekExists := schedule.Week()
+
+		// Jika week tidak ada, kita bisa melewatkan atau memberikan nilai default
+		if !weekExists {
+			weekValue = 0
+		}
 
 		// Jika asisten belum ada di map, inisialisasi slice kosong
 		if _, exists := scheduleMap[assistant.ID]; !exists {
@@ -882,6 +889,7 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 				Code  string
 				Title string
 				Group string
+				Week  int
 			}{}
 		}
 
@@ -890,10 +898,12 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 			Code  string
 			Title string
 			Group string
+			Week  int
 		}{
 			Code:  practicum.ID,
 			Title: practicum.Title,
 			Group: strconv.Itoa(group.Name),
+			Week:  weekValue,
 		})
 	}
 
@@ -910,6 +920,7 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 			"code":  nil,
 			"judul": nil,
 			"group": nil,
+			"weeks": nil,
 		}
 
 		if hasSchedule && len(practicumData) > 0 {
@@ -918,15 +929,18 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 			assistantData["code"] = firstPracticum.Code
 			assistantData["judul"] = firstPracticum.Title
 
-			// Untuk group, kita bisa menampilkan semua grup yang diampu
+			// Untuk group dan week, kita bisa menampilkan semua grup dan minggu yang diampu
 			var groups []string
-			// Tambahkan semua grup dari data jadwal
+			var weeks []int
+			// Tambahkan semua grup dan minggu dari data jadwal
 			for _, scheduleData := range practicumData {
 				groups = append(groups, scheduleData.Group)
+				weeks = append(weeks, scheduleData.Week)
 			}
 
-			// Jika ingin menampilkan semua group
+			// Jika ingin menampilkan semua group dan week
 			assistantData["group"] = strings.Join(groups, ", ")
+			assistantData["weeks"] = weeks
 		}
 
 		response = append(response, assistantData)
