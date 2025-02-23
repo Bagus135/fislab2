@@ -29,7 +29,7 @@ export default function DropdownMenuModul ({modul} : {modul:getModul}) {
                         }}>
                             <Edit className="size-4 mr-1"/>
                             <span className="inline text-sm ">
-                                Edit Member
+                                Edit Modul
                             </span>
                         </Button>
                         <Button variant={"ghost"} 
@@ -40,7 +40,7 @@ export default function DropdownMenuModul ({modul} : {modul:getModul}) {
                                 }}>
                             <Trash className="size-4 mr-1"/>
                             <span className="inline text-sm ">
-                                Delete Group
+                                Delete Modul
                             </span>
                         </Button>
                 </DropdownMenuGroup>

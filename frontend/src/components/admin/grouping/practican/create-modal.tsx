@@ -46,11 +46,11 @@ export default function CreateGroupPractican ({children, practicans}:{children :
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await createGroupPractican({ kelompok : Number(input.kelompok),member_ids : input.member_ids });
+            const res = await createGroupPractican({ group : Number(input.kelompok),member_ids : input.member_ids });
             toast({
                 title : "Practican group created",
                 variant : "success",
-                description : `Practican group ${res.kelompok} created`
+                description : `Practican group ${res.group} created`
             })
         } catch (error:any) {
             toast({

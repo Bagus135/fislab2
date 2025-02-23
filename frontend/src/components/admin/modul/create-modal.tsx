@@ -12,6 +12,7 @@ export default function CreateModul({children}: {children : ReactNode}){
     const {toast} = useToast()
 
     const [input, setInput] = useState({
+        code : "",
         title : "",
         description : "",
     });
@@ -54,10 +55,23 @@ export default function CreateModul({children}: {children : ReactNode}){
                     <div className="flex flex-col justify-center gap-6">
 
                         <div className="flex flex-col gap-1">
-                            <Label htmlFor="Title">Title</Label>
+                            <Label htmlFor="Title">Code</Label>
                             <Input
                                 id="Title"
                                 placeholder="MP-2"
+                                required
+                                className="peer invalid:border-red-500"
+                                value={input.code}
+                                onChange={(e)=>setInput({...input, code:e.target.value})}
+                            />
+                            <p className="text-sm hidden peer-invalid:text-red-500 peer-invalid:block">required</p>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="Title">Title</Label>
+                            <Input
+                                id="Title"
+                                placeholder="Milikan Oil Drop"
                                 required
                                 className="peer invalid:border-red-500"
                                 value={input.title}
@@ -72,7 +86,7 @@ export default function CreateModul({children}: {children : ReactNode}){
                                 id="Description"
                                 className="peer invalid:border-red-500"
                                 required
-                                placeholder="Tetes Minyak Milikan"
+                                placeholder="Milikan Oil drop is practicum that meassuring ...."
                                 value={input.description}
                                 onChange={(e)=>setInput({...input, description:e.target.value})}
                             />

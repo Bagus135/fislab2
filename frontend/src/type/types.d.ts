@@ -48,7 +48,7 @@ type GetSelfProfileType ={
 }
 
 type getModul = {
-    id : number,
+    code : string,
     title : string,
     description : string,
     createdAt : string,
@@ -79,5 +79,7 @@ type getAllAssistant = {
     id : string,
     judul: null|string,
     name: string,
-    nrp: string
+    nrp: string,
+    code : string|null,
+    group: string,
 }

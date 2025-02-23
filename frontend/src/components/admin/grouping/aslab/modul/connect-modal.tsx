@@ -1,22 +1,21 @@
-import { editAslabtoModul } from "@/action/admin.action";
+import { connectAslabtoModul } from "@/action/admin.action";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Loader2Icon, X } from "lucide-react";
-import {FormEvent, useState } from "react";
+import {FormEvent, ReactNode, useState } from "react";
 
 type PropsType = {
-    open : boolean,
-    setopen : (open : boolean) => void,
-    assistant : getAllAssistant|null,
+    children : ReactNode,
+    assistant : getAllAssistant,
     moduls : getModul[]
 }
 
-export default function EditModulAslabModal({open, setopen, assistant, moduls}: PropsType){
+export default function ConnectModulAslabModal({children, assistant, moduls}: PropsType){
     const [input, setInput] = useState({
-        practicumId : "",
+        practicumCode : "",
         assistantId : "",
     });
     const [loading, setLoading] = useState(false);
@@ -26,11 +25,7 @@ export default function EditModulAslabModal({open, setopen, assistant, moduls}: 
         e.preventDefault()
         try {
             setLoading(true)
-            const res = await editAslabtoModul({
-                practicumId : Number(input.practicumId),
-                assistantId :input.assistantId
-            })
-            console.log(res);
+            const res = await connectAslabtoModul(input)
             toast({
                 title : "Success Connect Aslab to Modul",
                 variant : "success",
@@ -48,8 +43,10 @@ export default function EditModulAslabModal({open, setopen, assistant, moduls}: 
     }
 
     return (
-        assistant && 
-        <Dialog open={open} onOpenChange={setopen}>
+        <Dialog>
+            <DialogTrigger asChild>
+                {children}
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Aslab - Modul</DialogTitle>
@@ -59,14 +56,14 @@ export default function EditModulAslabModal({open, setopen, assistant, moduls}: 
                     <div className="flex flex-col justify-center gap-6">
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="aslab">Module Code</Label>
-                            <Select required onValueChange={(value)=>setInput({...input, practicumId: value, assistantId : assistant.id})}>
+                            <Select required onValueChange={(value)=>setInput({...input, practicumCode: value, assistantId : assistant.id})}>
                                 <SelectTrigger id="aslab">
                                     <SelectValue placeholder="Select Here"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                      <SelectGroup>
                                       { moduls.map((modul, idx)=>(
-                                          <SelectItem key={idx} value={ `${modul.id}`}>{`${modul.title} | ${modul.description}`}</SelectItem>
+                                          <SelectItem key={idx} value={ `${modul.code}`}>{`${modul.code} | ${modul.title}`}</SelectItem>
                                       ))
                                     }
                                     </SelectGroup>
@@ -92,7 +89,6 @@ export default function EditModulAslabModal({open, setopen, assistant, moduls}: 
                                 }
                             </Button>
                         </DialogFooter>
-
                     </div>
                 </form>
             </DialogContent>

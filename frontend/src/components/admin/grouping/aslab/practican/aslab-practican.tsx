@@ -8,12 +8,14 @@ import {PlusSquare, Search, Trash} from "lucide-react";
 import { useState } from "react";
 import CreateSesionPracticum from "./createsession-modal";
 import { getAllAssistant, getPracticanGroup } from "@/action/admin.action";
+import DropDownMenu from "./dropdown-menu";
 
 type PropsType = {
-    assistant : Awaited<ReturnType<typeof getAllAssistant>>,
+    assistants : Awaited<ReturnType<typeof getAllAssistant>>,
     groups : Awaited<ReturnType<typeof getPracticanGroup>>, 
 }
-export default function AslabPracticanGroup ({assistant,groups}: PropsType){
+
+export default function AslabPracticanGroup ({assistants,groups}: PropsType){
     const [search , setSearch] = useState("")
     return (
         <Card>
@@ -34,7 +36,7 @@ export default function AslabPracticanGroup ({assistant,groups}: PropsType){
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <CreateSesionPracticum>
+                    <CreateSesionPracticum assistants={assistants} groups={groups}>
                         <Button>
                             <PlusSquare className="size-4"/>
                         </Button>
@@ -59,9 +61,7 @@ export default function AslabPracticanGroup ({assistant,groups}: PropsType){
                                 <TableCell>MP-{i}</TableCell>
                                 <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
                                 <TableCell>
-                                    <Button size={"sm"} className="bg-red-500 hover:bg-red-600 text-black">
-                                        <Trash className="size-4"/>
-                                    </Button>
+                                    <DropDownMenu i={i}/>
                                 </TableCell>
                             </TableRow>
                         ))
