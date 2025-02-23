@@ -65,6 +65,7 @@ func NewRouter(
 	adminAPI.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
 	adminAPI.HandleFunc("/users/delete", userHandler.DeleteUser).Methods("POST")
 	adminAPI.HandleFunc("/users/{role}", userHandler.GetUsersByRole).Methods("GET")
+	adminAPI.HandleFunc("/schedules", scheduleHandler.GetAllSchedules).Methods("GET")
 	adminAPI.HandleFunc("/groups", groupHandler.GetAllGroups).Methods("GET")
 	adminAPI.HandleFunc("/groups/{id}", groupHandler.GetGroupById).Methods("GET")
 	adminAPI.HandleFunc("/groups", groupHandler.CreateGroup).Methods("POST")
@@ -81,6 +82,7 @@ func NewRouter(
 	adminAPI.HandleFunc("/assistant/group", assistantHandler.SetAssistantToGroup).Methods("POST")
 	adminAPI.HandleFunc("/assistant/group/update", assistantHandler.UpdateAssistantGroupAssignment).Methods("PUT")
 	adminAPI.HandleFunc("/assistant/group/remove", assistantHandler.RemoveAssistantFromGroup).Methods("DELETE")
+	adminAPI.HandleFunc("/assistant/score-details/{id}", gradeHandler.GetAssistantScoringDetails).Methods("GET")
 
 	// ======================
 	// Assistant Routes (Memerlukan Role Asisten)

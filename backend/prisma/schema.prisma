@@ -1,4 +1,4 @@
-datasource db {
+[datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -40,7 +40,7 @@ model User {
   email         String?   @unique
   phone         String?
   password      String
-  role          Role
+  role          Role[]
   emailVerified Boolean   @default(false)
   createdAt     DateTime? @default(now()) @map("created_at")
   updatedAt     DateTime? @updatedAt @map("updated_at")
@@ -174,3 +174,4 @@ model Attendance {
 
   @@unique([codeId, userId])
 }
+]

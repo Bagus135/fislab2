@@ -357,3 +357,65 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 		"status":        updatedSchedule.Status,
 	})
 }
+
+func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userRole := r.Context().Value("role").(string)
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "forbidden: only admin and super admin can access this resource"})
+		return
+	}
+
+	// Ambil semua jadwal tanpa memfilter berdasarkan status
+	schedules, err := h.client.Schedule.FindMany().With(
+		db.Schedule.Assistant.Fetch(),
+		db.Schedule.Practicum.Fetch(),
+		db.Schedule.Group.Fetch(),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
+		return
+	}
+
+	// Jika tidak ada jadwal yang ditemukan, kembalikan array kosong
+	if len(schedules) == 0 {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+		return
+	}
+
+	// Format data jadwal untuk response
+	var response []map[string]interface{}
+	for _, schedule := range schedules {
+		assistant := schedule.Assistant()
+		practicum := schedule.Practicum()
+		group := schedule.Group()
+
+		scheduleData := map[string]interface{}{
+			"id":     schedule.ID,
+			"status": schedule.Status,
+			"assistant": map[string]interface{}{
+				"id":   assistant.ID,
+				"name": assistant.Name,
+				"nrp":  assistant.Nrp,
+			},
+			"practicum": map[string]interface{}{
+				"code":  practicum.ID,
+				"title": practicum.Title,
+			},
+			"group": map[string]interface{}{
+				"id":    group.ID,
+				"group": group.Name,
+			},
+		}
+		response = append(response, scheduleData)
+	}
+
+	// Kirim response JSON
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
