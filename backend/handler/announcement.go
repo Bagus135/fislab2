@@ -130,7 +130,7 @@ func (h *AnnouncementHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.
 		return
 	}
 	// update announcement
-	announcement, err := h.client.Announcement.FindUnique(
+	_, err := h.client.Announcement.FindUnique(
 		db.Announcement.ID.Equals(req.ID),
 	).Update(
 		db.Announcement.Title.Set(req.Title),
@@ -144,10 +144,7 @@ func (h *AnnouncementHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "announcement updated",
-		"data":    announcement,
-	})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "announcement updated"})
 }
 
 func (h *AnnouncementHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request) {

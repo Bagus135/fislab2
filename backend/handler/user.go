@@ -167,7 +167,7 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update profile
-	updatedUser, err := h.client.User.FindUnique(
+	_, err := h.client.User.FindUnique(
 		db.User.ID.Equals(userID),
 	).Update(
 		db.User.Name.Set(req.Name),
@@ -181,22 +181,9 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email, _ := updatedUser.Email()
-	phone, _ := updatedUser.Phone()
-	about, _ := updatedUser.About()
-
-	// Buat response
-	response := map[string]interface{}{
-		"nrp":   updatedUser.Nrp,
-		"name":  updatedUser.Name,
-		"email": email,
-		"phone": phone,
-		"about": about,
-	}
-
 	// Kirim response sukses
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "profile updated"})
 }
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {

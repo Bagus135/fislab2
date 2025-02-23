@@ -122,7 +122,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(types.SuccessResponse("logged out successfully"))
+	_ = json.NewEncoder(w).Encode(types.SuccessResponse("logged out"))
 }
 
 func (h *AuthHandler) RegisterFirstSuperAdmin(w http.ResponseWriter, r *http.Request) {
