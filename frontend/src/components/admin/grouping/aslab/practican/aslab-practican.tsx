@@ -7,17 +7,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {PlusSquare, Search, Trash} from "lucide-react";
 import { useState } from "react";
 import CreateSesionPracticum from "./createsession-modal";
-import { getAllAssistant, getPracticanGroup } from "@/action/admin.action";
+import { getAllAssistant, getAllScheduleAdmin, getPracticanGroup } from "@/action/admin.action";
 import DropDownMenu from "./dropdown-menu";
 
 type PropsType = {
     assistants : Awaited<ReturnType<typeof getAllAssistant>>,
     groups : Awaited<ReturnType<typeof getPracticanGroup>>, 
+    schedules : Awaited<ReturnType<typeof getAllScheduleAdmin>>,
 }
 
-export default function AslabPracticanGroup ({assistants,groups}: PropsType){
+export default function AslabPracticanGroup ({assistants,groups, schedules}: PropsType){
     const [search , setSearch] = useState("")
     return (
+        assistants.success && groups.success && schedules.success &&
         <Card>
             <CardHeader>
                 <CardTitle>Aslab-Practican Grouping</CardTitle>
@@ -36,7 +38,7 @@ export default function AslabPracticanGroup ({assistants,groups}: PropsType){
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <CreateSesionPracticum assistants={assistants} groups={groups}>
+                    <CreateSesionPracticum assistants={assistants.data} groups={groups.data}>
                         <Button>
                             <PlusSquare className="size-4"/>
                         </Button>
@@ -53,15 +55,15 @@ export default function AslabPracticanGroup ({assistants,groups}: PropsType){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        [...Array(20)].map((group,i) =>(
+                         schedules.data.length > 0 && schedules.data.map((schedule,i) =>(
 
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
-                                <TableCell className="font-medium">Group {i}</TableCell>
-                                <TableCell>{i}</TableCell>
-                                <TableCell>MP-{i}</TableCell>
-                                <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
+                                <TableCell className="font-medium">{schedule.group.group}</TableCell>
+                                <TableCell>{schedule.group.week}</TableCell>
+                                <TableCell>{schedule.practicum.code}</TableCell>
+                                <TableCell>{schedule.assistant.name}</TableCell>
                                 <TableCell>
-                                    <DropDownMenu i={i}/>
+                                    <DropDownMenu assistants={assistants.data} schedule={schedule}/>
                                 </TableCell>
                             </TableRow>
                         ))

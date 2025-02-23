@@ -9,8 +9,8 @@ import { ReactNode, useState } from "react";
 
 type Props = {
     children : ReactNode, 
-    assistants : Awaited<ReturnType<typeof getAllAssistant>>,
-    groups : Awaited<ReturnType<typeof getPracticanGroup>>, 
+    assistants :  getAllAssistant[],
+    groups : getPracticanGroup[]|null, 
 }
 
 export default function CreateSesionPracticum({children ,assistants, groups}: Props ){
@@ -40,7 +40,6 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
     }
 
     return (
-        groups.success && assistants.success &&
         <Dialog>
             <DialogTrigger asChild>
                 {children}
@@ -60,7 +59,7 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        { groups.data && groups.data.map(((group,idx) =>(
+                                        { groups && groups.map(((group,idx) =>(
                                             <SelectItem  key={idx} value={group.id}>{group.kelompok}</SelectItem>
                                             )))
                                         }
@@ -75,7 +74,7 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                                     onValueChange={(value)=>setInput({
                                                                 ...input, 
                                                                 assistantId: value, 
-                                                                practicumCode : assistants.data.filter((assistant)=> assistant.id === value)[0].code!
+                                                                practicumCode : assistants.filter((assistant)=> assistant.id === value)[0].code!
                                                             })
                                     }>
 
@@ -84,7 +83,7 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                    { assistants.data.filter(assistant => assistant.code !== null).
+                                    { assistants && assistants.filter(assistant => assistant.code !== null).
                                             map(((assistant,idx) =>(
                                                 <SelectItem key={idx} value={assistant.id}>{assistant.code} - {assistant.name}</SelectItem>
                                             )))

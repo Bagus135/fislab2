@@ -83,3 +83,22 @@ type getAllAssistant = {
     code : string|null,
     group: string,
 }
+
+type AllScheduleAdmin = {
+		assistant: {
+			id: string,
+			name: string,
+			nrp: string
+		},
+		group: {
+			group: number,
+			id: string,
+            week: number
+		},
+		id: number,
+		practicum: {
+			code: string,
+			title: string
+		},
+		status: string
+}

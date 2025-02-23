@@ -394,6 +394,7 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 		assistant := schedule.Assistant()
 		practicum := schedule.Practicum()
 		group := schedule.Group()
+		week, _ := schedule.Week()
 
 		scheduleData := map[string]interface{}{
 			"id":     schedule.ID,
@@ -410,6 +411,7 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 			"group": map[string]interface{}{
 				"id":    group.ID,
 				"group": group.Name,
+				"week":  week,
 			},
 		}
 		response = append(response, scheduleData)

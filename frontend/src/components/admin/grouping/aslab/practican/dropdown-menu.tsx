@@ -1,17 +1,15 @@
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ArrowLeftRight, EllipsisVertical, Plug, Unplug } from "lucide-react"
+import { ArrowLeftRight, Edit, EllipsisVertical, Plug, Unplug } from "lucide-react"
 import { ReactNode, useState } from "react"
-import EditDialog from "./edit-dialog"
+import EditSessionModal from "./edit-dialog"
 
 type Props = {
-    assistant : getAllAssistant
-    moduls : getModul[],
-    assistants : getAllAssistant[]
+    assistants :  getAllAssistant[],
+    schedule : AllScheduleAdmin,
 }
 
-export default function DropDownMenu ({i}: {i : number}) {
+export default function DropDownMenu ({assistants, schedule}: Props) {
     return (
     <>
         <DropdownMenu modal={true}>
@@ -23,7 +21,14 @@ export default function DropDownMenu ({i}: {i : number}) {
             <DropdownMenuContent className="w-auto">
                 <DropdownMenuGroup className="flex flex-col gap-2 items-start" >
                     <DropdownMenuItem asChild>
-                        <EditDialog i={i}/>
+                        <EditSessionModal assistants={assistants} schedule={schedule} >
+                            <Button variant={"ghost"} className="font-semibold gap-2">
+                                <Edit className="size-4 mr-1"/>
+                                <span className="inline text-sm ">
+                                    Edit Session
+                                </span>
+                            </Button>
+                        </EditSessionModal>
                     </DropdownMenuItem>
                     <Button variant={"ghost"}
                             className="font-semibold gap-2"
