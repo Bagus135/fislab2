@@ -10,7 +10,7 @@ import { FormEvent, ReactNode, useState } from "react";
 
 type Props = {
     children : ReactNode, 
-    assistants :  getAllAssistant[],
+    assistants :  getAllAssistant[]|null,
     schedule : AllScheduleAdmin,
 }
 
@@ -27,7 +27,6 @@ export default function EditSessionModal ({schedule, children, assistants}: Prop
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         try {
-            
             setLoading(true);
             const res = await editAslabtoGroup({...input, week : Number(input.week)});
             toast({
@@ -65,7 +64,7 @@ export default function EditSessionModal ({schedule, children, assistants}: Prop
                                 </SelectTrigger>
                                 <SelectContent>
                                      <SelectGroup>
-                                      { assistants.filter((assistant)=> !!assistant.code).map((assistant, idx)=>(
+                                      { assistants && assistants.filter((assistant)=> !!assistant.code).map((assistant, idx)=>(
                                           <SelectItem key={idx} value={assistant.id}>{`${assistant.code} | ${assistant.name}`}</SelectItem>
                                       ))
                                     }

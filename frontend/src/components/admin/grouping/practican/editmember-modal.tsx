@@ -9,7 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon, Save, Search, X } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 type Props = {
     group : getPracticanGroup,
@@ -122,6 +122,7 @@ export default function EditMemberPracticanModal ({group, children,practicans}: 
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>{
+                                        practicans && practicans.users &&
                                         practicans.users.filter(practican => 
                                             practican.nrp.toLowerCase().includes(search.toLowerCase()) || 
                                             practican.name.toLowerCase().includes(search.toLowerCase())

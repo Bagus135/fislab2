@@ -48,7 +48,7 @@ export default function AslabMonitoring (){
                     </TableHeader>
                     <TableBody>{
                         [...Array(20)].map((_,i) =>(
-                        <AslabMonitoringModal>
+                        <AslabMonitoringModal key={i}>
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{i}</TableCell>
                                 <TableCell>MP-{i}</TableCell>

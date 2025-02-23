@@ -5,11 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 type Props = {
     children : ReactNode, 
-    assistants :  getAllAssistant[],
+    assistants :  getAllAssistant[]|null,
     groups : getPracticanGroup[]|null, 
 }
 
@@ -23,7 +23,8 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
 
     const {toast} = useToast();
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e : FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
         try {
             const res = await connectAslabtoGroup({...input, week : Number(input.week)});
             toast({
@@ -74,7 +75,10 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                                     onValueChange={(value)=>setInput({
                                                                 ...input, 
                                                                 assistantId: value, 
-                                                                practicumCode : assistants.filter((assistant)=> assistant.id === value)[0].code!
+                                                                practicumCode : assistants ? 
+                                                                                assistants.filter((assistant)=> assistant.id === value)[0].code! 
+                                                                                : 
+                                                                                ''
                                                             })
                                     }>
 

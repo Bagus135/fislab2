@@ -15,6 +15,9 @@ type PropsType = {
 
 export default function AslabModulGroup ({assistants, moduls}: PropsType){
     const [search , setSearch] = useState("")
+    console.log(assistants);
+    console.log(moduls);
+    
     
     return (
         assistants.success && moduls.success &&
@@ -47,13 +50,14 @@ export default function AslabModulGroup ({assistants, moduls}: PropsType){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
+                        assistants.data &&
                         assistants.data.map((assistant,i) =>(
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{i}</TableCell>
                                 <TableCell>{assistant.code}</TableCell>
                                 <TableCell>{assistant.name}</TableCell>
                                 <TableCell >
-                                    <DropDownMenu assistant = {assistant} moduls={moduls.data} assistants={assistants.data}/>
+                                    <DropDownMenu assistant = {assistant} moduls={moduls.data} assistants={assistants.data!}/>
                                 </TableCell>
                             </TableRow>
                         ))

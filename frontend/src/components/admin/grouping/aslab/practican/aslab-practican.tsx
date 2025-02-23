@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {PlusSquare, Search, Trash} from "lucide-react";
+import {PlusSquare, Search,} from "lucide-react";
 import { useState } from "react";
 import CreateSesionPracticum from "./createsession-modal";
 import { getAllAssistant, getAllScheduleAdmin, getPracticanGroup } from "@/action/admin.action";
 import DropDownMenu from "./dropdown-menu";
+import DeleteModal from "./delete-modal";
 
 type PropsType = {
     assistants : Awaited<ReturnType<typeof getAllAssistant>>,
@@ -18,9 +19,12 @@ type PropsType = {
 
 export default function AslabPracticanGroup ({assistants,groups, schedules}: PropsType){
     const [search , setSearch] = useState("")
+    const [openDelete, setOpenDelete] = useState(false);
+    const [selectedSchedule, setSelectedSchedule] = useState<AllScheduleAdmin|null>(null)
     return (
         assistants.success && groups.success && schedules.success &&
         <Card>
+            <DeleteModal open={openDelete} schedule={selectedSchedule} setOpen={setOpenDelete}/>
             <CardHeader>
                 <CardTitle>Aslab-Practican Grouping</CardTitle>
                 <CardDescription>Connect Asistant Laboratorium to Practican Group</CardDescription>
@@ -62,8 +66,8 @@ export default function AslabPracticanGroup ({assistants,groups, schedules}: Pro
                                 <TableCell>{schedule.group.week}</TableCell>
                                 <TableCell>{schedule.practicum.code}</TableCell>
                                 <TableCell>{schedule.assistant.name}</TableCell>
-                                <TableCell>
-                                    <DropDownMenu assistants={assistants.data} schedule={schedule}/>
+                                <TableCell onClick={()=>setSelectedSchedule(schedule)}>
+                                    <DropDownMenu assistants={assistants.data} schedule={schedule} setOpenDelete={setOpenDelete}/>
                                 </TableCell>
                             </TableRow>
                         ))

@@ -95,8 +95,6 @@ export const verifyEmail = async (email : string)=>{
 
 export const verifyEmailCode = async (payload : {email : string, code : string})=>{
     try {
-        console.log('body :', payload);
-        
         const token = await getToken()
         const res =  await fetch(`${process.env.URL_BE}/verify-email`,{
             headers : {

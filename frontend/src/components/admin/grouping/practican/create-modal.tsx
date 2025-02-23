@@ -20,6 +20,8 @@ type InputType = {
 type GetPracticanRes = Awaited<ReturnType<typeof getPractican>>
 
 export default function CreateGroupPractican ({children, practicans}:{children : ReactNode, practicans : GetPracticanRes}){
+    console.log(practicans);
+    
     const {toast} = useToast()
     const [search , setSearch] = useState("")
     const [input, setInput] = useState<InputType>({
@@ -130,7 +132,7 @@ export default function CreateGroupPractican ({children, practicans}:{children :
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>{
-                                        practicans.success &&
+                                        practicans.success && practicans.data.users &&
                                         practicans.data.users.filter(practican => 
                                             practican.nrp.toLowerCase().includes(search.toLowerCase()) || 
                                             practican.name.toLowerCase().includes(search.toLowerCase())

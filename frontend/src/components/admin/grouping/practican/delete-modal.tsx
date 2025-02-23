@@ -20,11 +20,11 @@ export default function DeleteModal ({group,open, setOpen}: Props){
         try {
             setLoading(true)
             if(!group) throw new Error("Group Id is not defined")
-            const res = await deleteGroupPractican({group_id : group.id});
+            const res = await deleteGroupPractican({groupId : group.id});
             setOpen(false);
             toast({
                 title : "Success Delete the Practican Group",
-                description : res.message,
+                description : res.token,
                 variant : 'success'
             })
             

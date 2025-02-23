@@ -62,7 +62,7 @@ type getPractican = {
 			id: string,
 			name: string,
 			nrp: string
-    }[]
+    }[] | null
 }
 
 type getPracticanGroup = {

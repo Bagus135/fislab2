@@ -63,6 +63,30 @@ export const addUser = async(input:AddUserType)=>{
         }
     }
 
+export const deleteUser = async(id :string)=>{
+    try {
+        const token = await getToken();
+        console.log(id);
+        
+        const res = await fetch(`${process.env.URL_BE}/admin/users/delete`, {
+            method : "DELETE",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            body : JSON.stringify({id})
+        })
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.token)
+        
+        revalidatePath('/')
+        return data
+              
+        } catch (error : any) {
+           throw new Error(error.message)
+        }
+    }
+
 // create modul practicum
 type CreateModulType = {
     code : string,
@@ -308,7 +332,7 @@ export const editGroupPractican = async (payload : { id : string, group : number
             throw new Error(error.message)
         }
     }
-export const deleteGroupPractican = async (payload : { group_id : string}) =>{
+export const deleteGroupPractican = async (payload : { groupId : string}) =>{
     try {
         const token = await getToken();
         
@@ -335,7 +359,7 @@ export const deleteGroupPractican = async (payload : { group_id : string}) =>{
     
     
 type getAllAssistantReturn =
-    | { success: true; data: getAllAssistant[] } // Successful response
+    | { success: true; data: getAllAssistant[]|null } // Successful response
     | { success: false; data: RejectPromiseType }; // Error response
     export const getAllAssistant = async () : Promise<getAllAssistantReturn> =>{
     try {
@@ -458,8 +482,10 @@ export const connectAslabtoGroup = async (payload : cretaeAslabtoGroup) =>{
             },
         body : JSON.stringify(payload)
     })
-    const data = await res.json();
+    console.log(res);
     
+    const data = await res.json();
+    console.log(data)
     if(!res.ok) throw new Error(data.error)
         
         revalidatePath('/')
@@ -497,11 +523,16 @@ export const editAslabtoGroup = async (payload : editAslabtoGroupType) =>{
         throw new Error(error.message)
     }
 }
-export const editAslabtoGroup = async (payload : editAslabtoGroupType) =>{
+
+type  deleteAslabtoGroupType = {
+	groupId : string,
+	assistantId :string,
+}
+export const deleteAslabtoGroup = async (payload : deleteAslabtoGroupType) =>{
     try {
         const token = await getToken();
         const res = await fetch(`${process.env.URL_BE}/admin/assistant/group/remove`, {
-            method : "POST",
+            method : "DELETE",
             headers : {
                 "Content-Type" : "application/json",
                 "Authorization" : token,

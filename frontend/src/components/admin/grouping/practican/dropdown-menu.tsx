@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Edit, EllipsisVertical, Trash, User } from "lucide-react";
+import { Edit, Trash, User } from "lucide-react";
 import { ReactNode, useState } from "react";
 import DetailPracticanGroupsModal from "./showdetail-modal";
 import EditMemberPracticanModal from "./editmember-modal";

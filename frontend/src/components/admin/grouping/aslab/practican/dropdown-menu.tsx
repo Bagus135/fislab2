@@ -5,16 +5,18 @@ import { ReactNode, useState } from "react"
 import EditSessionModal from "./edit-dialog"
 
 type Props = {
-    assistants :  getAllAssistant[],
+    assistants :  getAllAssistant[]|null,
     schedule : AllScheduleAdmin,
+    setOpenDelete : (a : boolean) => void
 }
 
-export default function DropDownMenu ({assistants, schedule}: Props) {
+export default function DropDownMenu ({assistants, schedule, setOpenDelete}: Props) {
+    const [open, setOpen] = useState(false)
     return (
     <>
-        <DropdownMenu modal={true}>
+        <DropdownMenu open={open}  onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
-                <Button variant={"ghost"} size={"sm"}>
+                <Button variant={"ghost"} size={"sm"} className="w-full">
                     <EllipsisVertical className="size-4"/>
                 </Button>
             </DropdownMenuTrigger>
@@ -30,20 +32,16 @@ export default function DropDownMenu ({assistants, schedule}: Props) {
                             </Button>
                         </EditSessionModal>
                     </DropdownMenuItem>
-                    <Button variant={"ghost"}
-                            className="font-semibold gap-2"
-                            >
-                        <ArrowLeftRight className="size-4 mr-1"/>
-                        <span className="inline text-sm ">
-                            Swap Asistant
-                        </span>
-                    </Button>
                     <Button variant={"ghost"} 
                             className="text-red-500 hover:text-red-600 font-semibold  gap-2"
+                            onClick={()=>{
+                                setOpenDelete(true);
+                                setOpen(false)                                
+                            }}  
                         >
                         <Unplug className="size-4 mr-1"/>
                         <span className="inline text-sm ">
-                                Delete to Modul
+                                Remove to Group
                         </span>
                     </Button>
                 </DropdownMenuGroup>
