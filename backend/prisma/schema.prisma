@@ -1,4 +1,4 @@
-[datasource db {
+datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -40,7 +40,7 @@ model User {
   email         String?   @unique
   phone         String?
   password      String
-  role          Role[]
+  role          Role
   emailVerified Boolean   @default(false)
   createdAt     DateTime? @default(now()) @map("created_at")
   updatedAt     DateTime? @updatedAt @map("updated_at")
@@ -62,7 +62,11 @@ model User {
 
   // Relasi ke pengumuman yang dibuat
   announcements Announcement[]
+
+  // Relasi asisten ke praktikum
+  practicums AssistantPracticum[] @relation("AssistantPracticums")
 }
+
 // kelompok
 model Group {
   id   String @id @unique @default(dbgenerated("gen_random_uuid()")) @db.VarChar(100)
@@ -86,6 +90,9 @@ model Practicum {
   // Relasi ke Schedule
   schedules Schedule[]
 
+  // Relasi ke Asisten
+  assistants AssistantPracticum[] @relation("PracticumAssistants")
+
   @@map("practicums")
 }
 
@@ -108,6 +115,20 @@ model Schedule {
   grades          Grade[]
 
   @@unique([practicumId, assistantId, groupId])
+}
+
+// Model untuk menugaskan asisten ke praktikum
+model AssistantPracticum {
+  assistantId String
+  practicumId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assistant User      @relation("AssistantPracticums", fields: [assistantId], references: [id])
+  practicum Practicum @relation("PracticumAssistants", fields: [practicumId], references: [id])
+
+  @@id([assistantId, practicumId])
+  @@map("assistant_practicums")
 }
 
 model Grade {
@@ -174,4 +195,3 @@ model Attendance {
 
   @@unique([codeId, userId])
 }
-]
