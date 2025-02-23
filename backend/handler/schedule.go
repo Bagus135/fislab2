@@ -336,8 +336,8 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ubah status praktikum menjadi COMPLETED (sesuai enum di schema)
-	updatedSchedule, err := h.client.Schedule.FindUnique(
+	// Ubah status praktikum menjadi COMPLETED
+	_, err = h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).Update(
 		db.Schedule.Status.Set("COMPLETED"),
@@ -350,23 +350,11 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":            updatedSchedule.ID,
-		"practicumCode": updatedSchedule.PracticumID,
-		"groupId":       updatedSchedule.GroupID,
-		"status":        updatedSchedule.Status,
-	})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "schedule finished"})
 }
 
 func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	userRole := r.Context().Value("role").(string)
-	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
-		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "forbidden: only admin and super admin can access this resource"})
-		return
-	}
 
 	// Ambil semua jadwal tanpa memfilter berdasarkan status
 	schedules, err := h.client.Schedule.FindMany().With(
