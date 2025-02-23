@@ -17,6 +17,7 @@ func NewPracticumHandler(client *db.PrismaClient) *PracticumHandler {
 }
 
 func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	userRole, ok := r.Context().Value("role").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -76,20 +77,38 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *PracticumHandler) GetPracticum(w http.ResponseWriter, r *http.Request) {
-	practicums, err := h.client.Practicum.FindMany().Exec(r.Context())
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
+	// Ambil data practicum dari database
+	practicums, err := h.client.Practicum.FindMany().Exec(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to find practicum"})
 		return
 	}
 
-	// Langsung encode hasil practicums
+	// Buat slice untuk menyimpan data practicum yang sudah dimodifikasi
+	var response []map[string]interface{}
+
+	desc, _ := practicums[0].Description()
+	// Loop melalui setiap practicum dan modifikasi strukturnya
+	for _, practicum := range practicums {
+		response = append(response, map[string]interface{}{
+			"code":        practicum.ID,
+			"title":       practicum.Title,
+			"description": desc,
+			"createdAt":   practicum.CreatedAt,
+			"updatedAt":   practicum.UpdatedAt,
+		})
+	}
+
+	// Kirim response JSON
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(practicums)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	userRole, ok := r.Context().Value("role").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
