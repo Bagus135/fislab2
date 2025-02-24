@@ -66,7 +66,6 @@ func NewRouter(
 	adminAPI.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
 	adminAPI.HandleFunc("/users/delete", userHandler.DeleteUser).Methods("DELETE")
 	adminAPI.HandleFunc("/users/{role}", userHandler.GetUsersByRole).Methods("GET")
-	adminAPI.HandleFunc("/schedules", scheduleHandler.GetAllSchedules).Methods("GET")
 	adminAPI.HandleFunc("/groups", groupHandler.GetAllGroups).Methods("GET")
 	adminAPI.HandleFunc("/groups/{id}", groupHandler.GetGroupById).Methods("GET")
 	adminAPI.HandleFunc("/groups", groupHandler.CreateGroup).Methods("POST")
@@ -98,6 +97,7 @@ func NewRouter(
 	// ======================
 	// Shared Routes (Bisa Diakses oleh Semua Role yang Terautentikasi)
 	// ======================
+	api.HandleFunc("/schedules", scheduleHandler.GetAllSchedules).Methods("GET")
 	api.HandleFunc("/announcement", announcementHandler.CreateAnnouncement).Methods("POST")
 	api.HandleFunc("/announcement", announcementHandler.UpdateAnnouncement).Methods("PUT")
 	api.HandleFunc("/announcement", announcementHandler.DeleteAnnouncement).Methods("DELETE")
