@@ -241,16 +241,19 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 		timeValue, _ := schedule.StartTime()
 		dateStr := fmt.Sprintf("%d-%02d-%02d", date.Year(), date.Month(), date.Day())
 		timeStr := fmt.Sprintf("%02d:%02d", timeValue.Hour(), timeValue.Minute())
-
+		week, _ := schedule.Week()
 		data := map[string]interface{}{
 			"id": schedule.ID,
 			"practicum": map[string]interface{}{
 				"code":  schedule.Practicum().ID,
 				"title": schedule.Practicum().Title,
 			},
-			"date":   dateStr,
-			"time":   timeStr,
-			"status": schedule.Status,
+			"schedule": map[string]interface{}{
+				"date":   dateStr,
+				"time":   timeStr,
+				"week":   week,
+				"status": schedule.Status,
+			},
 		}
 
 		if userRole == "ASISTEN" {
@@ -384,9 +387,19 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 		group := schedule.Group()
 		week, _ := schedule.Week()
 
+		// Get schedule date and start time using accessor functions
+		var scheduleDate string
+		var startTime string
+
+		if date, ok := schedule.Date(); ok {
+			scheduleDate = date.Format("2006-01-02") // Format: YYYY-MM-DD
+		}
+
+		if dateTime, ok := schedule.StartTime(); ok {
+			startTime = dateTime.Format("15:04") // Format: HH:MM (24-hour)
+		}
+
 		scheduleData := map[string]interface{}{
-			"id":     schedule.ID,
-			"status": schedule.Status,
 			"assistant": map[string]interface{}{
 				"id":   assistant.ID,
 				"name": assistant.Name,
@@ -400,6 +413,12 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 				"id":    group.ID,
 				"group": group.Name,
 				"week":  week,
+			},
+			"schedule": map[string]interface{}{
+				"id":        schedule.ID,
+				"date":      scheduleDate,
+				"startTime": startTime,
+				"status":    schedule.Status,
 			},
 		}
 		response = append(response, scheduleData)

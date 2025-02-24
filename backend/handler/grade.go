@@ -232,62 +232,49 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 	for _, grade := range grades {
 		schedule := grade.Schedule()
 
-		// Ambil nilai dengan menggunakan fungsi getter untuk field nullable
-		punctuality, _ := grade.Punctuality()
-		preExam, _ := grade.PreExam()
-		oralTest, _ := grade.OralTest()
-		skillsAndAttitude, _ := grade.SkillsAndAttitude()
-		abstract, _ := grade.Abstract()
-		introduction, _ := grade.Introduction()
-		methodology, _ := grade.Methodology()
-		discussion, _ := grade.Discussion()
-		dataProcessing, _ := grade.DataProcessing()
-		conclusion, _ := grade.Conclusion()
-		formatting, _ := grade.Formatting()
-		feedback, _ := grade.Feedback()
+		// Set default nilai 0 jika null
+		var totalScore int
 
-		// Hitung total untuk setiap kategori
-		prelabTotal := punctuality + preExam + oralTest
-		inlabTotal := skillsAndAttitude
-		postlabTotal := abstract + introduction + methodology + discussion + dataProcessing + conclusion + formatting
-		totalScore := prelabTotal + inlabTotal + postlabTotal
+		// Hanya hitung total jika semua nilai sudah ada
+		punctuality, ok1 := grade.Punctuality()
+		preExam, ok2 := grade.PreExam()
+		oralTest, ok3 := grade.OralTest()
+		skillsAndAttitude, ok4 := grade.SkillsAndAttitude()
+		abstract, ok5 := grade.Abstract()
+		introduction, ok6 := grade.Introduction()
+		methodology, ok7 := grade.Methodology()
+		discussion, ok8 := grade.Discussion()
+		dataProcessing, ok9 := grade.DataProcessing()
+		conclusion, ok10 := grade.Conclusion()
+		formatting, ok11 := grade.Formatting()
+
+		// Cek apakah semua nilai sudah ada
+		allGradesExist := ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8 && ok9 && ok10 && ok11
+
+		if allGradesExist {
+			totalScore = punctuality + preExam + oralTest + skillsAndAttitude +
+				abstract + introduction + methodology + discussion +
+				dataProcessing + conclusion + formatting
+		} else {
+			totalScore = 0
+		}
 
 		gradeData := map[string]interface{}{
-			"id": grade.ID,
-			"practicum": map[string]interface{}{
-				"id":    schedule.Practicum().ID,
-				"title": schedule.Practicum().Title,
-			},
+			"code":  schedule.Practicum().ID,
+			"title": schedule.Practicum().Title,
 			"assistant": map[string]interface{}{
 				"name": schedule.Assistant().Name,
 				"nrp":  schedule.Assistant().Nrp,
 			},
-			"scores": map[string]interface{}{
-				"prelab": map[string]interface{}{
-					"punctuality": punctuality,
-					"preExam":     preExam,
-					"oralTest":    oralTest,
-					"total":       prelabTotal,
-				},
-				"inlab": map[string]interface{}{
-					"skillsAndAttitude": skillsAndAttitude,
-					"total":             inlabTotal,
-				},
-				"postlab": map[string]interface{}{
-					"abstract":       abstract,
-					"introduction":   introduction,
-					"methodology":    methodology,
-					"discussion":     discussion,
-					"dataProcessing": dataProcessing,
-					"conclusion":     conclusion,
-					"formatting":     formatting,
-					"total":          postlabTotal,
-				},
-				"totalScore": totalScore,
-			},
-			"feedback": feedback,
-			"gradedAt": grade.CreatedAt,
+			"totalScore": nil, // default null
+			"gradedAt":   grade.CreatedAt.Format("2006-01-02 15:04"),
 		}
+
+		// Hanya set totalScore jika semua nilai ada
+		if allGradesExist {
+			gradeData["totalScore"] = totalScore
+		}
+
 		response = append(response, gradeData)
 	}
 
