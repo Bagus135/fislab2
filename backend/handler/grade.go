@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
+	"sort"
 	"strconv"
 )
 
@@ -32,17 +34,41 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 
 	if userRole != "ASISTEN" {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you cannot grade practicants"})
 		return
 	}
 
 	var req types.GradeRequest
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
 		return
 	}
 
+	// Cek apakah ada nilai yang diinput (> 0)
+	hasGrade := false
+	if req.Punctuality > 0 || req.PreExam > 0 || req.OralTest > 0 ||
+		req.SkillsAndAttitude > 0 || req.Abstract > 0 || req.Introduction > 0 ||
+		req.Methodology > 0 || req.Discussion > 0 || req.DataProcessing > 0 ||
+		req.Conclusion > 0 || req.Formatting > 0 {
+		hasGrade = true
+	}
+
+	if !hasGrade {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error": "at least one component must be graded",
+		})
+		return
+	}
+
+	// Cek apakah semua komponen sudah dinilai
+	isCompleted := req.Punctuality > 0 && req.PreExam > 0 && req.OralTest > 0 &&
+		req.SkillsAndAttitude > 0 && req.Abstract > 0 && req.Introduction > 0 &&
+		req.Methodology > 0 && req.Discussion > 0 && req.DataProcessing > 0 &&
+		req.Conclusion > 0 && req.Formatting > 0
+
+	// Validasi nilai yang diinput (hanya yang > 0)
 	scoreValidations := []struct {
 		component string
 		score     int
@@ -61,11 +87,16 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		{"formatting", req.Formatting, 5},
 	}
 
+	// Hanya validasi nilai yang diinput (> 0)
 	for _, v := range scoreValidations {
-		if err := validateScore(v.component, v.score, v.maxScore); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-			return
+		if v.score > 0 {
+			if v.score > v.maxScore {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": fmt.Sprintf("%s score cannot exceed %d", v.component, v.maxScore),
+				})
+				return
+			}
 		}
 	}
 
@@ -74,6 +105,7 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 	inlabTotal := req.SkillsAndAttitude
 	postlabTotal := req.Abstract + req.Introduction + req.Methodology + req.Discussion +
 		req.DataProcessing + req.Conclusion + req.Formatting
+
 	totalScore := prelabTotal + inlabTotal + postlabTotal
 
 	if totalScore > 100 {
@@ -82,18 +114,17 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validasi schedule dan asisten
 	schedule, err := h.client.Schedule.FindFirst(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).Exec(r.Context())
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			fmt.Printf("Schedule not found: %v\n", err)
 			w.WriteHeader(http.StatusNotFound)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule not found"})
 			return
 		}
-		fmt.Printf("Error finding schedule: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule"})
 		return
@@ -101,10 +132,18 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 
 	if schedule.AssistantID != assistantId {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you can only grade your own schedules"})
 		return
 	}
 
-	// Cek apakah user ada dalam misspoke
+	// Check if schedule is already completed
+	if schedule.Status == db.StatusCompleted {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "cannot grade completed schedule"})
+		return
+	}
+
+	// Validasi praktikan ada di grup
 	group, err := h.client.Group.FindUnique(
 		db.Group.ID.Equals(schedule.GroupID),
 	).With(
@@ -112,9 +151,8 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error finding group: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check group members"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check group"})
 		return
 	}
 
@@ -128,9 +166,7 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 
 	if !memberFound {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": fmt.Sprintf("user %s is not a member of group %s", req.UserID, schedule.GroupID),
-		})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user is not a member of this group"})
 		return
 	}
 
@@ -140,15 +176,7 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		db.Grade.UserID.Equals(req.UserID),
 	).Exec(r.Context())
 
-	// Hanya cek error selain NotFound
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		fmt.Printf("Error checking existing grade: %v\n", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing grade"})
-		return
-	}
-
-	if existingGrade != nil {
+	if err == nil && existingGrade != nil {
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "grade already exists for this user"})
 		return
@@ -174,108 +202,214 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error creating grade: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("failed to create grade: %v", err)})
-		return
-	}
-	allGrades, err := h.client.Grade.FindMany(db.Grade.ScheduleID.Equals(req.ScheduleID)).Exec(r.Context())
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check all grades"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create grade"})
 		return
 	}
 
-	if len(allGrades) == len(group.Members()) {
-		_, err := h.client.Schedule.FindUnique(
-			db.Schedule.ID.Equals(req.ScheduleID),
-		).Update(
-			db.Schedule.Status.Set(db.StatusCompleted),
-		).Exec(r.Context())
+	// Cek apakah semua anggota grup sudah dinilai dan semua nilai lengkap
+	allGrades, err := h.client.Grade.FindMany(
+		db.Grade.ScheduleID.Equals(req.ScheduleID),
+	).Exec(r.Context())
 
-		if err != nil {
-			fmt.Printf("Error updating schedule status: %v\n", err)
+	if err == nil && len(allGrades) == len(group.Members()) {
+		// Cek apakah semua nilai lengkap
+		allCompleted := true
+		for _, grade := range allGrades {
+			if punctuality, ok := grade.Punctuality(); !ok || punctuality == 0 {
+				allCompleted = false
+				break
+			}
+		}
+
+		if allCompleted {
+			_, err := h.client.Schedule.FindUnique(
+				db.Schedule.ID.Equals(req.ScheduleID),
+			).Update(
+				db.Schedule.Status.Set(db.StatusCompleted),
+			).Exec(r.Context())
+
+			if err != nil {
+				log.Printf("Warning: Failed to update schedule status: %v", err)
+			}
 		}
 	}
+
+	// Response sesuai status
+	var message string
+	if isCompleted {
+		message = "grade completed"
+	} else {
+		message = "grade created"
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "grading success"})
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": message,
+	})
 }
 
 func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	userRole := r.Context().Value("role").(string)
 	userID := r.Context().Value("userID").(string)
 
-	if userRole != "PRAKTIKAN" {
+	if userRole != "PRAKTIKAN" && userRole != "ASISTEN" {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	grades, err := h.client.Grade.FindMany(
-		db.Grade.UserID.Equals(userID),
+	// Helper function untuk mengambil nilai
+	getGradeValue := func(valueFunc func() (int, bool)) int {
+		if value, ok := valueFunc(); ok {
+			return value
+		}
+		return 0
+	}
+
+	if userRole == "PRAKTIKAN" {
+		grades, err := h.client.Grade.FindMany(
+			db.Grade.UserID.Equals(userID),
+		).With(
+			db.Grade.Schedule.Fetch().With(
+				db.Schedule.Practicum.Fetch(),
+				db.Schedule.Assistant.Fetch(),
+			),
+		).OrderBy(
+			db.Grade.CreatedAt.Order(db.SortOrderDesc),
+		).Exec(r.Context())
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch grades"})
+			return
+		}
+
+		var response []map[string]interface{}
+		for _, grade := range grades {
+			schedule := grade.Schedule()
+
+			// Hitung total menggunakan helper function
+			totalScore := getGradeValue(grade.Punctuality) +
+				getGradeValue(grade.PreExam) +
+				getGradeValue(grade.OralTest) +
+				getGradeValue(grade.SkillsAndAttitude) +
+				getGradeValue(grade.Abstract) +
+				getGradeValue(grade.Introduction) +
+				getGradeValue(grade.Methodology) +
+				getGradeValue(grade.Discussion) +
+				getGradeValue(grade.DataProcessing) +
+				getGradeValue(grade.Conclusion) +
+				getGradeValue(grade.Formatting)
+
+			gradeData := map[string]interface{}{
+				"code":  schedule.Practicum().ID,
+				"title": schedule.Practicum().Title,
+				"assistant": map[string]interface{}{
+					"name": schedule.Assistant().Name,
+					"nrp":  schedule.Assistant().Nrp,
+				},
+				"totalScore": totalScore,
+				"gradedAt":   grade.CreatedAt.Format("2006-01-02 15:04"),
+			}
+			response = append(response, gradeData)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Logic untuk asisten
+	schedules, err := h.client.Schedule.FindMany(
+		db.Schedule.AssistantID.Equals(userID),
 	).With(
-		db.Grade.Schedule.Fetch().With(
-			db.Schedule.Practicum.Fetch(),
-			db.Schedule.Assistant.Fetch(),
+		db.Schedule.Group.Fetch().With(
+			db.Group.Members.Fetch(),
 		),
+		db.Schedule.Grades.Fetch().With(
+			db.Grade.User.Fetch(),
+		),
+		db.Schedule.Practicum.Fetch(),
 	).OrderBy(
-		db.Grade.CreatedAt.Order(db.SortOrderDesc),
+		db.Schedule.GroupID.Order(db.SortOrderAsc),
 	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch grades"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
 		return
 	}
 
 	var response []map[string]interface{}
-	for _, grade := range grades {
-		schedule := grade.Schedule()
+	for _, schedule := range schedules {
+		group := schedule.Group()
+		grades := schedule.Grades()
+		groupMembers := group.Members()
 
-		// Set default nilai 0 jika null
-		var totalScore int
+		// Map untuk menyimpan nilai mahasiswa yang sudah dinilai
+		gradedMembers := make(map[string]map[string]interface{})
 
-		// Hanya hitung total jika semua nilai sudah ada
-		punctuality, ok1 := grade.Punctuality()
-		preExam, ok2 := grade.PreExam()
-		oralTest, ok3 := grade.OralTest()
-		skillsAndAttitude, ok4 := grade.SkillsAndAttitude()
-		abstract, ok5 := grade.Abstract()
-		introduction, ok6 := grade.Introduction()
-		methodology, ok7 := grade.Methodology()
-		discussion, ok8 := grade.Discussion()
-		dataProcessing, ok9 := grade.DataProcessing()
-		conclusion, ok10 := grade.Conclusion()
-		formatting, ok11 := grade.Formatting()
+		// Proses nilai yang sudah ada
+		for _, grade := range grades {
+			student := grade.User()
+			totalScore := getGradeValue(grade.Punctuality) +
+				getGradeValue(grade.PreExam) +
+				getGradeValue(grade.OralTest) +
+				getGradeValue(grade.SkillsAndAttitude) +
+				getGradeValue(grade.Abstract) +
+				getGradeValue(grade.Introduction) +
+				getGradeValue(grade.Methodology) +
+				getGradeValue(grade.Discussion) +
+				getGradeValue(grade.DataProcessing) +
+				getGradeValue(grade.Conclusion) +
+				getGradeValue(grade.Formatting)
 
-		// Cek apakah semua nilai sudah ada
-		allGradesExist := ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8 && ok9 && ok10 && ok11
-
-		if allGradesExist {
-			totalScore = punctuality + preExam + oralTest + skillsAndAttitude +
-				abstract + introduction + methodology + discussion +
-				dataProcessing + conclusion + formatting
-		} else {
-			totalScore = 0
+			gradedMembers[student.ID] = map[string]interface{}{
+				"name":       student.Name,
+				"nrp":        student.Nrp,
+				"totalScore": totalScore,
+				"gradedAt":   grade.CreatedAt.Format("2006-01-02 15:04"),
+			}
 		}
 
-		gradeData := map[string]interface{}{
-			"code":  schedule.Practicum().ID,
-			"title": schedule.Practicum().Title,
-			"assistant": map[string]interface{}{
-				"name": schedule.Assistant().Name,
-				"nrp":  schedule.Assistant().Nrp,
+		var members []map[string]interface{}
+		// Loop melalui semua anggota grup
+		for _, member := range groupMembers {
+			if gradedMember, exists := gradedMembers[member.ID]; exists {
+				members = append(members, gradedMember)
+			} else {
+				members = append(members, map[string]interface{}{
+					"name":       member.Name,
+					"nrp":        member.Nrp,
+					"totalScore": nil,
+					"gradedAt":   nil,
+				})
+			}
+		}
+
+		// Urutkan members berdasarkan NRP
+		sort.Slice(members, func(i, j int) bool {
+			return members[i]["nrp"].(string) < members[j]["nrp"].(string)
+		})
+
+		weekValue := 0
+		if week, ok := schedule.Week(); ok {
+			weekValue = week
+		}
+
+		scheduleData := map[string]interface{}{
+			"scheduleId": schedule.ID,
+			"week":       weekValue,
+			"group":      group.Name,
+			"practicum": map[string]interface{}{
+				"code":  schedule.Practicum().ID,
+				"title": schedule.Practicum().Title,
 			},
-			"totalScore": nil, // default null
-			"gradedAt":   grade.CreatedAt.Format("2006-01-02 15:04"),
+			"members": members,
 		}
 
-		// Hanya set totalScore jika semua nilai ada
-		if allGradesExist {
-			gradeData["totalScore"] = totalScore
-		}
-
-		response = append(response, gradeData)
+		response = append(response, scheduleData)
 	}
 
 	w.WriteHeader(http.StatusOK)

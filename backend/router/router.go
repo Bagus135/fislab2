@@ -52,7 +52,7 @@ func NewRouter(
 	// ======================
 	api.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	api.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
-	api.HandleFunc("/profile", userHandler.GetMyProfile).Methods("GET")
+	api.HandleFunc("/profile/me", userHandler.GetMyProfile).Methods("GET")
 	api.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")
 	api.HandleFunc("/profile", userHandler.UpdateMyProfile).Methods("PUT")
 	api.HandleFunc("/verify-email", authHandler.VerifyEmail).Methods("POST")
@@ -87,6 +87,7 @@ func NewRouter(
 	// Assistant Routes (Memerlukan Role Asisten)
 	// ======================
 	assistantAPI.HandleFunc("/grade", gradeHandler.CreateGrade).Methods("POST")
+	assistantAPI.HandleFunc("/grade/update", gradeHandler.UpdateGrade).Methods("PUT")
 	assistantAPI.HandleFunc("/set-schedule", scheduleHandler.SetSchedule).Methods("PUT")
 	assistantAPI.HandleFunc("/schedule/mark-finished", scheduleHandler.SetFinished).Methods("POST")
 	assistantAPI.HandleFunc("/attendance/status/{id}", attendanceHandler.GetAttendanceStatus).Methods("GET")
@@ -103,7 +104,7 @@ func NewRouter(
 	api.HandleFunc("/practicum", practicumHandler.GetPracticum).Methods("GET")
 	api.HandleFunc("/grade", gradeHandler.GetGrades).Methods("GET")
 	api.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
-	api.HandleFunc("/schedule", scheduleHandler.GetSchedules).Methods("GET")
+	api.HandleFunc("/schedules/me", scheduleHandler.GetSchedules).Methods("GET")
 	api.HandleFunc("/attendance", attendanceHandler.SubmitAttendance).Methods("POST")
 
 	return r

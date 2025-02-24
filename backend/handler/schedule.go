@@ -22,21 +22,32 @@ func NewScheduleHandler(client *db.PrismaClient) *ScheduleHandler {
 
 func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	userRole := r.Context().Value("role").(string)
-
 	if userRole != "ASISTEN" {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only assistant can set schedule"})
 		return
 	}
+
 	assistantId := r.Context().Value("userID").(string)
 
 	var req types.SetScheduleRequest
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
 		return
 	}
 
+	// Cari grup berdasarkan name
+	group, err := h.client.Group.FindFirst(
+		db.Group.Name.Equals(req.Group),
+	).Exec(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "group not found"})
+		return
+	}
+
+	// Validasi format tanggal
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -44,6 +55,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validasi format waktu
 	timeArr := strings.Split(req.StartTime, ":")
 	if len(timeArr) != 2 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -54,13 +66,14 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	hour, err := strconv.Atoi(timeArr[0])
 	if err != nil || hour < 0 || hour > 23 {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid hour"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid hour. Must be between 0-23"})
+		return
 	}
 
 	minute, err := strconv.Atoi(timeArr[1])
 	if err != nil || minute < 0 || minute > 59 {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid minute"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid minute. Must be between 0-59"})
 		return
 	}
 
@@ -82,18 +95,22 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cek keberadaan jadwal menggunakan group.ID
 	existingSchedule, err := h.client.Schedule.FindFirst(
 		db.Schedule.PracticumID.Equals(req.PracticumCode),
-		db.Schedule.GroupID.Equals(req.GroupID),
+		db.Schedule.GroupID.Equals(group.ID),
 		db.Schedule.AssistantID.Equals(assistantId),
-		db.Schedule.Status.Equals(db.StatusUnscheduled),
+	).With(
+		db.Schedule.Practicum.Fetch(),
+		db.Schedule.Group.Fetch(),
 	).Exec(r.Context())
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-
 			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "no unscheduled practicum found for this group"})
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "no assignment found for this combination of practicum, group, and assistant",
+			})
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
@@ -103,10 +120,12 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	// Cek jadwal bentrok untuk group
 	conflictGroupSchedule, err := h.client.Schedule.FindFirst(
-		db.Schedule.GroupID.Equals(req.GroupID),
+		db.Schedule.GroupID.Equals(group.ID),
 		db.Schedule.StartTime.Equals(scheduleTime),
 		db.Schedule.ID.Not(existingSchedule.ID),
 		db.Schedule.Status.Equals(db.StatusScheduled),
+	).With(
+		db.Schedule.Practicum.Fetch(),
 	).Exec(r.Context())
 
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
@@ -117,7 +136,13 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	if conflictGroupSchedule != nil {
 		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "group already has a schedule at this time"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "group already has a schedule at this time",
+			"conflict": map[string]interface{}{
+				"practicum": conflictGroupSchedule.Practicum().Title,
+				"time":      scheduleTime.Format("2006-01-02 15:04"),
+			},
+		})
 		return
 	}
 
@@ -127,6 +152,9 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		db.Schedule.StartTime.Equals(scheduleTime),
 		db.Schedule.ID.Not(existingSchedule.ID),
 		db.Schedule.Status.Equals(db.StatusScheduled),
+	).With(
+		db.Schedule.Practicum.Fetch(),
+		db.Schedule.Group.Fetch(),
 	).Exec(r.Context())
 
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
@@ -137,17 +165,25 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	if conflictAssistantSchedule != nil {
 		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you already have a schedule at this time"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "you already have a schedule at this time",
+			"conflict": map[string]interface{}{
+				"practicum": conflictAssistantSchedule.Practicum().Title,
+				"group":     conflictAssistantSchedule.Group().Name,
+				"time":      scheduleTime.Format("2006-01-02 15:04"),
+			},
+		})
 		return
 	}
 
 	// Update jadwal
-	schedule, err := h.client.Schedule.FindUnique(
+	_, err = h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(existingSchedule.ID),
 	).Update(
 		db.Schedule.Date.Set(date),
 		db.Schedule.StartTime.Set(scheduleTime),
 		db.Schedule.Status.Set(db.StatusScheduled),
+		db.Schedule.Week.Set(req.Week),
 	).Exec(r.Context())
 
 	if err != nil {
@@ -156,29 +192,12 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dateStr := ""
-	timeStr := ""
-	if scheduleDate, ok := schedule.Date(); ok {
-		dateStr = scheduleDate.Format("2006-01-02")
-	}
-	if scheduleStartTime, ok := schedule.StartTime(); ok {
-		timeStr = scheduleStartTime.Format("15:04")
-	}
-
-	response := map[string]interface{}{
-		"id":            schedule.ID,
-		"practicumCode": schedule.PracticumID,
-		"groupId":       schedule.GroupID,
-		"assistantId":   schedule.AssistantID,
-		"date":          dateStr,
-		"startTime":     timeStr,
-		"status":        schedule.Status,
-	}
-
+	// Kirim response sukses
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "schedule changed",
+	})
 }
-
 func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

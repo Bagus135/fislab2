@@ -26,9 +26,10 @@ type ChangePasswordRequest struct {
 
 type SetScheduleRequest struct {
 	PracticumCode string `json:"practicumCode"`
-	GroupID       string `json:"groupId"`
-	Date          string `json:"date"`      // Format: "2024-02-09"
-	StartTime     string `json:"startTime"` // Format: "07:00"
+	Group         int    `json:"group"`
+	Date          string `json:"date"`
+	StartTime     string `json:"startTime"`
+	Week          int    `json:"week"`
 }
 
 type GradeRequest struct {
