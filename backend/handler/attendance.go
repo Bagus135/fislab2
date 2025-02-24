@@ -325,6 +325,7 @@ func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.R
 
 	if userRole != "ASISTEN" {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only assistants can access this resource"})
 		return
 	}
 
@@ -336,6 +337,7 @@ func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Ambil schedule beserta assistant dan attendance codes
 	schedule, err := h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(scheduleID),
 	).With(
@@ -343,23 +345,41 @@ func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.R
 		db.Schedule.AttendanceCodes.Fetch(),
 	).Exec(r.Context())
 
-	if err != nil || schedule.Assistant().ID != assistantID {
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule not found"})
+		return
+	}
+
+	// Pastikan asisten yang mengakses adalah asisten yang bertanggung jawab
+	if schedule.Assistant().ID != assistantID {
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "you are not the assistant for this schedule"})
 		return
 	}
 
+	// Cek apakah ada attendance codes
+	attendanceCodes := schedule.AttendanceCodes()
+	if len(attendanceCodes) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code not generated yet"})
+		return
+	}
+
+	// Ambil attendance berdasarkan attendance code pertama
 	attendances, err := h.client.Attendance.FindMany(
-		db.Attendance.CodeID.Equals(schedule.AttendanceCodes()[0].ID),
+		db.Attendance.CodeID.Equals(attendanceCodes[0].ID),
 	).With(
 		db.Attendance.User.Fetch(),
 	).Exec(r.Context())
+
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch attendance"})
 		return
 	}
 
+	// Format response
 	var response []map[string]interface{}
 	for _, attendance := range attendances {
 		response = append(response, map[string]interface{}{
