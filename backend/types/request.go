@@ -48,3 +48,18 @@ type GradeRequest struct {
 	Formatting        int    `json:"formatting"`        // max 5
 	Feedback          string `json:"feedback"`
 }
+
+type UpdateGradeRequest struct {
+	Punctuality       int    `json:"punctuality"`       // max 5
+	PreExam           int    `json:"preExam"`           // max 10
+	OralTest          int    `json:"oralTest"`          // max 10
+	SkillsAndAttitude int    `json:"skillsAndAttitude"` // max 5
+	Abstract          int    `json:"abstract"`          // max 5
+	Introduction      int    `json:"introduction"`      // max 10
+	Methodology       int    `json:"methodology"`       // max 5
+	Discussion        int    `json:"discussion"`        // max 30
+	DataProcessing    int    `json:"dataProcessing"`    // max 10
+	Conclusion        int    `json:"conclusion"`        // max 5
+	Formatting        int    `json:"formatting"`        // max 5
+	Feedback          string `json:"feedback"`
+}
