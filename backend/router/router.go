@@ -73,6 +73,7 @@ func NewRouter(
 	adminAPI.HandleFunc("/practicum", practicumHandler.CreatePracticum).Methods("POST")
 	adminAPI.HandleFunc("/practicum", practicumHandler.UpdatePracticum).Methods("PUT")
 	adminAPI.HandleFunc("/practicum", practicumHandler.DeletePracticum).Methods("DELETE")
+	adminAPI.HandleFunc("/schedules", scheduleHandler.GetAllSchedulesForAdmin).Methods("GET")
 	adminAPI.HandleFunc("/assistant/practicum", assistantHandler.SetAssistantToPracticum).Methods("POST")
 	adminAPI.HandleFunc("/assistant/practicum/update", assistantHandler.UpdateAssistantPracticum).Methods("PUT")
 	adminAPI.HandleFunc("/assistant/practicum/remove", assistantHandler.RemoveAssistantsFromPracticum).Methods("DELETE")
@@ -97,7 +98,7 @@ func NewRouter(
 	// ======================
 	// Shared Routes (Bisa Diakses oleh Semua Role yang Terautentikasi)
 	// ======================
-	api.HandleFunc("/schedules", scheduleHandler.GetAllSchedules).Methods("GET")
+	api.HandleFunc("/schedules/check", scheduleHandler.GetAllSchedules).Methods("GET")
 	api.HandleFunc("/announcement", announcementHandler.CreateAnnouncement).Methods("POST")
 	api.HandleFunc("/announcement", announcementHandler.UpdateAnnouncement).Methods("PUT")
 	api.HandleFunc("/announcement", announcementHandler.DeleteAnnouncement).Methods("DELETE")

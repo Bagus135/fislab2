@@ -375,8 +375,15 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"message": "schedule finished"})
 }
 
-func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request) {
+func (h *ScheduleHandler) GetAllSchedulesForAdmin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	userRole := r.Context().Value("role").(string)
+
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 
 	// Ambil semua jadwal tanpa memfilter berdasarkan status
 	schedules, err := h.client.Schedule.FindMany().With(
@@ -444,6 +451,59 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 	}
 
 	// Kirim response JSON
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil semua jadwal dengan status SCHEDULED
+	schedules, err := h.client.Schedule.FindMany(
+		db.Schedule.Status.Equals(db.StatusScheduled), // Hanya ambil yang sudah terjadwal
+	).With(
+		db.Schedule.Assistant.Fetch(),
+		db.Schedule.Practicum.Fetch(),
+		db.Schedule.Group.Fetch(),
+	).OrderBy(
+		db.Schedule.StartTime.Order(db.SortOrderAsc), // Urutkan berdasarkan waktu
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
+		return
+	}
+
+	// Jika tidak ada jadwal yang ditemukan, kembalikan array kosong
+	if len(schedules) == 0 {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+		return
+	}
+
+	var response []map[string]interface{}
+	for _, schedule := range schedules {
+		var dateStr, timeStr string
+
+		if date, ok := schedule.Date(); ok {
+			dateStr = date.Format("2006-01-02")
+		}
+		if startTime, ok := schedule.StartTime(); ok {
+			timeStr = startTime.Format("15:04")
+		}
+
+		scheduleData := map[string]interface{}{
+			"assistantName": schedule.Assistant().Name,
+			"group":         schedule.Group().Name,
+			"date":          dateStr,
+			"time":          timeStr,
+			"code":          schedule.PracticumID,
+			"practicum":     schedule.Practicum().Title,
+		}
+		response = append(response, scheduleData)
+	}
+
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
 }
