@@ -303,9 +303,9 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 				getGradeValue(grade.Formatting)
 
 			gradeData := map[string]interface{}{
-				"id":    grade.ID,
-				"code":  schedule.Practicum().ID,
-				"title": schedule.Practicum().Title,
+				"gradeId": grade.ID,
+				"code":    schedule.Practicum().ID,
+				"title":   schedule.Practicum().Title,
 				"assistant": map[string]interface{}{
 					"name": schedule.Assistant().Name,
 					"nrp":  schedule.Assistant().Nrp,
@@ -483,7 +483,7 @@ func (h *GradeHandler) GetGradeDetail(w http.ResponseWriter, r *http.Request) {
 	assistant := schedule.Assistant()
 
 	response := map[string]interface{}{
-		"id": grade.ID,
+		"gradeId": grade.ID,
 		"practicum": map[string]interface{}{
 			"id":    practicum.ID,
 			"title": practicum.Title,
