@@ -711,6 +711,15 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 			scheduleIDs[i] = schedule.ID
 		}
 
+		// Tentukan week untuk praktikum ini
+		// (ambil dari schedule pertama, asumsikan semua schedule untuk satu praktikum memiliki week yang sama)
+		var weekNumber int
+		if len(schedules) > 0 {
+			if week, ok := schedules[0].Week(); ok {
+				weekNumber = week
+			}
+		}
+
 		// Ambil semua grade untuk schedule-schedule tersebut
 		var grades []db.GradeModel
 		if len(scheduleIDs) > 0 {
@@ -785,6 +794,7 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 		practicumData := map[string]interface{}{
 			"code":              practicum.ID,
 			"title":             practicum.Title,
+			"week":              weekNumber,
 			"students":          studentsData,
 			"totalParticipants": len(studentsData),
 		}
@@ -792,9 +802,9 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 		response = append(response, practicumData)
 	}
 
-	// Urutkan praktikum berdasarkan code
+	// Urutkan praktikum berdasarkan week
 	sort.Slice(response, func(i, j int) bool {
-		return response[i]["code"].(string) < response[j]["code"].(string)
+		return response[i]["week"].(int) < response[j]["week"].(int)
 	})
 
 	w.Header().Set("Content-Type", "application/json")
