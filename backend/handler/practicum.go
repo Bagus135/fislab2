@@ -17,6 +17,7 @@ func NewPracticumHandler(client *db.PrismaClient) *PracticumHandler {
 
 func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
 	userRole, ok := r.Context().Value("role").(string)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)

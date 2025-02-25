@@ -83,13 +83,12 @@ func NewRouter(
 	adminAPI.HandleFunc("/assistant/group", assistantHandler.SetAssistantToGroup).Methods("POST")
 	adminAPI.HandleFunc("/assistant/group/update", assistantHandler.UpdateAssistantGroupAssignment).Methods("PUT")
 	adminAPI.HandleFunc("/assistant/group/remove", assistantHandler.RemoveAssistantFromGroup).Methods("DELETE")
-	adminAPI.HandleFunc("/assistant/score-details/{id}", gradeHandler.GetAssistantScoringDetails).Methods("GET")
 
 	// ======================
 	// Assistant Routes (Memerlukan Role Asisten)
 	// ======================
 	assistantAPI.HandleFunc("/grade", gradeHandler.CreateGrade).Methods("POST")
-	assistantAPI.HandleFunc("/grade/update", gradeHandler.UpdateGrade).Methods("PUT")
+	assistantAPI.HandleFunc("/grade/update/{id}", gradeHandler.UpdateGrade).Methods("PUT")
 	assistantAPI.HandleFunc("/set-schedule", scheduleHandler.SetSchedule).Methods("PUT")
 	assistantAPI.HandleFunc("/schedule/mark-finished", scheduleHandler.SetFinished).Methods("POST")
 	assistantAPI.HandleFunc("/attendance/status/{id}", attendanceHandler.GetAttendanceStatus).Methods("GET")
