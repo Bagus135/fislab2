@@ -80,6 +80,24 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance can only be generated for scheduled practicum"})
 		return
 	}
+
+	// Validasi bahwa waktu saat ini sudah melewati waktu mulai praktikum
+	currentTime := time.Now()
+	startTime, hasStartTime := schedule.StartTime()
+	if hasStartTime {
+		// Jika waktu saat ini masih sebelum waktu mulai praktikum
+		if currentTime.Before(startTime) {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated after the practicum start time"})
+			return
+		}
+	} else {
+		// Jika tidak ada waktu mulai, kembalikan error
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule start time is not set"})
+		return
+	}
+
 	code := generateRandomCode()
 	expired := time.Now().Add(30 * time.Minute)
 
