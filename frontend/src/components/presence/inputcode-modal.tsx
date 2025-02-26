@@ -7,7 +7,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp"
 import { REGEXP_ONLY_DIGITS } from "input-otp"
 import { Button } from "../ui/button"
 
-export default function InputCodeModal ({children}:{children : ReactNode}) {
+export default function InputCodeModal ({children , schedule}:{children : ReactNode, schedule : getPracticanSchedules}) {
     const [input, setInput] = useState("")
 
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
@@ -27,7 +27,7 @@ export default function InputCodeModal ({children}:{children : ReactNode}) {
                 <Card className="shadow-none border-none">
                     <CardHeader>
                         <CardTitle>Presence Code</CardTitle>
-                        <CardDescription>Input 6 digit code from MP-2 Asistant</CardDescription>
+                        <CardDescription>Input 6 digit code from {schedule.practicum.code} Assistant {schedule.assistant.name}</CardDescription>
                     </CardHeader>
                     <form className="p-0 m-0" noValidate onSubmit={handleSubmit}>
                         <CardContent className="flex justify-center my-2">

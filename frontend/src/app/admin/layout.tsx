@@ -5,8 +5,15 @@ import React from "react";
 import NotFound from "./not-found";
 
 export default async function AdminLayout ({children} : Readonly<{children : React.ReactNode}>) {
-    const res = await getDecodeToken()
-    if(!["ADMIN", "SUPER_ADMIN"].includes(res.role)) return NotFound({code : '401', message:"Only Admin is permitted" })
+    try {
+        const res = await getDecodeToken()
+        if(!res.success) return NotFound({code : res.data.code, message:res.data.message })
+        if(!["ADMIN", "SUPER_ADMIN"].includes(res.data.role)) return NotFound({code : '401', message:"Only Admin is permitted" })
+        
+    } catch (error:any) {
+        return NotFound({message : error.message, code : error.code})
+    } 
+        
     return (
          <Tabs defaultValue="grouping" className="w-full">
             <AdminTabsListMobile/>

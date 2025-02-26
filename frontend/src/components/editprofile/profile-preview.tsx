@@ -34,7 +34,7 @@ export default function ProfilePreview({profile} : {profile : GetSelfProfileType
                         </Avatar>
                     </div>
                     <h1 className="mt-4 text-2xl font-bold text-center">{profile.name}</h1>
-                    <p className="text-muted-foreground text-center">{profile.name}</p>
+                    <p className="text-muted-foreground text-center">{profile.nrp}</p>
                     <p className="mt-2 text-sm text-center">{profile.about || "-"}</p>
 
                     <div className="w-full mt-8 space-y-2 text-sm">

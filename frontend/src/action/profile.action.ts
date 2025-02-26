@@ -11,7 +11,7 @@ type getSelfProfileReturn =
 export const getSelfProfile = async() : Promise<getSelfProfileReturn> => {
     try {
         const token = await getToken()
-        const res =  await fetch(`${process.env.URL_BE}/profile`,{
+        const res =  await fetch(`${process.env.URL_BE}/profile/me`,{
             headers : {
                 "Content-Type" : "application/json",
                 "Authorization" : token,

@@ -1,6 +1,6 @@
 'use client'
 
-import { setCookies } from "@/action/auth.action"
+import { loginAction, setCookies } from "@/action/auth.action"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,27 +23,14 @@ export default function LoginCard (){
     const handleLogin = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault();
         try {
-            setLoading(true)
-            const res = await fetch('/api/login',{
-                method : 'POST',
-                body : JSON.stringify(input),
-                headers : {
-                    "Content-Type" : "application/json"
-                }
-            })
-            const data = await res.json();
-            
-            if(!res.ok) throw new Error(data.error)
-            
-            setCookies(data.token)
+            setLoading(true);
+            await loginAction(input);
             router.push("/dashboard")
             toast({
                 title : "Login Successfully" ,
                 description : "Welcome to The Dark System Fislab",
                 variant : "success"
-            })
-            
-
+            });
         } catch (error : any) {
             toast({
                 title : error.message ,

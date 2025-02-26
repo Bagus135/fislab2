@@ -66,7 +66,6 @@ export const addUser = async(input:AddUserType)=>{
 export const deleteUser = async(id :string)=>{
     try {
         const token = await getToken();
-        console.log(id);
         
         const res = await fetch(`${process.env.URL_BE}/admin/users/delete`, {
             method : "DELETE",
@@ -110,7 +109,7 @@ export const createModul = async (payload : CreateModulType) =>{
         if(!res.ok) throw new Error(data.error)
         
         revalidatePath('/')
-        return data.title
+        return data
         
     } catch (error:any) {
         throw new Error(error.message)
@@ -327,7 +326,6 @@ export const editGroupPractican = async (payload : { id : string, group : number
             return data
             
         } catch (error:any) {
-            console.log(error.message);
             
             throw new Error(error.message)
         }
@@ -345,7 +343,6 @@ export const deleteGroupPractican = async (payload : { groupId : string}) =>{
             body : JSON.stringify(payload)
         })
         const data = await res.json();
-        console.log(data);
         
         if(!res.ok) throw new Error(data.error)
             
@@ -411,34 +408,34 @@ export const connectAslabtoModul = async (payload : { practicumCode : string, as
         }
     }
 
-    type swapAslabtoModulType = {
-        oldAssistantId : string,
-        newAssistantId: string,
-        practicumCode : string,
-    }
+type editAslabtoModulType = {
+    oldPracticumCode:string,
+    newPracticumCode:string,
+    assistantId:string,
+}
+
+export const editAslabtoModul = async (payload : editAslabtoModulType) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/practicum/update`, {
+            method : "PUT",
+        headers : {
+            "Content-Type" : "application/json",
+            "Authorization" : token,
+        },
+        body : JSON.stringify(payload)
+    })
+    const data = await res.json();
     
-    export const swapAslabtoModul = async (payload : swapAslabtoModulType) =>{
-        try {
-            const token = await getToken();
-            const res = await fetch(`${process.env.URL_BE}/admin/assistant/practicum/update`, {
-                method : "PUT",
-            headers : {
-                "Content-Type" : "application/json",
-                "Authorization" : token,
-            },
-            body : JSON.stringify(payload)
-        })
-        const data = await res.json();
+    if(!res.ok) throw new Error(data.error)
         
-        if(!res.ok) throw new Error(data.error)
-            
-            revalidatePath('/')
-            return data
-            
-        } catch (error:any) {
-            throw new Error(error.message)
-        }
+        revalidatePath('/')
+        return data
+        
+    } catch (error:any) {
+        throw new Error(error.message)
     }
+}
 
 export const removeAslabtoModul = async (payload : { practicumCode : string, assistantId : string, } ) =>{
     try {
@@ -482,10 +479,8 @@ export const connectAslabtoGroup = async (payload : cretaeAslabtoGroup) =>{
             },
         body : JSON.stringify(payload)
     })
-    console.log(res);
     
     const data = await res.json();
-    console.log(data)
     if(!res.ok) throw new Error(data.error)
         
         revalidatePath('/')

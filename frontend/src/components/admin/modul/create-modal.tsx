@@ -26,7 +26,7 @@ export default function CreateModul({children}: {children : ReactNode}){
             toast({
                 title : "Success Creating Modul",
                 variant : "success",
-                description : `${res} is successfully created ` 
+                description : res.message
             })
             
         } catch (error:any) {

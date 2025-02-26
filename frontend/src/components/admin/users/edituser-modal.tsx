@@ -8,7 +8,7 @@ export default function EditUserModal ({children}: {children : React.ReactNode})
     const [input, setInput] = useState('');
     return (
         <Dialog >
-            <DialogTrigger onClick={(e)=>e.stopPropagation()} asChild>
+            <DialogTrigger onClick={(e)=>e.stopPropagation()} disabled={true} asChild>
                 {children}
             </DialogTrigger>
             <DialogContent onClick={(e)=>e.stopPropagation()}>

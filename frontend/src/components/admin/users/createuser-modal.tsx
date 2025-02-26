@@ -27,7 +27,7 @@ export default function CreateUserModal({children}: {children : ReactNode}){
             toast({
                 title : "Success Creating User",
                 variant : "success",
-                description : res.token 
+                description : res.message 
             })
             
         } catch (error:any) {

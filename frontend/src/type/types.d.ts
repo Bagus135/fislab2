@@ -76,12 +76,13 @@ type getPracticanGroup = {
 }
 
 type getAllAssistant = {
+    code : string|null,
+    group: string|null,
     id : string,
     judul: null|string,
     name: string,
     nrp: string,
-    code : string|null,
-    group: string,
+    weeks : string[] | null
 }
 
 type AllScheduleAdmin = {
@@ -95,10 +96,130 @@ type AllScheduleAdmin = {
 			id: string,
             week: number
 		},
-		id: number,
 		practicum: {
 			code: string,
 			title: string
 		},
-		status: string
+		schedule: {
+			date: string,
+			id: number,
+			startTime: string,
+			status : string,
+		}
+}
+
+type getPracticanSchedules = {
+    assistant: {
+        id: string,
+        name: string,
+        nrp: string,
+    },
+    group: {
+        id: string,
+        name:number
+    },
+    id: number,
+    practicum: {
+        code: string,
+        title:string
+    },
+    schedule: {
+        date: string,
+        status: string,
+        time: string,
+        week: number
+    }
+}
+
+type getAssistantSchedules = {
+    group: number,
+    groupId: string,
+    id: number,
+    practicum: {
+        code: string,
+        title: string
+    },
+    schedule: {
+        date: string,
+        status: string,
+        time: string,
+        week: number
+    }
+}
+
+type CheckScheduleType = {
+    assistantName: string,
+    code:string,
+    date: string,
+    group: number,
+    practicum: string,
+    time: string
+}
+
+type AllGradeAslab = {
+    group : number,
+    members: {
+            gradedAt: string| null,
+            gradeId : number|null,
+            name: string ,
+            nrp: string,
+            totalScore: null|number,
+            id : string
+        }[], 
+    practicum: {
+        code: string,
+        title: string
+    },
+    scheduleId: number,
+    week: number
+}
+
+type AllGradePractican = {
+    assistant: {
+        name: string,
+        nrp: string
+    },
+    code: string,
+    gradeId: number,
+    gradedAt: Date,
+    title: string,
+    totalScore: number
+}
+
+
+type  GetDetailedScoreType = {
+    assistant : {
+        name : string,
+        nrp : string
+    }, 
+    feedback : string,
+    gradeId : number,
+    gradedAt : Date,
+    practicum : {
+        id : string,
+        title : string,
+    }
+    scores : {
+        inlab : {
+            skillsAndAttitude : number,
+            total : 0 
+        },
+        postlab : {
+            abstract : number,
+            conclusion : number,
+            dataProcessing : number,
+            discussion : number,
+            formatting : number,
+            introduction : number,
+            methodology : number,
+            total : number,
+        },
+        prelab : {
+            oralTest : number,
+            preExam : number,
+            punctuality : number,
+            total : number,
+        },
+        totalScore : number,
+    }
 }

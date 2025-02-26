@@ -20,8 +20,6 @@ type InputType = {
 type GetPracticanRes = Awaited<ReturnType<typeof getPractican>>
 
 export default function CreateGroupPractican ({children, practicans}:{children : ReactNode, practicans : GetPracticanRes}){
-    console.log(practicans);
-    
     const {toast} = useToast()
     const [search , setSearch] = useState("")
     const [input, setInput] = useState<InputType>({
@@ -52,7 +50,7 @@ export default function CreateGroupPractican ({children, practicans}:{children :
             toast({
                 title : "Practican group created",
                 variant : "success",
-                description : `Practican group ${res.group} created`
+                description : res.message
             })
         } catch (error:any) {
             toast({

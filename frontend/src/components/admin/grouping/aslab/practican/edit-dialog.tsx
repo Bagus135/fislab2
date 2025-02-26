@@ -10,17 +10,16 @@ import { FormEvent, ReactNode, useState } from "react";
 
 type Props = {
     children : ReactNode, 
-    assistants :  getAllAssistant[]|null,
     schedule : AllScheduleAdmin,
 }
 
 
-export default function EditSessionModal ({schedule, children, assistants}: Props){
+export default function EditSessionModal ({schedule, children}: Props){
     const {toast} = useToast()
     const [input, setInput] = useState({
-        scheduleId : schedule.id,
+        scheduleId : schedule.schedule.id,
         assistantId :schedule.assistant.id,
-        week : `${schedule.group.week}`,
+        week : ``,
     })
     const [loading, setLoading] = useState(false);
 
@@ -32,7 +31,7 @@ export default function EditSessionModal ({schedule, children, assistants}: Prop
             toast({
                 title : "Updated Success",
                 variant : "success",
-                description : `Practican group ${res.group} updated`
+                description : res.message
             })
         } catch (error:any) {
             toast({
@@ -56,7 +55,7 @@ export default function EditSessionModal ({schedule, children, assistants}: Prop
                 </DialogHeader>
                 <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">
-                        <div className="flex flex-col gap-1">
+                        {/* <div className="flex flex-col gap-1">
                             <Label htmlFor="aslab">Assistant</Label>
                             <Select required onValueChange={(value)=>setInput({...input, assistantId: value})}>
                                 <SelectTrigger id="aslab">
@@ -71,7 +70,7 @@ export default function EditSessionModal ({schedule, children, assistants}: Prop
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                        </div>
+                        </div> */}
 
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="aslab">Week</Label>

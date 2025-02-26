@@ -1,6 +1,6 @@
 'use client'
 
-import {Mail, MessageCircle, Tag } from "lucide-react";
+import {Loader2Icon, Mail, MessageCircle, Tag } from "lucide-react";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Card, CardContent } from "./ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
@@ -14,12 +14,12 @@ type GetDetailProfileType =
 
 export default  function ProfileModal({id , open ,setOpen} : { id : string ,open:boolean ,setOpen : (open : boolean) => void }) {
    const [user , setUser] = useState<GetDetailProfileType|null>(null)
+   const [loading, setLoading] = useState(false)
    
     useEffect( () =>{
-        console.log(id);
-        
         const getDetailProfile = async(id : string) =>{
             try {
+                setLoading(true)
                 const token = await getToken();
                 const res =  await fetch(`/api/profile/${id}`,{
                     headers : {
@@ -41,6 +41,8 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
                     success : false,
                     data : error
                 })  
+            } finally {
+                setLoading(false)
             }
         }
         getDetailProfile(id)
@@ -48,16 +50,18 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
     
     return (
         <Dialog open={open} onOpenChange={setOpen} >
-            <DialogTrigger>
-
-            </DialogTrigger>
             <DialogContent className="p-0 border-none shadow-none">
                 <DialogHeader className="hidden">
                     <DialogTitle />
                     <DialogDescription />
                 </DialogHeader>
                 <Card className="border-none shadow-none">
-                  { user &&
+                    { loading ? 
+                    <CardContent className="h-[calc(50vh)] flex items-center justify-center">
+                        <Loader2Icon className="size-6 animate-spin"/>
+                    </CardContent>
+                        :
+                   user &&
                     <CardContent className="p-0 border-none shadow-none">
                         { user.success ?
                         <>

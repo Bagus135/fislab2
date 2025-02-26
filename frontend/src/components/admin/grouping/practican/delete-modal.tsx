@@ -14,7 +14,6 @@ type Props = {
 export default function DeleteModal ({group,open, setOpen}: Props){
     const {toast} = useToast()
     const [loading, setLoading] = useState(false)
-    console.log(group);
     
     const handleDelete = async() =>{
         try {
@@ -24,7 +23,7 @@ export default function DeleteModal ({group,open, setOpen}: Props){
             setOpen(false);
             toast({
                 title : "Success Delete the Practican Group",
-                description : res.token,
+                description : res.message,
                 variant : 'success'
             })
             

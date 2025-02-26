@@ -16,10 +16,10 @@ export default function DeleteModalAnnouncement ({id, open, setOpen }: DeleteMod
 
     const handleDelete = async() =>{
         try {
-            const message = await deleteAnnouncement(id);
+            const res = await deleteAnnouncement(id);
             toast({
                 title : "Success Delete the Announcement",
-                description : message,
+                description : res.message,
                 variant : 'success'
             })
             

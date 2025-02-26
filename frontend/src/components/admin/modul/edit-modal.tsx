@@ -30,10 +30,10 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await editModul(input) as getModul
+            const res = await editModul(input)
             toast({
                 title : "Edit Modul Success",
-                description: `Modul ${res.title} successfully updated`,
+                description: res.message,
                 variant : "success"
             })
         } catch (error:any) {

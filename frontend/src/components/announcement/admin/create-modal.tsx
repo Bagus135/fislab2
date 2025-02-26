@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon } from "lucide-react";
 import { FormEvent, ReactNode, useState } from "react";
@@ -22,10 +23,10 @@ export default function CreateAnnouncementModal ({children}: {children : ReactNo
         e.preventDefault();
         try {
             setLoading(true)
-            const message = await createAnnouncement(input);
+            const res = await createAnnouncement(input);
             toast({
                 title : "Success Create a New Announcement",
-                description : message,
+                description : res.message,
                 variant : 'success'
             })
             
@@ -62,7 +63,7 @@ export default function CreateAnnouncementModal ({children}: {children : ReactNo
                                     <Input 
                                         id="title"
                                         type="text" 
-                                        placeholder="0-30" 
+                                        placeholder="Attention Please !!" 
                                         className="peer invalid:border-red-500"
                                         value={input.title!}
                                         required
@@ -74,10 +75,9 @@ export default function CreateAnnouncementModal ({children}: {children : ReactNo
                             <div className="flex flex-col space-y-2">
                                 <Label htmlFor="content" className="font-medium">Content</Label>
                                 <div className="">
-                                    <Input 
+                                    <Textarea 
                                         id="content"
-                                        type="text" 
-                                        placeholder="0-30" 
+                                        placeholder="Please to be Carefully in Madya Laboratory" 
                                         className="peer invalid:border-red-500"
                                         value={input.content!}
                                         required

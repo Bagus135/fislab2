@@ -4,7 +4,6 @@ import (
 	"backend/handler"
 	"backend/middleware"
 	"backend/service"
-	"github.com/gorilla/mux"
 	"net/http"
 	"os"
 
