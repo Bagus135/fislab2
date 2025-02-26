@@ -1,5 +1,5 @@
 'use client'
-import { editGroupPractican, getPractican } from "@/action/admin.action";
+import { editGroupPractican } from "@/action/admin.action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

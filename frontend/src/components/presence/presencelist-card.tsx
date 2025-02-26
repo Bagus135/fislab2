@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { Fragment } from "react";
-import PermitModal from "./permit-modal";
 import GenerateCodeModal from "./generatecode-modal";
 import { addTwoHours } from "@/utilts/addtwohour";
 import InputCodeModal from "./inputcode-modal";

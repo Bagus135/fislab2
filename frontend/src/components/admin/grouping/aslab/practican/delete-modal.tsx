@@ -1,6 +1,6 @@
 import { deleteAslabtoGroup } from "@/action/admin.action";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon, Unplug } from "lucide-react";
 import { useState } from "react";

@@ -1,6 +1,6 @@
 'use client'
 
-import { loginAction, setCookies } from "@/action/auth.action"
+import { loginAction} from "@/action/auth.action"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"

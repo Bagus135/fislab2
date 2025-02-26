@@ -1,4 +1,4 @@
-import { connectAslabtoGroup, getAllAssistant, getPracticanGroup } from "@/action/admin.action";
+import { connectAslabtoGroup} from "@/action/admin.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";

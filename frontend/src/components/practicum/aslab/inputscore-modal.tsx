@@ -1,6 +1,5 @@
 "use client"
 
-import { getToken } from "@/action/auth.action";
 import { getDetailScore, postInputGrade, updateInputGrade } from "@/action/grade.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";

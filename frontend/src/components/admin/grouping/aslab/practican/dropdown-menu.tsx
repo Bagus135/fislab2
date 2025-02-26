@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ArrowLeftRight, Edit, EllipsisVertical, Plug, Unplug } from "lucide-react"
-import { ReactNode, useState } from "react"
+import { Edit, EllipsisVertical, Unplug } from "lucide-react"
+import { useState } from "react"
 import EditSessionModal from "./edit-dialog"
 
 type Props = {

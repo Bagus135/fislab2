@@ -1,5 +1,5 @@
 import { getAnnouncment } from "@/action/announcement.action";
-import { getDecodeToken, getToken } from "@/action/auth.action";
+import { getDecodeToken } from "@/action/auth.action";
 import AnnouncementCard from "@/components/announcement/announcementcard";
 import CreateAnnouncementCard from "@/components/announcement/createcard";
 import NotFound from "../not-found";
