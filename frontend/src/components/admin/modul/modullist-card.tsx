@@ -15,7 +15,7 @@ type ModulListProps = Awaited<ReturnType<typeof getModul>>
 export default function ModulList({moduls} :{ moduls : ModulListProps}){
     const [search , setSearch] = useState("")
     return (
-        moduls.success &&
+       
         <Card>
             <CardHeader>
                 <CardTitle>Practicum Modul</CardTitle>
@@ -50,10 +50,10 @@ export default function ModulList({moduls} :{ moduls : ModulListProps}){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        moduls.data && moduls.data.map((modul,idx) =>(
+                         moduls.success && moduls.data && moduls.data.map((modul,idx) =>(
                         <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                             <TableCell className="font-medium">{idx + 1}</TableCell>
-                            <TableCell>{modul.title}</TableCell>
+                            <TableCell>{modul.code}</TableCell>
                             <TableCell>{modul.description}</TableCell>
                             <TableCell>
                               <DropdownMenuModul modul={modul} key={idx}/>

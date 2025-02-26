@@ -24,8 +24,6 @@ export default function PasswordResetForm({token} : {token :string}) {
         try {
             setLoading(true)
             const res = await resetPass({...input, token})
-            console.log(res);
-            
             toast({
                 title: "Password Reset Successful",
                 description: "Your password has been reset successfully.",

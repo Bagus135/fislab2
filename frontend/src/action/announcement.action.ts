@@ -19,7 +19,7 @@ export const createAnnouncement = async(payload : {title : string , content : st
         if(!res.ok) throw new Error(data.error)
         
         revalidatePath("/")
-        return data.message
+        return data
 
     } catch (error:any) {
         throw new Error(error.message)
@@ -41,7 +41,9 @@ export const editAnnouncement = async(payload : {id : number , title : string , 
         if(!res.ok) throw new Error('Error When Updating Announcement')
         
         revalidatePath("/")
-        return "Announcement Updated"
+        return {
+            message : "Announcement Updated",
+        }
 
     } catch (error:any) {
         throw new Error(error.message)
@@ -58,14 +60,13 @@ export const deleteAnnouncement = async(id : number) => {
             method : "DELETE",
             body : JSON.stringify({id})
         })
-        console.log(res);
         
         const data = await res.json()
         
         if(!res.ok) throw new Error(data.error)
         
         revalidatePath("/")
-        return data.message
+        return data
 
     } catch (error:any) {
         throw new Error(error.message)

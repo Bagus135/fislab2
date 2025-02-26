@@ -5,12 +5,11 @@ import { ReactNode, useState } from "react"
 import EditSessionModal from "./edit-dialog"
 
 type Props = {
-    assistants :  getAllAssistant[]|null,
     schedule : AllScheduleAdmin,
     setOpenDelete : (a : boolean) => void
 }
 
-export default function DropDownMenu ({assistants, schedule, setOpenDelete}: Props) {
+export default function DropDownMenu ({ schedule, setOpenDelete}: Props) {
     const [open, setOpen] = useState(false)
     return (
     <>
@@ -23,7 +22,7 @@ export default function DropDownMenu ({assistants, schedule, setOpenDelete}: Pro
             <DropdownMenuContent className="w-auto">
                 <DropdownMenuGroup className="flex flex-col gap-2 items-start" >
                     <DropdownMenuItem asChild>
-                        <EditSessionModal assistants={assistants} schedule={schedule} >
+                        <EditSessionModal schedule={schedule} >
                             <Button variant={"ghost"} className="font-semibold gap-2">
                                 <Edit className="size-4 mr-1"/>
                                 <span className="inline text-sm ">

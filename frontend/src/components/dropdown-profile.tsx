@@ -7,8 +7,32 @@ import { AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { removeCookies } from "@/action/auth.action";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
-export default function ProfileDropdown (){
+
+
+
+export default function ProfileDropdown ({role} : {role : string}){
+    const {toast} = useToast();
+    const router = useRouter();
+    const handleLogout = async () => {
+        try {
+            const res = await removeCookies();
+            router.push("/login")
+            toast({
+                variant : "success",
+                title : "Log out successfully",
+                description : "Good Bye ^_^"
+            })
+        } catch (error : any) {
+            toast({
+                variant : "destructive",
+                title : "Log out failed",
+                description : error.message
+            })
+        }
+    }
     return (
         <>
             <DropdownMenu>
@@ -33,7 +57,8 @@ export default function ProfileDropdown (){
                                 </span>
                             </Link>
                         </DropdownMenuLabel>
-                        <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
+                        { ["ADMIN", "SUPER_ADMIN"].includes(role) &&
+                            <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
                             <Link href={`/admin`}>
                                 <UserRoundCog className="w-4 h-4"/>
                                 <span className="inline">
@@ -41,7 +66,8 @@ export default function ProfileDropdown (){
                                 </span>
                             </Link>
                         </DropdownMenuLabel>
-                        <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5"  onClick={removeCookies} >
+                        }
+                        <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 cursor-pointer"  onClick={handleLogout} >
                                 <LogOut className="w-4 h-4"/>
                                 <span className="inline">
                                     Log Out

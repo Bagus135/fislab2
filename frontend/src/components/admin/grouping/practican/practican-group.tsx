@@ -14,11 +14,11 @@ import DeleteModal from "./delete-modal";
 type GetPracticanRes = Awaited<ReturnType<typeof getPractican>>
 type GetGroupRes = Awaited<ReturnType<typeof getPracticanGroup>>
 
+
 export default function PracticanGroup ({practicans , groups } : {practicans : GetPracticanRes, groups : GetGroupRes}){
     const [search , setSearch] = useState("")
     const [openDelete, setOpenDelete] = useState(false)
     const [selectGroup, setSelectedGroup] = useState<getPracticanGroup|null>(null)
-    console.log(selectGroup);
     
     return (
         <Card>

@@ -30,6 +30,7 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
             toast({
                 title : "Success to connect aslab to group",
                 variant : "success",
+                description: res.message
             })
         } catch (error:any) {
             toast({

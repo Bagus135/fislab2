@@ -7,8 +7,10 @@ import { Button } from "./ui/button";
 import { MobileSidebar } from "./sidebar";
 import { Github } from "lucide-react";
 import ProfileDropdown from "./dropdown-profile";
+import { getDecodeToken } from "@/action/auth.action";
 
 const Navbar = async () =>{
+    const token = await getDecodeToken()
     return (
         <nav className="sticky border-b top-0 w-full bg-background/95 backdrop-blur  supports-[backdrop-filter]:bg-background/60 z-50 ">
             <div className="px-2 md:pl-0">
@@ -18,7 +20,11 @@ const Navbar = async () =>{
                             <img src="/logofisika.png" className=" h-6 w-6  dark:hidden "/>
                             <img src="/whitephi.png" className=" h-6 w-6  dark:block hidden"/>
                         </div>
-                        <MobileSidebar/>
+                        { token.success ?
+                            <MobileSidebar/>
+                            :
+                            null
+                        }
                         <Link href="/" className="text-xl font-mono font-bold text-primary tracking-widest ">
                             FISLAB
                         </Link>
@@ -30,7 +36,15 @@ const Navbar = async () =>{
                                 <Github className="size-4"/>
                             </Link>
                         </Button>
-                        <ProfileDropdown/>
+                        { token.success ?
+                            <ProfileDropdown role={token.data.role}/>
+                            :
+                            <Button size={"default"} asChild>
+                                <Link href={'/login'}>
+                                    Login
+                                </Link>
+                            </Button>
+                        }
                     </div>
                 </div>
             </div>

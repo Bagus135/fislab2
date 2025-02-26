@@ -190,7 +190,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                                         <Button className="hidden" ref={btnRef}/>
                                     </EmailVerifyDialog>
                                 </div>
-                                <p className={`text-xs`}>Email not verified</p>
+                                <p className={ profile.email_verified? `hidden`: `text-xs text-red-500 block`}>Email not verified</p>
                             </div>
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="Whatsapp" className="font-bold tracking-wide text-sm ">Whatsapp</Label>

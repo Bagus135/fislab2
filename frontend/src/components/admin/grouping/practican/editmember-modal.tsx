@@ -58,7 +58,7 @@ export default function EditMemberPracticanModal ({group, children,practicans}: 
             toast({
                 title : "Updated Success",
                 variant : "success",
-                description : `Practican group ${res.group} updated`
+                description : res.message
             })
         } catch (error:any) {
             toast({

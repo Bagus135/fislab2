@@ -23,7 +23,7 @@ export default function DeleteModal ({user,open, setOpen}: Props){
             setOpen(false);
             toast({
                 title : "Success Delete the user",
-                description : res.token,
+                description : res.message,
                 variant : 'success'
             })
             

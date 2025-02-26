@@ -1,18 +1,17 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ArrowLeftRight, EllipsisVertical, Plug, Unplug } from "lucide-react"
-import { ReactNode, useState } from "react"
+import {Edit, EllipsisVertical, Plug, Unplug } from "lucide-react"
+import {useState } from "react"
 import ConnectModulAslabModal from "./connect-modal"
-import SwapModulAslabModal from "./swap-modal"
 import DeleteModal from "./delete-modal"
+import EditModulAslab from "./edit-modal"
 
 type Props = {
     assistant : getAllAssistant
     moduls : getModul[],
-    assistants : getAllAssistant[]
 }
 
-export default function DropDownMenu ({assistant, moduls , assistants}:Props) {
+export default function DropDownMenu ({assistant, moduls}:Props) {
     const [open, setOpen] = useState(false);
     return (
     <>
@@ -34,14 +33,14 @@ export default function DropDownMenu ({assistant, moduls , assistants}:Props) {
                             </span>
                         </Button>
                     </ConnectModulAslabModal>
-                    <SwapModulAslabModal assistant={assistant} assistants={assistants} moduls={moduls}>
+                    <EditModulAslab assistant={assistant}  moduls={moduls}>
                         <Button variant={"ghost"} className="font-semibold gap-2">
-                            <ArrowLeftRight className="size-4 mr-1"/>
+                            <Edit className="size-4 mr-1"/>
                             <span className="inline text-sm ">
-                                Swap Asistant
+                                Change Modul
                             </span>
                         </Button>
-                    </SwapModulAslabModal>
+                    </EditModulAslab>
                     <DeleteModal assistant={assistant} >
                         <Button variant={"ghost"} className="text-red-500 hover:text-red-600 font-semibold  gap-2">
                             <Unplug className="size-4 mr-1"/>

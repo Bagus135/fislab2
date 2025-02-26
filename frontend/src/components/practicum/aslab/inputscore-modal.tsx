@@ -1,249 +1,229 @@
 "use client"
 
+import { getToken } from "@/action/auth.action";
+import { getDetailScore, postInputGrade, updateInputGrade } from "@/action/grade.action";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon } from "lucide-react";
-import { FormEvent, ReactHTMLElement, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
+type ScoreType = {
+    punctuality: string|number;
+    preExam: string|number;
+    oralTest: string|number;
+    skillsAndAttitude: string|number;
+    abstract: string|number;
+    introduction: string|number;
+    methodology: string|number;
+    discussion: string|number;
+    dataProcessing: string|number;
+    conclusion: string|number;
+    formatting: string|number;
+    feedback: string|number;
+};
 
-type Score = {
-    prelab : null|number,
-    inlab : null|number,
-    abstrak: null|number,
-    pendahuluan : null|number,
-    metodologi : null|number,
-    pembahasan : null|number,
-    kesimpulan : null|number,
-    format : null|number,
-    comment : string
+type PayloadType = {
+    [K in keyof ScoreType]: K extends 'feedback' ? number : number;
+};
+
+type Props = {
+    open: boolean,
+    setOpen: (open: boolean) => void,
+    member: {
+        gradedAt: string | null;
+        gradeId: number | null;
+        name: string;
+        nrp: string;
+        totalScore: null | number;
+        id: string;
+    } | null,
+    scheduleId : number|null
 }
 
-type DataType = {
-        prelab: number|null;
-        inlab: number|null;
-        abstrak: number|null;
-        pendahuluan: number|null;
-        metodologi: number|null;
-        pembahasan: number|null;
-        kesimpulan: number|null;
-        format: number|null;
-}
+export default function InputScoreModal({ open, setOpen, member, scheduleId}: Props) {
+    const {toast} = useToast()
+    const [input, setInput] = useState<ScoreType>({
+        punctuality: '',
+        preExam: '',
+        oralTest: '',
+        skillsAndAttitude:'',
+        abstract: '',
+        introduction: '',
+        methodology: '',
+        discussion: '',
+        dataProcessing: '',
+        conclusion:'',
+        formatting: '',
+        feedback: '',
+    });
+    useEffect(() => {
+        const detailProfile = async () => {
+            try {
+                if(!member)throw new Error ('Error in client side')
+                if(!member.gradeId) throw new Error ('user have beent grading yet')
+                const  score = await getDetailScore(member.gradeId) as GetDetailedScoreType
+                setInput({
+                        punctuality: String(score.scores.prelab.punctuality),
+                        preExam: String(score.scores.prelab.preExam),
+                        oralTest: String(score.scores.prelab.oralTest),
+                        skillsAndAttitude: String(score.scores.inlab.skillsAndAttitude),
+                        abstract: String(score.scores.postlab.abstract),
+                        introduction: String(score.scores.postlab.introduction),
+                        methodology: String(score.scores.postlab.methodology),
+                        discussion: String(score.scores.postlab.discussion),
+                        dataProcessing: String(score.scores.postlab.dataProcessing),
+                        conclusion: String(score.scores.postlab.conclusion),
+                        formatting: String(score.scores.postlab.formatting),
+                        feedback: String(score.feedback),
+                })
+            } catch (error: any) {
+                const err = error.mesage
+            }
+        }
+        detailProfile();
+    }, [member]);
 
-export default function InputScoreModal ({children, score}: {children: React.ReactNode, score : Score}) {
-
-    const [input, setInput] = useState({
-        prelab : score.prelab ? `${score.prelab}`: "",
-        inlab : score.inlab? `${score.inlab}` : "",
-        abstrak: score.abstrak? `${score.abstrak}` : "",
-        pendahuluan : score.pendahuluan? `${score.pendahuluan}` : "",
-        metodologi : score.metodologi? `${score.metodologi}`: "",
-        pembahasan : score.pembahasan? `${score.pembahasan}` : "",
-        kesimpulan : score.kesimpulan? `${score.kesimpulan}` : "",
-        format : score.format? `${score.format}` : "",
-    })
-    const [comment, setComment] = useState("")
     const [loading, setLoading] = useState(false);
-    const [isValid, setIsValid] = useState(true); // State to track overall validity
+    const [isValid, setIsValid] = useState(true);
 
-    // Function to validate all inputs
+    const patterns = {
+        punctuality: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+        preExam: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
+        oralTest: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
+        skillsAndAttitude: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+        abstract: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+        introduction: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
+        methodology: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+        discussion: /^(?:[0-2]?[0-9](?:\.\d{1,2})?|30(?:\.0{1,2})?)$/, // 0-30 with optional decimal
+        dataProcessing: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
+        conclusion: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+        formatting: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+    };
+
     const validateInputs = () => {
-        const patterns = {
-            prelab: /^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$/,
-            inlab: /^([0-4](\.\d{1,2})?|5)$/,
-            pendahuluan: /^([0-9](\.\d{1,2})?|10)$/,
-            metodologi: /^([0-4](\.\d{1,2})?|5)$/,
-            pembahasan: /^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$/,
-            kesimpulan: /^([0-9](\.\d{1,2})?|10)$/,
-            format: /^([0-4](\.\d{1,2})?|5)$/,
-        };
-        // Check each input against its pattern
         for (const key in patterns) {
-            if(!!input[key as keyof typeof input].trim()){
-                if (!(patterns[key as keyof typeof patterns].test(input[key as keyof typeof input]))) {
-                    return false; // If any input is invalid, return false
+            const value = input[key as keyof typeof input];
+            if (key !== "feedback" && (value as string).trim() !== '') {
+                if (!patterns[key as keyof typeof patterns].test(value as string)) {
+                    return false; // Return false if any input is invalid
                 }
             }
         }
         return true; // All inputs are valid
     };
 
-    // Effect to check validity whenever input changes
     useEffect(() => {
         setIsValid(validateInputs());
     }, [input]);
-
-    const handleSubmit = (e :FormEvent<HTMLFormElement>) => {
+    
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const data :DataType = {
-            prelab: null,
-            inlab: null,
-            abstrak: null,
-            pendahuluan: null,
-            metodologi: null,
-            pembahasan: null,
-            kesimpulan: null,
-            format: null
-        };
-
-        for (const key in data) {
-            if(!!(input[key as keyof typeof input] as string).trim()){
-                data[key as keyof typeof data] = parseFloat(input[key as keyof typeof input]as string)
-            } else {
-                data[key as keyof typeof data] = null
+        try {
+            if(!member || !scheduleId) throw new Error('Error in Client side')
+                setLoading(true);
+            const data: ScoreType = { ...input };
+            
+            for (const key in data) {
+                if (key !== "feedback" ) {
+                    if(!!(input[key as keyof typeof input] as string).trim()){
+                        data[key as keyof typeof data] = parseFloat(input[key as keyof typeof input] as string);
+                    } else {
+                        data[key as keyof typeof data] = 0;
+                    }
+                } else if (key === "feedback") {
+                    data[key as keyof typeof data] = input[key as keyof typeof data];
+                }
             }
-            console.log(data)
+            
+            const datainput = data as PayloadType
+            setLoading(true)
+            
+            if (!member.gradeId) {
+                const res = await postInputGrade({...datainput, userId : member.id, scheduleId : scheduleId})
+                toast({
+                    title : "Grade practican has been input",
+                    description : res.message,
+                    variant : "success" 
+                })
+            } else {
+                const res = await updateInputGrade({...datainput} , member.gradeId)
+                toast({
+                    title : "Grade practican has been updated",
+                    description : res.message,
+                    variant : "success" 
+                })
+            }
+            
+        } catch (error : any) {
+            toast({
+                title : "Failed to input practican grade",
+                description : error.message,
+                variant : "destructive" 
+            })
+        } finally {
+            setLoading(false);
+
         }
-        
-    } 
+    };
+
     return (
-        <Dialog>
-        <DialogTrigger className="cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" asChild>
-            {children}
-        </DialogTrigger>
-        <DialogTitle className="hidden"></DialogTitle>
-        <DialogContent className="p-0 border-none shadow-none">
-            <Card className="border-none shadow-none">
-                <CardContent className="border-none shadow-none">
-                    <ScrollArea className="h-[calc(100vh-6rem)] px-2">
-                        <form noValidate onSubmit={handleSubmit}>
-                            <div className="grid w-full items-center gap-4 mt-2">
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="prelab" className="font-medium">Prelab</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="prelab"
-                                            type="text" 
-                                            placeholder="0-30" 
-                                            className="peer invalid:border-red-500"
-                                            value={input.prelab!}
-                                            pattern="^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$"
-                                            onChange={(e)=>setInput({...input, prelab : e.target.value })}
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+            <ScrollArea className="h-[calc(100vh-8rem)] px-2">
+                <DialogHeader>
+                    <DialogTitle>Input Score</DialogTitle>
+                    <DialogDescription>Input score for practican</DialogDescription>
+                </DialogHeader>
+                    <form noValidate onSubmit={handleSubmit}>
+                        <div className="grid w-full items-center gap-4 mt-8 px-1">
+                            {Object.keys(input).map((key) => (
+                                key !== "feedback" ? (
+                                    <div className="flex flex-col space-y-2" key={key}>
+                                        <Label htmlFor={key} className="font-medium capitalize">{key}</Label>
+                                        <div>
+                                            <Input
+                                                id={key}
+                                                type="text"
+                                                placeholder="Enter score"
+                                                className="peer invalid:border-red-500"
+                                                pattern={patterns[key as keyof typeof patterns].source}
+                                                value={input[key as keyof ScoreType]}
+                                                onChange={(e) => setInput({ ...input, [key]: e.target.value })}
                                             />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
+                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Invalid input</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="inlab" className="font-medium">Inlab</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="inlab"
-                                            type="text" 
-                                            placeholder="0-5" 
+                                ) : (
+                                    <div className="flex flex-col space-y-2" key={key}>
+                                        <Label htmlFor={key} className="font-medium capitalize">Feedback</Label>
+                                        <Textarea
+                                            id={key}
+                                            placeholder="Enter feedback"
                                             className="peer invalid:border-red-500"
-                                            value={input.inlab!}
-                                            pattern="^([0-4])(\.\d{1,2})?|5$"
-                                            onChange={(e)=>setInput({...input, inlab : e.target.value })}
-                                            />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
+                                            value={input[key as keyof ScoreType]}
+                                            onChange={(e) => setInput({ ...input, [key]: e.target.value })}
+                                        />
                                     </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="pendahuluan" className="font-medium">Pendahuluan</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="pendahuluan"
-                                            type="text" 
-                                            placeholder="0-10" 
-                                            className="peer invalid:border-red-500"
-                                            value={input.pendahuluan!}
-                                            pattern="^([0-9])(\.\d{1,2})?|10"
-                                            onChange={(e)=>setInput({...input, pendahuluan : e.target.value })}
-                                            />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="metodologi" className="font-medium">Metodologi</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="metodologi"
-                                            type="text" 
-                                            placeholder="0-5" 
-                                            className="peer invalid:border-red-500"
-                                            value={input.metodologi!}
-                                            pattern="^([0-4])(\.\d{1,2})?|5$"
-                                            onChange={(e)=>setInput({...input, metodologi : e.target.value })}
-                                            />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="pembahasan" className="font-medium">Pembahasan</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="pembahasan"
-                                            type="text" 
-                                            placeholder="0-30" 
-                                            className="peer invalid:border-red-500"
-                                            value={input.pembahasan!}
-                                            pattern="^(?:[0-2]?[0-9]|30)(\.\d{1,2})?$"
-                                            onChange={(e)=>setInput({...input, pembahasan : e.target.value })}
-                                            />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="kesimpulan" className="font-medium">Kesimpulan</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="kesimpulan"
-                                            type="text" 
-                                            placeholder="0-10" 
-                                            className="peer invalid:border-red-500"
-                                            value={input.kesimpulan!}
-                                            pattern="^([0-9])(\.\d{1,2})?|10$"
-                                            onChange={(e)=>setInput({...input, kesimpulan : e.target.value })}
-                                            />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="format" className="font-medium">Format</Label>
-                                    <div className="">
-                                        <Input 
-                                            id="format"
-                                            type="text" 
-                                            placeholder="0-5" 
-                                            className="peer invalid:border-red-500"
-                                            value={input.format!}
-                                            pattern="^([0-4])(\.\d{1,2})?|5$"
-                                            onChange={(e)=>setInput({...input, format : e.target.value })}
-                                            />
-                                            <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col space-y-2">
-                                    <Label htmlFor="comment" className="font-medium">Comment</Label>
-                                    <div className="">
-                                        <Textarea 
-                                            id="comment"
-                                            placeholder="Good Job Bro!" 
-                                            className="peer invalid:border-red-500"
-                                            value={comment}
-                                            onChange={(e)=>setComment(e.target.value)}
-                                            />
-                                    </div>
-                                </div>
-                                <Button 
-                                    disabled={loading || !isValid} 
-                                    className="w-full text-lg font-bold mt-2">
-                                    {loading?
-                                        <Loader2Icon className="size-4 animate-spin"/>
-                                        :
-                                        "Submit"    
+                                )
+                            ))}
+                            <Button
+                                disabled={loading || !isValid}
+                                className="w-full text-lg font-bold mt-2">
+                                {loading ?
+                                    <Loader2Icon className="size-4 animate-spin" />
+                                    :
+                                    "Submit"
                                 }
-                                </Button>
-                                </div>
-                        </form>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
-        </DialogContent>
-    </Dialog>
+                            </Button>
+                        </div>
+                    </form>
+                </ScrollArea>
+            </DialogContent>
+        </Dialog>
     )
 }
