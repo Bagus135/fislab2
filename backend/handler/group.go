@@ -181,7 +181,6 @@ func (h *GroupHandler) GetAllGroups(w http.ResponseWriter, r *http.Request) {
 		db.Group.Members.Fetch(),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error fetching groups: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -213,9 +212,6 @@ func (h *GroupHandler) GetAllGroups(w http.ResponseWriter, r *http.Request) {
 func (h *GroupHandler) GetGroupById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	requestedGroupID := vars["id"]
-
-	// Debugging
-	fmt.Println("Requested Group ID:", requestedGroupID)
 
 	if requestedGroupID == "" {
 		// Jika tidak ada ID, tampilkan semua group

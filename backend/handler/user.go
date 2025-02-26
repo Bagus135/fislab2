@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -104,7 +106,6 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		db.User.ID.Equals(requestedUserID),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
@@ -156,16 +157,22 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		Phone string `json:"phone"`
 		About string `json:"about"`
 	}
-	req.Name = helper.SanitizeString(req.Name)
-	req.Email = helper.SanitizeString(req.Email)
-	req.Phone = helper.SanitizeString(req.Phone)
-	req.About = helper.SanitizeString(req.About)
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
+
+	// Sanitasi input SETELAH decode
+	req.Name = helper.SanitizeString(req.Name)
+	req.Email = helper.SanitizeString(req.Email)
+	req.Phone = helper.SanitizeString(req.Phone)
+	req.About = helper.SanitizeString(req.About)
+
+	// Log untuk debug
+	log.Printf("After sanitization: Name=%s, Email=%s, Phone=%s", req.Name, req.Email, req.Phone)
+
 	// Validasi anti-SQLi menggunakan helper
 	if !helper.ValidateInputAgainstSQLi(req.Name) ||
 		!helper.ValidateInputAgainstSQLi(req.Email) ||
@@ -308,7 +315,6 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error fetching users: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
 		return
@@ -403,57 +409,90 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Parse multipart form
-	err := r.ParseMultipartForm(h.maxSize)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to parse form"})
-		return
+	var fileBytes []byte
+	var filename string
+	var fileSize int64
+	var contentType string
+	var err error
+
+	contentType = r.Header.Get("Content-Type")
+	log.Printf("Upload Content-Type: %s", contentType)
+
+	// Periksa apakah request adalah image/* langsung atau multipart/form-data
+	if strings.HasPrefix(contentType, "image/") {
+		// Kasus 1: File langsung dalam body
+		fileBytes, err = io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read file"})
+			return
+		}
+
+		fileSize = int64(len(fileBytes))
+
+		// Buat nama file dari Content-Type
+		ext := ".jpg" // Default
+		if contentType == "image/png" {
+			ext = ".png"
+		} else if contentType == "image/jpeg" || contentType == "image/jpg" {
+			ext = ".jpg"
+		}
+
+		filename = "direct_upload" + ext
+
+		log.Printf("Direct upload detected: size=%d bytes, ext=%s", fileSize, ext)
+
+	} else {
+		// Kasus 2: File dalam multipart/form-data
+		err = r.ParseMultipartForm(h.maxSize)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to parse form: " + err.Error()})
+			return
+		}
+
+		file, handler, err := r.FormFile("profilePicture")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to get file: " + err.Error()})
+			return
+		}
+		defer func(file multipart.File) {
+			err := file.Close()
+			if err != nil {
+
+			}
+		}(file)
+
+		fileBytes, err = io.ReadAll(file)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read file: " + err.Error()})
+			return
+		}
+
+		filename = handler.Filename
+		fileSize = handler.Size
+		contentType = handler.Header.Get("Content-Type")
+
+		log.Printf("Form upload detected: size=%d bytes, filename=%s, content-type=%s",
+			fileSize, filename, contentType)
 	}
 
-	file, handler, err := r.FormFile("profilePicture")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to get file"})
-		return
+	// Log raw bytes untuk debugging
+	if len(fileBytes) >= 4 {
+		log.Printf("First 4 bytes: %X %X %X %X", fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3])
 	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			log.Printf("Error closing file: %v", closeErr)
-		}
-	}()
 
 	// Validasi ukuran file
-	if handler.Size > h.maxSize {
+	if fileSize > h.maxSize {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "file too large, maximum size is 500 KB"})
 		return
 	}
 
-	// Validasi tipe file menggunakan helper
-	contentType := handler.Header.Get("Content-Type")
-	if !helper.IsValidImageType(contentType) {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid file type, only jpg, jpeg, and png are allowed"})
-		return
-	}
-
-	// Validasi nama file dengan helper
-	if !helper.IsValidFileName(handler.Filename) {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid filename"})
-		return
-	}
-
-	// Baca dan validasi file menggunakan helper
-	fileBytes, err := helper.ValidateAndReadFile(file, handler.Size)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read file"})
-		return
-	}
-
-	if err := helper.IsSecureImageFile(fileBytes, handler.Size, handler.Filename); err != nil {
+	// Validasi file gambar dengan helper
+	if err := helper.IsSecureImageFile(fileBytes, fileSize, filename); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
@@ -469,7 +508,6 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 		if oldProfilePict, ok := oldUser.ProfilePict(); ok && oldProfilePict != "" {
 			oldFilePath := filepath.Join(h.uploadDir, filepath.Base(oldProfilePict))
 			if _, err := os.Stat(oldFilePath); err == nil {
-				// Sanitasi path sebelum menghapus file
 				oldFilePath = helper.SanitizePath(oldFilePath)
 				if removeErr := os.Remove(oldFilePath); removeErr != nil {
 					log.Printf("Error removing old profile picture: %v", removeErr)
@@ -479,10 +517,19 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Generate nama file aman dengan helper
-	ext := filepath.Ext(handler.Filename)
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		// Jika tidak ada ekstensi, gunakan berdasarkan content type
+		if strings.HasPrefix(contentType, "image/png") {
+			ext = ".png"
+		} else {
+			ext = ".jpg"
+		}
+	}
+
 	safeFilename := helper.GenerateSecureFilename(fileBytes, ext)
 
-	// Tulis file dengan path yang aman (sanitasi path)
+	// Tulis file dengan path yang aman
 	fullPath := helper.SanitizePath(filepath.Join(h.uploadDir, safeFilename))
 	err = os.WriteFile(fullPath, fileBytes, 0644)
 	if err != nil {
@@ -510,7 +557,8 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "profile picture updated successfully",
+		"message":  "profile picture updated successfully",
+		"filename": safeFilename,
 	})
 }
 

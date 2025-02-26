@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,9 +18,6 @@ func SecurityHeaders(next http.Handler) http.Handler {
 
 		// Mencegah MIME sniffing
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-
-		// Content Security Policy untuk mencegah XSS
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self'; script-src 'self'")
 
 		// Mencegah clickjacking
 		w.Header().Set("X-Frame-Options", "DENY")
@@ -47,11 +46,21 @@ func RateLimiter(next http.Handler) http.Handler {
 	var (
 		mu              sync.Mutex
 		clients         = make(map[string]*client)
-		maxRequests     = 100              // Maksimum request per window
+		maxRequests     = 200              // Ditingkatkan dari 100 -> 200
 		window          = 60 * time.Second // Window waktu (1 menit)
-		blockDuration   = 5 * time.Minute  // Durasi blocking jika terlalu banyak request
+		blockDuration   = 2 * time.Minute  // Diturunkan dari 5 -> 2 menit
 		cleanupInterval = 10 * time.Minute // Interval pembersihan
 	)
+
+	// Path dengan limit berbeda
+	pathLimits := map[string]int{
+		"/api/login":        20,  // Endpoint autentikasi - lebih ketat
+		"/api/register":     20,  // Endpoint registrasi - lebih ketat
+		"/api/auth":         20,  // Endpoint auth lainnya - lebih ketat
+		"/api/profile":      150, // Endpoint profil - standar
+		"/api/attendance":   300, // Endpoint presensi - lebih longgar
+		"/api/announcement": 300, // Endpoint pengumuman - lebih longgar
+	}
 
 	// Goroutine untuk membersihkan map clients secara periodik
 	go func() {
@@ -85,6 +94,15 @@ func RateLimiter(next http.Handler) http.Handler {
 			ip = forwardedFor
 		}
 
+		// Tentukan limit berdasarkan path
+		currentMaxRequests := maxRequests
+		for path, limit := range pathLimits {
+			if strings.HasPrefix(r.URL.Path, path) {
+				currentMaxRequests = limit
+				break
+			}
+		}
+
 		mu.Lock()
 
 		// Inisialisasi data client jika belum ada
@@ -107,9 +125,9 @@ func RateLimiter(next http.Handler) http.Handler {
 				c.count = 0
 			} else {
 				// Client masih diblokir
-				_ = c.blockTime.Sub(now).Seconds()
+				remainingTime := int(c.blockTime.Sub(now).Seconds())
 				mu.Unlock()
-				w.Header().Set("Retry-After", "300") // 5 menit
+				w.Header().Set("Retry-After", string(rune(remainingTime)))
 				w.WriteHeader(http.StatusTooManyRequests)
 				_, err := w.Write([]byte("Too many requests. Please try again later."))
 				if err != nil {
@@ -130,11 +148,11 @@ func RateLimiter(next http.Handler) http.Handler {
 		c.lastSeen = now
 
 		// Jika melebihi batas, blokir sementara
-		if c.count > maxRequests {
+		if c.count > currentMaxRequests {
 			c.blocked = true
 			c.blockTime = now.Add(blockDuration)
 			mu.Unlock()
-			w.Header().Set("Retry-After", "300") // 5 menit
+			w.Header().Set("Retry-After", string(rune(int(blockDuration.Seconds()))))
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, err := w.Write([]byte("Too many requests. Please try again later."))
 			if err != nil {
@@ -160,15 +178,31 @@ func RequestValidation(next http.Handler) http.Handler {
 		if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
 			contentType := r.Header.Get("Content-Type")
 
-			// Hanya izinkan content type yang valid
-			isValid := strings.Contains(contentType, "application/json") ||
-				strings.Contains(contentType, "multipart/form-data") ||
-				strings.Contains(contentType, "application/x-www-form-urlencoded")
+			// Debug log
+			log.Printf("Request to %s with Content-Type: %s", r.URL.Path, contentType)
+
+			// Izinkan juga image/* content types jika path berisi /profile/picture
+			isImageUpload := strings.HasPrefix(contentType, "image/") &&
+				strings.Contains(r.URL.Path, "/profile/picture")
+
+			isValid := strings.HasPrefix(contentType, "application/json") ||
+				strings.HasPrefix(contentType, "multipart/form-data") ||
+				strings.HasPrefix(contentType, "application/x-www-form-urlencoded") ||
+				isImageUpload
+
+			// Juga cek dengan Contains untuk menangani boundary di multipart
+			if !isValid {
+				isValid = strings.Contains(contentType, "application/json") ||
+					strings.Contains(contentType, "multipart/form-data") ||
+					strings.Contains(contentType, "application/x-www-form-urlencoded")
+			}
 
 			if !isValid && r.ContentLength > 0 {
+				log.Printf("Invalid Content-Type rejected: %s", contentType)
 				w.WriteHeader(http.StatusUnsupportedMediaType)
 				_, err := w.Write([]byte("Unsupported media type"))
 				if err != nil {
+					log.Printf("Error writing response: %v", err)
 					return
 				}
 				return
@@ -176,7 +210,7 @@ func RequestValidation(next http.Handler) http.Handler {
 		}
 
 		// Validasi URL path - mencegah path traversal
-		if strings.Contains(r.URL.Path, "..") {
+		if strings.Contains(r.URL.Path, "../") || strings.Contains(r.URL.Path, "..\\") {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte("Invalid URL path"))
 			if err != nil {
@@ -185,13 +219,23 @@ func RequestValidation(next http.Handler) http.Handler {
 			return
 		}
 
-		// Validasi query parameters
+		// Validasi query parameters - lebih kontekstual & kurang agresif
 		for _, values := range r.URL.Query() {
 			for _, value := range values {
+				// Daftar pola berbahaya dengan konteks
+				dangerousPatterns := []string{
+					"UNION SELECT", "UNION ALL SELECT",
+					"DROP TABLE", "DROP DATABASE",
+					"DELETE FROM", "TRUNCATE TABLE",
+					"OR 1=1--", "OR TRUE--", "' OR '1'='1",
+					"EXEC(", "EXECUTE(", "xp_cmdshell",
+				}
+
+				lowerValue := strings.ToLower(value)
+
 				// Deteksi pola SQL Injection
-				sqlInjectionPatterns := []string{"'", "\"", ";", "--", "/*", "*/", "UNION", "SELECT", "DROP", "1=1"}
-				for _, pattern := range sqlInjectionPatterns {
-					if strings.Contains(value, pattern) {
+				for _, pattern := range dangerousPatterns {
+					if strings.Contains(lowerValue, pattern) {
 						w.WriteHeader(http.StatusBadRequest)
 						_, err := w.Write([]byte("Invalid query parameter"))
 						if err != nil {
@@ -201,10 +245,32 @@ func RequestValidation(next http.Handler) http.Handler {
 					}
 				}
 
-				// Deteksi pola XSS
-				xssPatterns := []string{"<script", "javascript:", "onerror=", "onload=", "eval("}
+				// Deteksi kombinasi karakter berbahaya dengan konteks
+				hasQuote := strings.Contains(value, "'") || strings.Contains(value, "\"")
+				hasSQLKeyword := strings.Contains(lowerValue, "select") ||
+					strings.Contains(lowerValue, "insert") ||
+					strings.Contains(lowerValue, "update") ||
+					strings.Contains(lowerValue, "delete")
+
+				// Jika ada kutip dan keyword SQL dalam satu parameter, ini mencurigakan
+				if hasQuote && hasSQLKeyword && len(value) > 10 {
+					w.WriteHeader(http.StatusBadRequest)
+					_, err := w.Write([]byte("Invalid query parameter"))
+					if err != nil {
+						return
+					}
+					return
+				}
+
+				// Deteksi pola XSS yang jelas berbahaya
+				xssPatterns := []string{
+					"<script>", "javascript:",
+					"onerror=", "onload=",
+					"eval(", "document.cookie",
+				}
+
 				for _, pattern := range xssPatterns {
-					if strings.Contains(strings.ToLower(value), pattern) {
+					if strings.Contains(lowerValue, pattern) {
 						w.WriteHeader(http.StatusBadRequest)
 						_, err := w.Write([]byte("Invalid query parameter"))
 						if err != nil {
@@ -232,26 +298,26 @@ func LogRequest(next http.Handler) http.Handler {
 		next.ServeHTTP(wrapper, r)
 
 		// Logging setelah request diproses
-		_ = time.Since(startTime)
+		duration := time.Since(startTime)
 
 		// Implementasi logging sesuai kebutuhan
 		// Format: timestamp, IP, method, path, status, duration
-		// log.Printf("[%s] %s %s %s %d %v",
-		//     time.Now().Format(time.RFC3339),
-		//     r.RemoteAddr,
-		//     r.Method,
-		//     r.URL.Path,
-		//     wrapper.status,
-		//     duration)
+		log.Printf("[%s] %s %s %s %d %v",
+			time.Now().Format(time.RFC3339),
+			r.RemoteAddr,
+			r.Method,
+			r.URL.Path,
+			wrapper.status,
+			duration)
 
 		// Deteksi request mencurigakan
 		if wrapper.status >= 400 {
 			// Log lebih detail untuk kode error
-			// log.Printf("[WARNING] Error response: %d for %s %s from %s",
-			//     wrapper.status,
-			//     r.Method,
-			//     r.URL.Path,
-			//     r.RemoteAddr)
+			log.Printf("[WARNING] Error response: %d for %s %s from %s",
+				wrapper.status,
+				r.Method,
+				r.URL.Path,
+				r.RemoteAddr)
 		}
 	})
 }
@@ -280,8 +346,8 @@ func SecureFileServer(fileServer http.Handler) http.Handler {
 		// Validasi dan sanitasi path
 		urlPath := r.URL.Path
 
-		// Mencegah path traversal
-		if strings.Contains(urlPath, "..") || strings.Contains(urlPath, "./") {
+		// Mencegah path traversal - cek yang jelas berbahaya
+		if strings.Contains(urlPath, "../") || strings.Contains(urlPath, "..\\") {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte("Forbidden"))
 			if err != nil {
@@ -293,8 +359,8 @@ func SecureFileServer(fileServer http.Handler) http.Handler {
 		// Hanya izinkan akses ke file dengan ekstensi yang diizinkan
 		ext := strings.ToLower(filepath.Ext(urlPath))
 		allowedExts := map[string]bool{
-			".jpg": true, ".jpeg": true, ".png": true,
-			".pdf": true, ".txt": true, ".csv": true,
+			".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true,
+			".pdf": true, ".txt": true, ".csv": true, ".xlsx": true, ".docx": true,
 		}
 
 		if !allowedExts[ext] {
@@ -306,7 +372,7 @@ func SecureFileServer(fileServer http.Handler) http.Handler {
 			return
 		}
 
-		// Validasi nama file
+		// Validasi nama file - lebih permisif
 		filename := filepath.Base(urlPath)
 		if filename == "" || filename == "." || len(filename) > 255 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -317,23 +383,19 @@ func SecureFileServer(fileServer http.Handler) http.Handler {
 			return
 		}
 
-		// Validasi karakter yang diizinkan dalam nama file
-		validFilenameChars := true
+		// Validasi karakter yang diizinkan dalam nama file - hanya blokir yang berbahaya
+		dangerousChars := []rune{'/', '\\', ':', '*', '?', '<', '>', '|', ';'}
 		for _, c := range filename {
-			if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') &&
-				c != '-' && c != '_' && c != '.' {
-				validFilenameChars = false
-				break
+			for _, dc := range dangerousChars {
+				if c == dc {
+					w.WriteHeader(http.StatusBadRequest)
+					_, err := w.Write([]byte("Invalid filename characters"))
+					if err != nil {
+						return
+					}
+					return
+				}
 			}
-		}
-
-		if !validFilenameChars {
-			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte("Invalid filename characters"))
-			if err != nil {
-				return
-			}
-			return
 		}
 
 		// Set header keamanan tambahan untuk file
@@ -348,47 +410,51 @@ func SecureFileServer(fileServer http.Handler) http.Handler {
 	})
 }
 
-//// CORS middleware untuk mengatur Cross-Origin Resource Sharing
-//func CORS(next http.Handler) http.Handler {
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		// Atur domain yang diizinkan
-//		w.Header().Set("Access-Control-Allow-Origin", "https://fislab.com")
-//
-//		// Atur metode yang diizinkan
-//		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-//
-//		// Atur header yang diizinkan
-//		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-//
-//		// Atur berapa lama preflight request di-cache
-//		w.Header().Set("Access-Control-Max-Age", "86400") // 24 jam
-//
-//		// Handle preflight request
-//		if r.Method == "OPTIONS" {
-//			w.WriteHeader(http.StatusOK)
-//			return
-//		}
-//
-//		next.ServeHTTP(w, r)
-//	})
-//}
+func CORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		frontendURL := os.Getenv("FRONTEND_URL")
 
-// ContentSecurityPolicy mengatur CSP yang lebih spesifik untuk mencegah XSS
+		// Pastikan FRONTEND_URL di-set di environment
+		if frontendURL == "" {
+			log.Fatal("FRONTEND_URL is not set in environment")
+		}
+
+		// Set CORS header
+		w.Header().Set("Access-Control-Allow-Origin", frontendURL)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Handle preflight request
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func ContentSecurityPolicy(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// CSP policy yang lebih detail
+		frontendURL := os.Getenv("FRONTEND_URL")
+		apiURL := os.Getenv("API_URL")
+
+		// Pastikan ENV sudah di-set
+		if frontendURL == "" || apiURL == "" {
+			log.Fatal("FRONTEND_URL or API_URL is not set in environment")
+		}
+
 		csp := []string{
-			"default-src 'self'",
-			"img-src 'self' data:",
+			"default-src 'self' " + frontendURL,
 			"script-src 'self'",
-			"style-src 'self'",
-			"font-src 'self'",
-			"connect-src 'self'",
-			"object-src 'none'",
-			"frame-ancestors 'none'",
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+			"font-src 'self' https://fonts.gstatic.com",
+			"connect-src 'self' " + apiURL, // Pastikan API bisa diakses
+			"object-src 'none'",            // Blokir object/embed
+			"frame-ancestors 'none'",       // Anti-clickjacking
 			"form-action 'self'",
 			"base-uri 'self'",
-			"upgrade-insecure-requests",
 		}
 
 		w.Header().Set("Content-Security-Policy", strings.Join(csp, "; "))

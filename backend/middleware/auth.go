@@ -51,9 +51,6 @@ func AuthMiddleware(secretKey string, cacheService *service.CacheService) mux.Mi
 				return
 			}
 
-			// Debug: print claims after parsing
-			fmt.Printf("Parsed Claims: %+v\n", claims)
-
 			// Verify Redis session
 			storedToken, err := cacheService.GetSession(claims.UserID)
 			if err != nil {
@@ -74,13 +71,6 @@ func AuthMiddleware(secretKey string, cacheService *service.CacheService) mux.Mi
 			newCtx := context.WithValue(r.Context(), "userID", claims.UserID)
 			newCtx = context.WithValue(newCtx, "nrp", claims.NRP)
 			newCtx = context.WithValue(newCtx, "role", claims.Role)
-
-			// Debug: verify context values
-			fmt.Printf("Context Values Set - UserID: %v, NRP: %v, Role: %v\n",
-				newCtx.Value("userID"),
-				newCtx.Value("nrp"),
-				newCtx.Value("role"),
-			)
 
 			// Use the new context
 			next.ServeHTTP(w, r.WithContext(newCtx))

@@ -32,7 +32,7 @@ func NewRouter(
 	// Middleware keamanan global - diterapkan ke semua route
 	r.Use(middleware.SecurityHeaders) // Tambahkan middleware keamanan global
 	r.Use(middleware.RateLimiter)     // Tambahkan rate limiter untuk mencegah brute force
-	//r.Use(middleware.CORS)
+	r.Use(middleware.CORS)
 	r.Use(middleware.ContentSecurityPolicy)
 
 	// Subrouter untuk API dengan prefix `/api`
@@ -130,6 +130,7 @@ func NewRouter(
 	protectedAPI.HandleFunc("/grade", gradeHandler.GetGrades).Methods("GET")
 	protectedAPI.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
 	protectedAPI.HandleFunc("/schedules/me", scheduleHandler.GetSchedules).Methods("GET")
+	protectedAPI.HandleFunc("/schedules/nearest", scheduleHandler.GetNearestSchedules).Methods("GET")
 	protectedAPI.HandleFunc("/attendance", attendanceHandler.SubmitAttendance).Methods("POST")
 
 	return r

@@ -3,7 +3,6 @@ package handler
 import (
 	"backend/prisma/db"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -46,7 +45,6 @@ func (h *PracticumHandler) CreatePracticum(w http.ResponseWriter, r *http.Reques
 	).Exec(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Printf(err.Error())
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create practicum"})
 		return
 	}
@@ -116,7 +114,6 @@ func (h *PracticumHandler) UpdatePracticum(w http.ResponseWriter, r *http.Reques
 		db.Practicum.Description.Set(req.Description),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error updating practicum: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update practicum"})
 		return
@@ -148,7 +145,6 @@ func (h *PracticumHandler) DeletePracticum(w http.ResponseWriter, r *http.Reques
 	).Delete().Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error deleting practicum: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to delete practicum"})
 		return

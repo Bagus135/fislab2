@@ -507,3 +507,64 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
 }
+
+func (h *ScheduleHandler) GetNearestSchedules(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil semua jadwal dengan status SCHEDULED dan urutkan berdasarkan waktu terdekat
+	schedules, err := h.client.Schedule.FindMany(
+		db.Schedule.Status.Equals(db.StatusScheduled), // Hanya ambil yang sudah terjadwal
+	).With(
+		db.Schedule.Assistant.Fetch(),
+		db.Schedule.Practicum.Fetch(),
+		db.Schedule.Group.Fetch(),
+	).OrderBy(
+		db.Schedule.StartTime.Order(db.SortOrderAsc), // Urutkan berdasarkan waktu terdekat
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
+		return
+	}
+
+	// Jika tidak ada jadwal yang ditemukan, kembalikan array kosong
+	if len(schedules) == 0 {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+		return
+	}
+
+	// Ambil hanya 3 jadwal terdekat
+	var nearestSchedules []db.ScheduleModel
+	if len(schedules) > 3 {
+		nearestSchedules = schedules[:3] // Ambil 3 jadwal pertama (terdekat)
+	} else {
+		nearestSchedules = schedules // Jika kurang dari 3, ambil semua
+	}
+
+	var response []map[string]interface{}
+	for _, schedule := range nearestSchedules {
+		var dateStr, timeStr string
+
+		if date, ok := schedule.Date(); ok {
+			dateStr = date.Format("2006-01-02")
+		}
+		if startTime, ok := schedule.StartTime(); ok {
+			timeStr = startTime.Format("15:04")
+		}
+
+		scheduleData := map[string]interface{}{
+			"assistantName": schedule.Assistant().Name,
+			"group":         schedule.Group().Name,
+			"date":          dateStr,
+			"time":          timeStr,
+			"code":          schedule.PracticumID,
+			"practicum":     schedule.Practicum().Title,
+		}
+		response = append(response, scheduleData)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
