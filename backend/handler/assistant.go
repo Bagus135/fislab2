@@ -98,10 +98,9 @@ func (h *AssistantHandler) SetAssistantToPracticum(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Buat penugasan baru
 	_, err = h.client.AssistantPracticum.CreateOne(
-		db.AssistantPracticum.AssistantID.Set(req.AssistantID),
-		db.AssistantPracticum.PracticumID.Set(req.PracticumID),
+		db.AssistantPracticum.Assistant.Link(db.User.ID.Equals(req.AssistantID)),
+		db.AssistantPracticum.Practicum.Link(db.Practicum.ID.Equals(req.PracticumID)),
 	).Exec(r.Context())
 
 	if err != nil {
@@ -220,8 +219,8 @@ func (h *AssistantHandler) UpdateAssistantPracticum(w http.ResponseWriter, r *ht
 
 	// Buat penugasan baru
 	_, err = h.client.AssistantPracticum.CreateOne(
-		db.AssistantPracticum.AssistantID.Set(req.AssistantID),
-		db.AssistantPracticum.PracticumID.Set(req.NewPracticumID),
+		db.AssistantPracticum.Assistant.Link(db.User.ID.Equals(req.AssistantID)),
+		db.AssistantPracticum.Practicum.Link(db.Practicum.ID.Equals(req.NewPracticumID)),
 	).Exec(r.Context())
 
 	if err != nil {
@@ -433,9 +432,9 @@ func (h *AssistantHandler) SetAssistantToGroup(w http.ResponseWriter, r *http.Re
 
 	// Buat jadwal baru
 	_, err = h.client.Schedule.CreateOne(
-		db.Schedule.PracticumID.Set(req.PracticumID),
-		db.Schedule.GroupID.Set(req.GroupID),
-		db.Schedule.AssistantID.Set(req.AssistantID),
+		db.Schedule.Practicum.Link(db.Practicum.ID.Equals(req.PracticumID)),
+		db.Schedule.Group.Link(db.Group.ID.Equals(req.GroupID)),
+		db.Schedule.Assistant.Link(db.User.ID.Equals(req.AssistantID)),
 		db.Schedule.Week.Set(req.Week),
 		db.Schedule.Status.Set(db.StatusUnscheduled),
 	).Exec(r.Context())

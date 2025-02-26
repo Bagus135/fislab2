@@ -1,22 +1,35 @@
 package handler
 
 import (
+	"backend/helper"
 	"backend/prisma/db"
 	"backend/types"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
-
 	"github.com/gorilla/mux"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 type UserHandler struct {
-	client *db.PrismaClient
+	client    *db.PrismaClient
+	uploadDir string
+	maxSize   int64
 }
 
 func NewUserHandler(client *db.PrismaClient) *UserHandler {
-	return &UserHandler{client}
+	uploadDir := "./data/profiles"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		fmt.Printf("Error creating upload directory: %v\n", err)
+	}
+	return &UserHandler{
+		client:    client,
+		uploadDir: uploadDir,
+		maxSize:   512 * 1024,
+	}
 }
 
 // GetMyProfile - Ambil profile sendiri
@@ -40,30 +53,28 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Menggunakan metode accessor untuk email yang nullable
-	email := ""
-	if emailVal, ok := user.Email(); ok {
-		email = emailVal
-	}
-	about := ""
-	if aboutVal, ok := user.About(); ok {
-		about = aboutVal
-	}
+	// Menggunakan metode accessor untuk field nullable
+	email, _ := user.Email()
+	about, _ := user.About()
+	phone, _ := user.Phone()
+	profilePict, _ := user.ProfilePict()
 
-	phone := ""
-	if phoneVal, ok := user.Phone(); ok {
-		phone = phoneVal
+	// Buat URL untuk foto profil jika ada
+	var profilePictureUrl string
+	if profilePict != "" {
+		profilePictureUrl = fmt.Sprintf("/api/users/picture/%s", userID)
 	}
 
 	response := map[string]interface{}{
-		"id":             user.ID,
-		"nrp":            user.Nrp,
-		"name":           user.Name,
-		"phone":          phone,
-		"about":          about,
-		"email":          email,
-		"email_verified": user.EmailVerified,
-		"role":           string(user.Role),
+		"id":              user.ID,
+		"nrp":             user.Nrp,
+		"name":            user.Name,
+		"phone":           phone,
+		"about":           about,
+		"email":           email,
+		"email_verified":  user.EmailVerified,
+		"role":            string(user.Role),
+		"profile_picture": profilePictureUrl,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -87,7 +98,6 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		requestedUserID = userID
-		fmt.Println("Using Own Profile:", requestedUserID)
 	}
 
 	user, err := h.client.User.FindUnique(
@@ -103,15 +113,23 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	email, _ := user.Email()
 	phone, _ := user.Phone()
 	about, _ := user.About()
+	profilePict, _ := user.ProfilePict()
+
+	// Buat URL untuk foto profil jika ada
+	var profilePictureUrl string
+	if profilePict != "" {
+		profilePictureUrl = fmt.Sprintf("/api/users/picture/%s", requestedUserID)
+	}
 
 	response := map[string]interface{}{
-		"id":    user.ID,
-		"nrp":   user.Nrp,
-		"name":  user.Name,
-		"phone": phone,
-		"about": about,
-		"email": email,
-		"role":  string(user.Role),
+		"id":              user.ID,
+		"nrp":             user.Nrp,
+		"name":            user.Name,
+		"phone":           phone,
+		"about":           about,
+		"email":           email,
+		"role":            string(user.Role),
+		"profile_picture": profilePictureUrl,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -138,10 +156,23 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		Phone string `json:"phone"`
 		About string `json:"about"`
 	}
+	req.Name = helper.SanitizeString(req.Name)
+	req.Email = helper.SanitizeString(req.Email)
+	req.Phone = helper.SanitizeString(req.Phone)
+	req.About = helper.SanitizeString(req.About)
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+	// Validasi anti-SQLi menggunakan helper
+	if !helper.ValidateInputAgainstSQLi(req.Name) ||
+		!helper.ValidateInputAgainstSQLi(req.Email) ||
+		!helper.ValidateInputAgainstSQLi(req.Phone) ||
+		!helper.ValidateInputAgainstSQLi(req.About) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid input detected"})
 		return
 	}
 
@@ -360,4 +391,247 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(types.SuccessResponse("user deleted"))
+}
+
+func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	// Parse multipart form
+	err := r.ParseMultipartForm(h.maxSize)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to parse form"})
+		return
+	}
+
+	file, handler, err := r.FormFile("profilePicture")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to get file"})
+		return
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Error closing file: %v", closeErr)
+		}
+	}()
+
+	// Validasi ukuran file
+	if handler.Size > h.maxSize {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "file too large, maximum size is 500 KB"})
+		return
+	}
+
+	// Validasi tipe file menggunakan helper
+	contentType := handler.Header.Get("Content-Type")
+	if !helper.IsValidImageType(contentType) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid file type, only jpg, jpeg, and png are allowed"})
+		return
+	}
+
+	// Validasi nama file dengan helper
+	if !helper.IsValidFileName(handler.Filename) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid filename"})
+		return
+	}
+
+	// Baca dan validasi file menggunakan helper
+	fileBytes, err := helper.ValidateAndReadFile(file, handler.Size)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read file"})
+		return
+	}
+
+	if err := helper.IsSecureImageFile(fileBytes, handler.Size, handler.Filename); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	// Hapus file profil lama jika ada
+	oldUser, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Exec(r.Context())
+
+	if err == nil {
+		// Cek apakah ada foto profil sebelumnya
+		if oldProfilePict, ok := oldUser.ProfilePict(); ok && oldProfilePict != "" {
+			oldFilePath := filepath.Join(h.uploadDir, filepath.Base(oldProfilePict))
+			if _, err := os.Stat(oldFilePath); err == nil {
+				// Sanitasi path sebelum menghapus file
+				oldFilePath = helper.SanitizePath(oldFilePath)
+				if removeErr := os.Remove(oldFilePath); removeErr != nil {
+					log.Printf("Error removing old profile picture: %v", removeErr)
+				}
+			}
+		}
+	}
+
+	// Generate nama file aman dengan helper
+	ext := filepath.Ext(handler.Filename)
+	safeFilename := helper.GenerateSecureFilename(fileBytes, ext)
+
+	// Tulis file dengan path yang aman (sanitasi path)
+	fullPath := helper.SanitizePath(filepath.Join(h.uploadDir, safeFilename))
+	err = os.WriteFile(fullPath, fileBytes, 0644)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to save file"})
+		return
+	}
+
+	// Update database
+	_, err = h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Update(
+		db.User.ProfilePict.Set(safeFilename),
+	).Exec(r.Context())
+
+	if err != nil {
+		// Hapus file jika gagal update database
+		if removeErr := os.Remove(fullPath); removeErr != nil {
+			log.Printf("Error removing file after failed DB update: %v", removeErr)
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update profile"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "profile picture updated successfully",
+	})
+}
+
+// GetProfilePicture - Handler khusus untuk mengambil data gambar profil
+func (h *UserHandler) GetProfilePicture(w http.ResponseWriter, r *http.Request) {
+	// Ambil ID pengguna
+	vars := mux.Vars(r)
+	userID := vars["id"]
+
+	// Jika tidak ada ID di path, gunakan dari context
+	if userID == "" {
+		var ok bool
+		userID, ok = r.Context().Value("userID").(string)
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	}
+
+	// Ambil data pengguna dari database
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Cek apakah user memiliki foto profil
+	profileID, ok := user.ProfilePict()
+	if !ok || profileID == "" {
+		// Kembalikan gambar default
+		helper.ServeDefaultImage(w)
+		return
+	}
+
+	// Cari file berdasarkan ID di direktori
+	matches, err := filepath.Glob(filepath.Join(h.uploadDir, profileID+".*"))
+	if err != nil || len(matches) == 0 {
+		helper.ServeDefaultImage(w)
+		return
+	}
+
+	// Ambil file yang ditemukan
+	filePath := matches[0]
+
+	// Baca file
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		helper.ServeDefaultImage(w)
+		return
+	}
+
+	// Deteksi Content-Type
+	contentType := http.DetectContentType(fileData)
+
+	// Set security headers
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Security-Policy", "default-src 'self'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache 1 hari
+
+	// Tulis data gambar
+	_, err = w.Write(fileData)
+	if err != nil {
+		return
+	}
+}
+
+// DeleteProfilePicture - Handler untuk menghapus foto profil
+func (h *UserHandler) DeleteProfilePicture(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Autentikasi pengguna
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	// Ambil data user
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		return
+	}
+
+	// Cek apakah ada foto profil
+	profileID, ok := user.ProfilePict()
+	if ok && profileID != "" {
+		// Cari dan hapus file
+		matches, err := filepath.Glob(filepath.Join(h.uploadDir, profileID+".*"))
+		if err == nil && len(matches) > 0 {
+			for _, match := range matches {
+				err := os.Remove(match)
+				if err != nil {
+					return
+				}
+			}
+		}
+	}
+
+	// Update database dengan profilePict kosong/null
+	_, err = h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Update(
+		db.User.ProfilePict.Set(""),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update profile"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "profile picture removed"})
 }
