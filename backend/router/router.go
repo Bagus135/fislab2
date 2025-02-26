@@ -5,6 +5,7 @@ import (
 	"backend/middleware"
 	"backend/service"
 	"github.com/gorilla/mux"
+	"net/http"
 	"os"
 )
 
@@ -26,37 +27,58 @@ func NewRouter(
 	// Buat router utama
 	r := mux.NewRouter()
 
+	// Middleware keamanan global - diterapkan ke semua route
+	r.Use(middleware.SecurityHeaders) // Tambahkan middleware keamanan global
+	r.Use(middleware.RateLimiter)     // Tambahkan rate limiter untuk mencegah brute force
+	//r.Use(middleware.CORS)
+	r.Use(middleware.ContentSecurityPolicy)
+
 	// Subrouter untuk API dengan prefix `/api`
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(middleware.AuthMiddleware(secretKey, cacheService))
+
+	// Middleware yang diaplikasikan ke semua route API
+	api.Use(middleware.RequestValidation) // Validasi request untuk serangan
+	api.Use(middleware.LogRequest)
+
+	// Subrouter untuk route yang memerlukan autentikasi
+	protectedAPI := api.NewRoute().Subrouter()
+	protectedAPI.Use(middleware.AuthMiddleware(secretKey, cacheService))
 
 	// Subrouter untuk admin dengan prefix `/api/admin`
-	adminAPI := api.PathPrefix("/admin").Subrouter()
+	adminAPI := protectedAPI.PathPrefix("/admin").Subrouter()
 	adminAPI.Use(middleware.RoleCheck("SUPER_ADMIN", "ADMIN"))
 
 	// Subrouter untuk asisten dengan prefix `/api/assistant`
-	assistantAPI := api.PathPrefix("/assistant").Subrouter()
+	assistantAPI := protectedAPI.PathPrefix("/assistant").Subrouter()
 	assistantAPI.Use(middleware.RoleCheck("ASISTEN"))
+
+	// Endpoint untuk file statis yang aman
+	// Handler file statis dengan validasi dan sanitasi path
+	fileServer := http.FileServer(http.Dir("./data/private"))
+	r.PathPrefix("/files/").Handler(http.StripPrefix("/files/", middleware.SecureFileServer(fileServer)))
 
 	// ======================
 	// Public Routes (Tanpa Auth)
 	// ======================
-	r.HandleFunc("/api/register-first-super-admin", authHandler.RegisterFirstSuperAdmin).Methods("POST")
-	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
-	r.HandleFunc("/api/announcement", announcementHandler.GetAnnouncements).Methods("GET")
-	r.HandleFunc("/api/forgot-password", authHandler.ForgotPassword).Methods("POST")
-	r.HandleFunc("/api/reset-password", authHandler.ResetPassword).Methods("POST")
+	api.HandleFunc("/register-first-super-admin", authHandler.RegisterFirstSuperAdmin).Methods("POST")
+	api.HandleFunc("/login", authHandler.Login).Methods("POST")
+	api.HandleFunc("/announcement", announcementHandler.GetAnnouncements).Methods("GET")
+	api.HandleFunc("/forgot-password", authHandler.ForgotPassword).Methods("POST")
+	api.HandleFunc("/reset-password", authHandler.ResetPassword).Methods("POST")
 
 	// ======================
 	// Auth Routes (Memerlukan Auth)
 	// ======================
-	api.HandleFunc("/logout", authHandler.Logout).Methods("POST")
-	api.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
-	api.HandleFunc("/profile/me", userHandler.GetMyProfile).Methods("GET")
-	api.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")
-	api.HandleFunc("/profile", userHandler.UpdateMyProfile).Methods("PUT")
-	api.HandleFunc("/verify-email", authHandler.VerifyEmail).Methods("POST")
-	api.HandleFunc("/send-verification-code", authHandler.SendVerificationCode).Methods("POST")
+	protectedAPI.HandleFunc("/logout", authHandler.Logout).Methods("POST")
+	protectedAPI.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
+	protectedAPI.HandleFunc("/profile/me", userHandler.GetMyProfile).Methods("GET")
+	protectedAPI.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")
+	protectedAPI.HandleFunc("/profile", userHandler.UpdateMyProfile).Methods("PUT")
+	protectedAPI.HandleFunc("/profile/picture", userHandler.UploadProfilePicture).Methods("POST") // Tambahkan endpoint upload
+	protectedAPI.HandleFunc("/profile/picture/{id}", userHandler.GetProfilePicture).Methods("GET")
+	protectedAPI.HandleFunc("/profile/picture/delete", userHandler.DeleteProfilePicture).Methods("DELETE")
+	protectedAPI.HandleFunc("/verify-email", authHandler.VerifyEmail).Methods("POST")
+	protectedAPI.HandleFunc("/send-verification-code", authHandler.SendVerificationCode).Methods("POST")
 
 	// ======================
 	// Admin Routes (Memerlukan Role Admin/Super Admin)
@@ -98,15 +120,15 @@ func NewRouter(
 	// ======================
 	// Shared Routes (Bisa Diakses oleh Semua Role yang Terautentikasi)
 	// ======================
-	api.HandleFunc("/schedules/check", scheduleHandler.GetAllSchedules).Methods("GET")
-	api.HandleFunc("/announcement", announcementHandler.CreateAnnouncement).Methods("POST")
-	api.HandleFunc("/announcement", announcementHandler.UpdateAnnouncement).Methods("PUT")
-	api.HandleFunc("/announcement", announcementHandler.DeleteAnnouncement).Methods("DELETE")
-	api.HandleFunc("/practicum", practicumHandler.GetPracticum).Methods("GET")
-	api.HandleFunc("/grade", gradeHandler.GetGrades).Methods("GET")
-	api.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
-	api.HandleFunc("/schedules/me", scheduleHandler.GetSchedules).Methods("GET")
-	api.HandleFunc("/attendance", attendanceHandler.SubmitAttendance).Methods("POST")
+	protectedAPI.HandleFunc("/schedules/check", scheduleHandler.GetAllSchedules).Methods("GET")
+	protectedAPI.HandleFunc("/announcement", announcementHandler.CreateAnnouncement).Methods("POST")
+	protectedAPI.HandleFunc("/announcement", announcementHandler.UpdateAnnouncement).Methods("PUT")
+	protectedAPI.HandleFunc("/announcement", announcementHandler.DeleteAnnouncement).Methods("DELETE")
+	protectedAPI.HandleFunc("/practicum", practicumHandler.GetPracticum).Methods("GET")
+	protectedAPI.HandleFunc("/grade", gradeHandler.GetGrades).Methods("GET")
+	protectedAPI.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
+	protectedAPI.HandleFunc("/schedules/me", scheduleHandler.GetSchedules).Methods("GET")
+	protectedAPI.HandleFunc("/attendance", attendanceHandler.SubmitAttendance).Methods("POST")
 
 	return r
 }

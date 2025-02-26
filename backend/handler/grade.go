@@ -369,6 +369,7 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 
 			gradedMembers[student.ID] = map[string]interface{}{
 				"gradeId":    grade.ID,
+				"id":         student.ID,
 				"name":       student.Name,
 				"nrp":        student.Nrp,
 				"totalScore": totalScore,
@@ -384,6 +385,7 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 			} else {
 				members = append(members, map[string]interface{}{
 					"gradeId":    nil,
+					"id":         member.ID,
 					"name":       member.Name,
 					"nrp":        member.Nrp,
 					"totalScore": nil,

@@ -173,11 +173,13 @@ func (h *AuthHandler) RegisterFirstSuperAdmin(w http.ResponseWriter, r *http.Req
 	_, err = h.client.User.CreateOne(
 		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
+		db.User.Password.Set(hashedPassword),
+		db.User.Role.Set(db.RoleSuperAdmin),
 		db.User.Email.SetOptional(nil),
 		db.User.Phone.SetOptional(nil),
 		db.User.About.SetOptional(nil),
-		db.User.Password.Set(hashedPassword),
-		db.User.Role.Set(db.RoleSuperAdmin),
+		// Tambahkan field profilePict jika nullable
+		db.User.ProfilePict.SetOptional(nil),
 	).Exec(r.Context())
 
 	if err != nil {
@@ -246,11 +248,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	_, err = h.client.User.CreateOne(
 		db.User.Nrp.Set(req.NRP),
 		db.User.Name.Set(req.Name),
+		db.User.Password.Set(hashedPassword),
+		db.User.Role.Set(role),
 		db.User.Email.SetOptional(nil),
 		db.User.Phone.SetOptional(nil),
 		db.User.About.SetOptional(nil),
-		db.User.Password.Set(hashedPassword),
-		db.User.Role.Set(role),
+		db.User.ProfilePict.SetOptional(nil),
 	).Exec(r.Context())
 
 	if err != nil {

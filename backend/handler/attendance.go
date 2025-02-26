@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"backend/helper"
 	"backend/prisma/db"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,22 +17,6 @@ type AttendanceHandler struct {
 
 func NewAttendanceHandler(client *db.PrismaClient) *AttendanceHandler {
 	return &AttendanceHandler{client: client}
-}
-
-func generateRandomCode() string {
-	// Generate angular random antara 100000-999999
-	m := 100000
-	i := 999999
-
-	// Gunakan math/rand dengan source baru
-	source := rand.NewSource(time.Now().UnixNano())
-	r := rand.New(source)
-
-	// Generate angka random
-	code := r.Intn(i-m+1) + m
-
-	// Format menjadi 6 digit dengan leading zeros
-	return fmt.Sprintf("%06d", code)
 }
 
 func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request) {
@@ -98,13 +82,13 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	code := generateRandomCode()
+	code := helper.GenerateRandomCode()
 	expired := time.Now().Add(30 * time.Minute)
 
 	attendanceCode, err := h.client.AttendanceCode.CreateOne(
-		db.AttendanceCode.Schedule.Link(db.Schedule.ID.Equals(req.ScheduleID)),
 		db.AttendanceCode.Code.Set(code),
 		db.AttendanceCode.ExpiredAt.Set(expired),
+		db.AttendanceCode.Schedule.Link(db.Schedule.ID.Equals(req.ScheduleID)),
 	).Exec(r.Context())
 
 	if err != nil {
