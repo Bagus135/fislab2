@@ -598,7 +598,6 @@ func (h *AssistantHandler) UpdateAssistantGroupAssignment(w http.ResponseWriter,
 	).Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error updating schedule: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update assistant assignment"})
 		return

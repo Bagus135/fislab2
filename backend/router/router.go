@@ -30,7 +30,7 @@ func NewRouter(
 	// Middleware keamanan global - diterapkan ke semua route
 	r.Use(middleware.SecurityHeaders) // Tambahkan middleware keamanan global
 	r.Use(middleware.RateLimiter)     // Tambahkan rate limiter untuk mencegah brute force
-	//r.Use(middleware.CORS)
+	r.Use(middleware.CORS)
 	r.Use(middleware.ContentSecurityPolicy)
 
 	// Subrouter untuk API dengan prefix `/api`

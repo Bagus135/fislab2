@@ -4,8 +4,8 @@ import (
 	"backend/helper"
 	"backend/prisma/db"
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -105,7 +105,7 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		).Exec(r.Context())
 
 		if err != nil {
-			fmt.Printf("Failed to create default attendance for user %s: %v\n", member.ID, err)
+			log.Printf("Failed to create default attendance for user %s: %v\n", member.ID, err)
 		}
 	}
 

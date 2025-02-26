@@ -3,6 +3,7 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -409,49 +410,51 @@ func SecureFileServer(fileServer http.Handler) http.Handler {
 	})
 }
 
-//// CORS middleware untuk mengatur Cross-Origin Resource Sharing
-//func CORS(next http.Handler) http.Handler {
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		// Cek environment (development/production)
-//		environment := os.Getenv("APP_ENV")
-//
-//		// Set CORS header berdasarkan environment
-//		if environment == "development" {
-//			w.Header().Set("Access-Control-Allow-Origin", "*") // Izinkan semua origin di development
-//		} else {
-//			w.Header().Set("Access-Control-Allow-Origin", "https://fislab.com") // Domain spesifik di prod
-//		}
-//
-//		// Header CORS lainnya
-//		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-//		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-//		w.Header().Set("Access-Control-Max-Age", "86400")
-//
-//		// Handle preflight request
-//		if r.Method == "OPTIONS" {
-//			w.WriteHeader(http.StatusOK)
-//			return
-//		}
-//
-//		next.ServeHTTP(w, r)
-//	})
-//}
+func CORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		frontendURL := os.Getenv("FRONTEND_URL")
 
-// ContentSecurityPolicy mengatur CSP yang lebih spesifik untuk mencegah XSS
+		// Pastikan FRONTEND_URL di-set di environment
+		if frontendURL == "" {
+			log.Fatal("FRONTEND_URL is not set in environment")
+		}
+
+		// Set CORS header
+		w.Header().Set("Access-Control-Allow-Origin", frontendURL)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Handle preflight request
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func ContentSecurityPolicy(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// CSP policy yang lebih detail dan permisif
+		frontendURL := os.Getenv("FRONTEND_URL")
+		apiURL := os.Getenv("API_URL")
+
+		// Pastikan ENV sudah di-set
+		if frontendURL == "" || apiURL == "" {
+			log.Fatal("FRONTEND_URL or API_URL is not set in environment")
+		}
+
 		csp := []string{
-			"default-src 'self'",
-			"script-src 'self' 'unsafe-inline'", // Izinkan inline scripts jika diperlukan
+			"default-src 'self' " + frontendURL,
+			"script-src 'self'",
 			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 			"font-src 'self' https://fonts.gstatic.com",
-			"connect-src 'self' https://api-fislab.site",
-			"object-src 'none'",      // Blokir object/embed
-			"frame-ancestors 'none'", // Anti-clickjacking
+			"connect-src 'self' " + apiURL, // Pastikan API bisa diakses
+			"object-src 'none'",            // Blokir object/embed
+			"frame-ancestors 'none'",       // Anti-clickjacking
 			"form-action 'self'",
 			"base-uri 'self'",
-			"upgrade-insecure-requests",
 		}
 
 		w.Header().Set("Content-Security-Policy", strings.Join(csp, "; "))

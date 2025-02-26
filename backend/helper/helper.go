@@ -15,6 +15,33 @@ import (
 	"unicode"
 )
 
+// GenerateResetToken Generate kode verifikasi 6 digit
+func GenerateResetToken() string {
+
+	timestamp := time.Now().Unix()
+
+	// Generate random string
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+
+	// Generate 32 random bytes
+	randomBytes := make([]byte, 32)
+	for i := range randomBytes {
+		randomBytes[i] = byte(r.Intn(256))
+	}
+
+	// Gabungkan timestamp dan random bytes
+	token := fmt.Sprintf("%d-%x", timestamp, randomBytes)
+	return token
+}
+
+// GenerateVerificationCode Generate kode verifikasi 6 digit
+func GenerateVerificationCode() string {
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+	return fmt.Sprintf("%06d", r.Intn(900000)+100000)
+}
+
 // ServeDefaultImage - Tampilkan gambar default
 func ServeDefaultImage(w http.ResponseWriter) {
 	// Data minimal untuk gambar 1x1 pixel transparan PNG

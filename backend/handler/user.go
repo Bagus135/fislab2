@@ -106,7 +106,6 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		db.User.ID.Equals(requestedUserID),
 	).Exec(r.Context())
 	if err != nil {
-		fmt.Printf("Error finding user: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
@@ -316,7 +315,6 @@ func (h *UserHandler) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 	).Exec(r.Context())
 
 	if err != nil {
-		fmt.Printf("Error fetching users: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch users"})
 		return
