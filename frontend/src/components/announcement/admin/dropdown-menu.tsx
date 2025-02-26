@@ -20,7 +20,7 @@ export default function DropDownMenu ({children , announcement} : {children: Rea
                 <DropdownMenuContent className="w-auto flex flex-col gap-2 items-start"  onClick={(e)=>e.stopPropagation()}>
                     <Button variant={"ghost"} 
                             className=" font-semibold  gap-2" 
-                            onClick={(e)=>{
+                            onClick={()=>{
                                             setIsOpen(false) 
                                             setIsEditOpen(true) 
                                         }
@@ -32,7 +32,7 @@ export default function DropDownMenu ({children , announcement} : {children: Rea
                     </Button>
                             <Button variant={"ghost"} 
                                     className="text-red-500 hover:text-red-600 font-semibold  gap-2" 
-                                    onClick={(e)=>{
+                                    onClick={()=>{
                                             setIsOpen(false);
                                             setIsDeleteOpen(true)
                                     }}>

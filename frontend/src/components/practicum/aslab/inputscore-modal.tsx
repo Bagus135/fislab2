@@ -81,7 +81,8 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                         feedback: String(score.feedback),
                 })
             } catch (error: any) {
-                const err = error.mesage
+                console.log(error.message);
+                
             }
         }
         detailProfile();

@@ -12,7 +12,7 @@ export default function NotFound({message, code} : {code : string, message : str
 
                         <div className="">
                             <h1 className="text-xl font-bold tracking-tight" >{message}</h1>
-                            <p className="text-muted-foreground"> The page you're looking is not exist </p>
+                            <p className="text-muted-foreground"> The page you are looking is not exist </p>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
                             <Button variant={'default'} asChild>

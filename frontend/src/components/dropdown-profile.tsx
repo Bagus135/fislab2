@@ -18,7 +18,7 @@ export default function ProfileDropdown ({role} : {role : string}){
     const router = useRouter();
     const handleLogout = async () => {
         try {
-            const res = await removeCookies();
+            await removeCookies();
             router.push("/login")
             toast({
                 variant : "success",

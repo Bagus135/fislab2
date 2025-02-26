@@ -29,19 +29,21 @@ export default function CreateGroupPractican ({children, practicans}:{children :
     })
     const [loading, setLoading] = useState(false);
 
-    const handleCheckboxChange = (checked : boolean|string , id : string, nrp : string)=> {
-        checked? 
-            setInput({...input, 
-                    member_ids : [...input.member_ids, id],
-                    nrp : [...input.nrp, nrp]
-                })
-            : 
-            setInput({...input, 
-                member_ids : input.member_ids.filter((item)=> item !== id), 
-                nrp : input.nrp.filter((item)=> item !== nrp), 
-            })
+    const handleCheckboxChange = (checked: boolean | string, id: string, nrp: string) => {
+        if (checked) {
+            setInput({
+                ...input,
+                member_ids: [...input.member_ids, id],
+                nrp: [...input.nrp, nrp],
+            });
+        } else {
+            setInput({
+                ...input,
+                member_ids: input.member_ids.filter((item) => item !== id),
+                nrp: input.nrp.filter((item) => item !== nrp),
+            });
+        }
     };
-
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         try {

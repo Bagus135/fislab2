@@ -15,7 +15,7 @@ export default function AslabMonitoring (){
         <Card>
             <CardHeader>
                 <CardTitle>Asistant Laboratorium Monitor</CardTitle>
-                <CardDescription>See asistant laboratorium who haven't submit the practican score</CardDescription>
+                <CardDescription>See asistant laboratorium who havent submit the practican score</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-row gap-4 justify-between mb-4">

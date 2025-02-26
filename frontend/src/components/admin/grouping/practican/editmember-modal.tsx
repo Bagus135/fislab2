@@ -33,12 +33,12 @@ export default function EditMemberPracticanModal ({group, children,practicans}: 
     const [loading, setLoading] = useState(false);
 
     const handleCheckboxChange = (checked : boolean|string , id : string, nrp : string)=> {
-        checked? 
+        if(checked) 
             setInput({...input, 
                     member_ids : [...input.member_ids, id],
                     nrp : [...input.nrp, nrp]
                 })
-            : 
+            else 
             setInput({...input, 
                 member_ids : input.member_ids.filter((item)=> item !== id), 
                 nrp : input.nrp.filter((item)=> item !== nrp), 

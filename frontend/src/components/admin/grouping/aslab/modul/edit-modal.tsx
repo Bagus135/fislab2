@@ -25,12 +25,12 @@ export default function EditModulAslab({children, assistant, moduls}: PropsType)
         e.preventDefault()
         try {
             if(!assistant.code) throw new Error("Assistant has been not assign modul")
-            setLoading(true)
-            const res = await editAslabtoModul({
+            setLoading(true);
+           await editAslabtoModul({
                                 newPracticumCode , 
                                 assistantId : assistant.id,
                                 oldPracticumCode : assistant.code
-                            })
+                            });
             toast({
                 title : "Success change assistant modul",
                 variant : "success",

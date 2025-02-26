@@ -1,6 +1,6 @@
 'use client';
 
-import { RefObject, useCallback, useRef, useState } from 'react';
+import { RefObject, useRef, useState } from 'react';
 import Image from 'next/image';
 import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Loader2Icon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 
@@ -26,8 +25,6 @@ export default function ProfileImageDialog({
   inputRef,
 }: ProfileImageDialogProps) {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>({
     unit: 'px',
@@ -99,7 +96,6 @@ export default function ProfileImageDialog({
               </ReactCrop>
             </div>
           )}
-          <p className={`${!error.trim()? "hidden": "block text-red-500 mt-0"}`}>test</p>
         </div>
 
         <DialogFooter className='gap-4'>
@@ -113,12 +109,9 @@ export default function ProfileImageDialog({
             Cancel
           </Button>
           <Button 
-            disabled={!completedCrop || !originalImage|| loading}
+            disabled={!completedCrop || !originalImage}
           >
-            { loading? <Loader2Icon className='size-4 animate-spin'/>
-              :
-            `Save Changes`
-            }
+            Save Changes
           </Button>
         </DialogFooter>
           </div>
