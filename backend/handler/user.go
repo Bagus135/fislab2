@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -223,6 +224,7 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"message": "profile updated"})
 }
+
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -457,7 +459,12 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to get file: " + err.Error()})
 			return
 		}
-		defer file.Close()
+		defer func(file multipart.File) {
+			err := file.Close()
+			if err != nil {
+
+			}
+		}(file)
 
 		fileBytes, err = io.ReadAll(file)
 		if err != nil {
