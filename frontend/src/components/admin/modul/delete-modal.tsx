@@ -15,7 +15,7 @@ export default function DeleteModulModal ({modul, open, setOpen }: DeleteModulPr
 
     const handleDelete = async() =>{
         try {
-            const res = await deleteModul(modul.id);
+            const res = await deleteModul(modul.code);
             toast({
                 title : "Success Delete the Modul",
                 description : res.message,

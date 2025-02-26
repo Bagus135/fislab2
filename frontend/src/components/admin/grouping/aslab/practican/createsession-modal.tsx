@@ -1,16 +1,44 @@
+import { connectAslabtoGroup, getAllAssistant, getPracticanGroup } from "@/action/admin.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, X } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
-export default function CreateSesionPracticum({children}: {children : ReactNode}){
+type Props = {
+    children : ReactNode, 
+    assistants :  getAllAssistant[]|null,
+    groups : getPracticanGroup[]|null, 
+}
+
+export default function CreateSesionPracticum({children ,assistants, groups}: Props ){
     const [input, setInput] = useState({
-        group : "",
+        groupId : "",
         week : "",
-        session : "",
+        assistantId : "",
+        practicumCode : "",
     });
+
+    const {toast} = useToast();
+
+    const handleSubmit = async (e : FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        try {
+            const res = await connectAslabtoGroup({...input, week : Number(input.week)});
+            toast({
+                title : "Success to connect aslab to group",
+                variant : "success",
+            })
+        } catch (error:any) {
+            toast({
+                title : "Failed to connect aslab to group",
+                variant : "destructive",
+                description : error.message
+            })
+        }
+    }
 
     return (
         <Dialog>
@@ -22,21 +50,48 @@ export default function CreateSesionPracticum({children}: {children : ReactNode}
                     <DialogTitle>Create Session Practicum</DialogTitle>
                     <DialogDescription>Connect asistant laboratorium  with the practican group</DialogDescription>
                 </DialogHeader>
-                <form noValidate className="mt-4">
+                <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">
-
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="group">Practican Group</Label>
-                            <Select required onValueChange={(value)=>setInput({...input, group: value})}>
+                            <Select required onValueChange={(value)=>setInput({...input, groupId: value})}>
                                 <SelectTrigger id="group">
                                     <SelectValue placeholder="Select Here"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="1">1</SelectItem>
-                                        <SelectItem value="2">2</SelectItem>
-                                        <SelectItem value="3">3</SelectItem>
-                                        <SelectItem value="4">4</SelectItem>
+                                        { groups && groups.map(((group,idx) =>(
+                                            <SelectItem  key={idx} value={group.id}>{group.kelompok}</SelectItem>
+                                            )))
+                                        }
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="aslab">Asistant Laboratorium</Label>
+                            <Select required 
+                                    onValueChange={(value)=>setInput({
+                                                                ...input, 
+                                                                assistantId: value, 
+                                                                practicumCode : assistants ? 
+                                                                                assistants.filter((assistant)=> assistant.id === value)[0].code! 
+                                                                                : 
+                                                                                ''
+                                                            })
+                                    }>
+
+                                <SelectTrigger id="aslab">
+                                    <SelectValue placeholder="Select Here"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                    { assistants && assistants.filter(assistant => assistant.code !== null).
+                                            map(((assistant,idx) =>(
+                                                <SelectItem key={idx} value={assistant.id}>{assistant.code} - {assistant.name}</SelectItem>
+                                            )))
+                                        }
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
@@ -50,27 +105,11 @@ export default function CreateSesionPracticum({children}: {children : ReactNode}
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="1">1</SelectItem>
-                                        <SelectItem value="2">2</SelectItem>
-                                        <SelectItem value="3">3</SelectItem>
-                                        <SelectItem value="4">4</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                                        { [...Array(16)].map((_,idx)=>(
+                                            <SelectItem key={idx} value={`${idx+1}`}>{idx+1}</SelectItem>
+                                        ))
 
-                        <div className="flex flex-col gap-1">
-                            <Label htmlFor="aslab">Asistant Laboratorium</Label>
-                            <Select required onValueChange={(value)=>setInput({...input, session: value})}>
-                                <SelectTrigger id="aslab">
-                                    <SelectValue placeholder="Select Here"/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectItem value="Alief Hisyam Al Hasany Nur Rahmat">Alief Hisyam Al Hasany Nur Rahmat</SelectItem>
-                                        <SelectItem value="Bagus Mustaqim">Bagus Mustaqim</SelectItem>
-                                        <SelectItem value="Hugo">Hugo Pramaditya</SelectItem>
-                                        <SelectItem value="Baha">M. Bahaullah Kholidi</SelectItem>
+                                        }
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
@@ -88,7 +127,6 @@ export default function CreateSesionPracticum({children}: {children : ReactNode}
                                 Create
                             </Button>
                         </DialogFooter>
-
                     </div>
                 </form>
             </DialogContent>

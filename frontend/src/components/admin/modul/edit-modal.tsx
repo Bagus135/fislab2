@@ -20,18 +20,17 @@ type EditModulProps = {
 export default function EditModulModal ({modul,  open , setOpen}: EditModulProps) {
     const {toast} = useToast();
     const [input, setInput] = useState({
+        code : modul.code,
         title : modul.title,
         description : modul.description,
     });
     const [loading, setLoading] = useState(false);
-
-    const {id} = modul
-
+    
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await editModul({...input, id}) as getModul
+            const res = await editModul(input) as getModul
             toast({
                 title : "Edit Modul Success",
                 description: `Modul ${res.title} successfully updated`,
@@ -62,7 +61,7 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
                             <Input 
                                 id="title"
                                 type="text" 
-                                placeholder="Attention Please !!" 
+                                placeholder="Milikan Oil Drop" 
                                 className="peer invalid:border-red-500"
                                 value={input.title!}
                                 required
@@ -76,7 +75,7 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
                         <div className="">
                             <Textarea 
                                 id="content"
-                                placeholder="Please to be Carefully in Madya Laboratory" 
+                                placeholder="Milikan oil drop is practicum that meassuring ...." 
                                 className="peer invalid:border-red-500"
                                 value={input.description!}
                                 required

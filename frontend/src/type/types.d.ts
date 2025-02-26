@@ -48,7 +48,7 @@ type GetSelfProfileType ={
 }
 
 type getModul = {
-    id : number,
+    code : string,
     title : string,
     description : string,
     createdAt : string,
@@ -62,7 +62,7 @@ type getPractican = {
 			id: string,
 			name: string,
 			nrp: string
-    }[]
+    }[] | null
 }
 
 type getPracticanGroup = {
@@ -79,5 +79,26 @@ type getAllAssistant = {
     id : string,
     judul: null|string,
     name: string,
-    nrp: string
+    nrp: string,
+    code : string|null,
+    group: string,
+}
+
+type AllScheduleAdmin = {
+		assistant: {
+			id: string,
+			name: string,
+			nrp: string
+		},
+		group: {
+			group: number,
+			id: string,
+            week: number
+		},
+		id: number,
+		practicum: {
+			code: string,
+			title: string
+		},
+		status: string
 }

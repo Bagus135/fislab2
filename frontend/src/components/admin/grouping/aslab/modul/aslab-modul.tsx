@@ -1,13 +1,12 @@
 'use client'
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {  Edit, PlusSquare, Search, Trash} from "lucide-react";
+import { Search} from "lucide-react";
 import { useState } from "react";
 import { getAllAssistant, getModul } from "@/action/admin.action";
-import EditModulAslabModal from "./edit-modal";
+import DropDownMenu from "./dropdown-menu";
 
 type PropsType = {
     assistants : Awaited<ReturnType<typeof getAllAssistant>>,
@@ -16,13 +15,13 @@ type PropsType = {
 
 export default function AslabModulGroup ({assistants, moduls}: PropsType){
     const [search , setSearch] = useState("")
-    const [openEdit , setOpenEdit] = useState(false)
-    const [selectedAssistant, setSelectedAssistant] = useState<getAllAssistant|null>(null)
+    console.log(assistants);
+    console.log(moduls);
+    
     
     return (
         assistants.success && moduls.success &&
         <Card>
-            <EditModulAslabModal setopen={setOpenEdit}  open={openEdit} assistant={selectedAssistant} moduls={moduls.data}/>
             <CardHeader>
                 <CardTitle>Aslab-Modul Grouping</CardTitle>
                 <CardDescription>Connect Asistant Laboratorium to Modul</CardDescription>
@@ -51,22 +50,16 @@ export default function AslabModulGroup ({assistants, moduls}: PropsType){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
+                        assistants.data &&
                         assistants.data.map((assistant,i) =>(
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{i}</TableCell>
-                                <TableCell>{assistant.judul}</TableCell>
+                                <TableCell>{assistant.code}</TableCell>
                                 <TableCell>{assistant.name}</TableCell>
-                                <TableCell>
-                                    <Button 
-                                        size={"sm"} 
-                                        onClick={()=> {
-                                            setSelectedAssistant(assistant);
-                                            setOpenEdit(true);
-                                        }}>
-                                        <Edit className="size-4"/>
-                                    </Button>
+                                <TableCell >
+                                    <DropDownMenu assistant = {assistant} moduls={moduls.data} assistants={assistants.data!}/>
                                 </TableCell>
-                        </TableRow>
+                            </TableRow>
                         ))
                         }
                     </TableBody>

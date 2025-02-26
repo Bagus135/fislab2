@@ -1,35 +1,38 @@
-import { deleteUser } from "@/action/admin.action";
+import { deleteAslabtoGroup } from "@/action/admin.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2Icon, Trash } from "lucide-react";
+import { Loader2Icon, Unplug } from "lucide-react";
 import { useState } from "react";
 
 type Props = {
-    user : AllUserTypes|null,
+    schedule : AllScheduleAdmin|null,
     open : boolean,
     setOpen : (open : boolean) => void
 }
 
-export default function DeleteModal ({user,open, setOpen}: Props){
+export default function DeleteModal ({schedule,open, setOpen}: Props){
     const {toast} = useToast()
     const [loading, setLoading] = useState(false)
     
     const handleDelete = async() =>{
         try {
             setLoading(true)
-            if(!user) throw new Error("User Id is not defined")
-            const res = await deleteUser(user.id);
+            if(!schedule) throw new Error(" variable is not defined")
+            const res = await deleteAslabtoGroup({
+                    assistantId : schedule.assistant.id,
+                    groupId : schedule.group.id
+                });
             setOpen(false);
             toast({
-                title : "Success Delete the user",
-                description : res.token,
+                title : "Success Delete the Practican Group",
+                description : res.message,
                 variant : 'success'
             })
             
         } catch (error : any) {
             toast({
-                title : "Failed to Delete the user",
+                title : "Failed to Delete the Practican Group",
                 description : error.message,
                 variant : 'destructive'
             })
@@ -41,8 +44,8 @@ export default function DeleteModal ({user,open, setOpen}: Props){
         <Dialog onOpenChange={setOpen} open={open}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Delete User</DialogTitle>
-                    <DialogDescription>Are you sure delete this practican user {user && user.name} ? This action is permanent </DialogDescription>
+                    <DialogTitle>Delete Group</DialogTitle>
+                    <DialogDescription>Are you sure delete this practicum sessiion at group {schedule?.group.group} and Asistant {schedule?.assistant.name} ? This action is permanent </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex flex-row justify-end">
                     <Button className="flex flex-row gap-2 bg-red-500" disabled={loading} onClick={handleDelete}>
@@ -51,8 +54,8 @@ export default function DeleteModal ({user,open, setOpen}: Props){
                             <Loader2Icon className="size-4 animate-spin"/>
                             :
                             <>
-                                <Trash className="size-4"/>
-                                Delete
+                                <Unplug className="size-4"/>
+                                Remove
                             </>
                         }
                     </Button>

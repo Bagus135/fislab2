@@ -1,6 +1,9 @@
+import { deleteGroupPractican } from "@/action/admin.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Trash } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2Icon, Trash } from "lucide-react";
+import { useState } from "react";
 
 type Props = {
     group : getPracticanGroup|null,
@@ -8,18 +11,51 @@ type Props = {
     setOpen : (open : boolean) => void
 }
 
-export default function DeleteModal ({group, open, setOpen}: Props){
+export default function DeleteModal ({group,open, setOpen}: Props){
+    const {toast} = useToast()
+    const [loading, setLoading] = useState(false)
+    console.log(group);
+    
+    const handleDelete = async() =>{
+        try {
+            setLoading(true)
+            if(!group) throw new Error("Group Id is not defined")
+            const res = await deleteGroupPractican({groupId : group.id});
+            setOpen(false);
+            toast({
+                title : "Success Delete the Practican Group",
+                description : res.token,
+                variant : 'success'
+            })
+            
+        } catch (error : any) {
+            toast({
+                title : "Failed to Delete the Practican Group",
+                description : error.message,
+                variant : 'destructive'
+            })
+        } finally{
+            setLoading(false)
+        }
+    }
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog onOpenChange={setOpen} open={open}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Delete Group</DialogTitle>
-                    <DialogDescription>Are you sure delete this practican group 6 ? This action is permanent </DialogDescription>
+                    <DialogDescription>Are you sure delete this practican group {group && group.kelompok} ? This action is permanent </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex flex-row justify-end">
-                    <Button className="flex flex-row gap-2 bg-red-500" disabled={true}>
-                        <Trash className="size-4"/>
-                        Delete
+                    <Button className="flex flex-row gap-2 bg-red-500" disabled={loading} onClick={handleDelete}>
+                        {
+                            loading ?
+                            <Loader2Icon className="size-4 animate-spin"/>
+                            :
+                            <>
+                                <Trash className="size-4"/>
+                                Delete
+                            </>
+                        }
                     </Button>
                     <DialogClose asChild>
                         <Button variant={"outline"}>Cancel</Button>
