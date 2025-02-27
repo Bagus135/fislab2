@@ -33,7 +33,7 @@ export default function LoginCard (){
             });
         } catch (error : any) {
             toast({
-                title : error.message ,
+                title : "Failed to Login" ,
                 description : "NRP or Password Wrong",
                 variant : "destructive"
             })
