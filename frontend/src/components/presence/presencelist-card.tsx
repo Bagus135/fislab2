@@ -48,13 +48,7 @@ export default function PresenceListCard({schedules} : Props){
     )
 }
 
-type PresenceProps = {
-    modul : string,
-    nomodul : number,
-    date : string,
-    time : string,
-    status : string,
-}
+
 
 function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
  return (

@@ -66,30 +66,32 @@ export default function LoginCard (){
                                     placeholder="5001231000" 
                                     className="peer pl-12 invalid:border-red-500"
                                     value={input.nrp}
-                                    pattern="^[a-zA-Z0-9]{10}$"
+                                    pattern="^[a-zA-Z0-9]{8,}$"
                                     onChange={(e)=>setInput({...input, nrp : e.target.value })}
                                     />
-                                    <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Input NRP yang bener bang</span>
+                                    <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Please input NRP correctly</span>
                             </div>
                         </div>
                         <div className="flex flex-col space-y-2">
                             <Label htmlFor="password" className="font-medium">Password</Label>
                             <div className="relative ">
-                                <span className="absolute p-1 pl-3 inset-y-0 left-0 flex items-center">
+                                <span className="absolute p-1 pl-3 mt-1 left-0 flex items-center">
                                     <LockIcon className="size-4"/>
                                 </span>
                                 <Input
                                     id="password"
                                     type="password" 
                                     placeholder="********" 
-                                    className="pl-12"
+                                    className="pl-12 peer invalid:border-red-500"
+                                    required
                                     value={input.password}
                                     onChange={(e)=>setInput({...input, password : e.target.value})}
                                     />
+                                    <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Required</span>
                             </div>
                         </div>
                         <Button 
-                            disabled={!input.nrp.match(/^[a-zA-Z0-9]{10}$/) || loading} 
+                            disabled={!input.nrp.match(/^[a-zA-Z0-9]{8,}/) || loading} 
                             className="w-full text-lg font-bold mt-2">
                             {loading?
                                 <Loader2Icon className="size-4 animate-spin"/>

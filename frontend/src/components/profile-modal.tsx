@@ -3,7 +3,7 @@
 import {Loader2Icon, Mail, MessageCircle, Tag } from "lucide-react";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Card, CardContent } from "./ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { getToken } from "@/action/auth.action";
 import { useEffect, useState } from "react";
 

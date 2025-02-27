@@ -1,6 +1,5 @@
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import InputScoreModal from "./aslab/inputscore-modal";
 
 export default function ModulPracticumCard (){
     return (
