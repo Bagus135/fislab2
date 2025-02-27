@@ -30,6 +30,18 @@ const StaffSection = () => (
             />
             <h2 className="text-white text-lg font-bold">Fahmi Astuti, M.Si., Ph.D.</h2>
             <p className="text-gray-400">Head of Madya Laboratory</p>
+            <p className="text-gray-400">Lecturer of Physics Laboratory</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/bu-iim.png"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold"> Iim Fatimah, M.Si.</h2>
+            <p className="text-gray-400">Lecturer of Physics Laboratory</p>
         </div>
         <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
           <Image
