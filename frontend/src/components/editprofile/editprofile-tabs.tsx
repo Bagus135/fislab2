@@ -39,7 +39,29 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
         e.preventDefault()
         try {
             setLoading({...loading, profile : true}) 
-            const res = await UpdateSelfProfile(profileInput)
+            const res = await UpdateSelfProfile({...profileInput,email : profile.email, phone : profile.phone })
+            toast({
+                title : "Success Update Profile",
+                description : res.message,
+                variant : "success"
+            })
+        } catch (error:any) {
+            toast({
+                title : "Failed to Update Profile",
+                description : error.message,
+                variant : "destructive"
+            })
+        } finally{
+            setLoading({...loading, profile : false}) 
+            
+        }
+    }
+
+    const handleUpdateContact = async(e : FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        try {
+            setLoading({...loading, profile : true}) 
+            const res = await UpdateSelfProfile({...profileInput,name : profile.name, about : profile.about })
             toast({
                 title : "Success Update Profile",
                 description : res.message,
@@ -106,14 +128,12 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
         <Tabs defaultValue="profile" className="w-full ">
             <TabsList className="w-full justify-around  border-b rounded-none h-auto p-0 bg-transparent ">
                 <TabsTrigger
-                    onClick={()=> setProfileInput({...profileInput, name : profile.name, about :profile.about })}
                     value="profile"
                     className=" p-2 text-xs md:text-sm w-full flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                         <User className="size-4"/>
                         Profile
                 </TabsTrigger>
                 <TabsTrigger
-                  onClick={()=> setProfileInput({...profileInput, phone : profile.phone, email :profile.email })}
                     value="contact"
                     className="p-2 text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                         <ContactRound className="size-4"/>
@@ -165,7 +185,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                     </form>
             </TabsContent>
             <TabsContent value="contact">
-                    <form onSubmit={handleUpdateProfile} noValidate>
+                    <form onSubmit={handleUpdateContact} noValidate>
                         <CardContent className="flex flex-col gap-6 pt-2">
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="Email" className="font-bold tracking-wide text-sm ">Email</Label>

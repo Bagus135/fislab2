@@ -1,4 +1,5 @@
 import Credit from '@/components/home/credits';
+import Footer from '@/components/home/footer';
 import MadyaLab from '@/components/home/madya-intro';
 import MainHome from '@/components/home/main';
 
@@ -9,6 +10,7 @@ export default function Home() {
       <MainHome/>
       <MadyaLab/>
       <Credit/>
+      <Footer/>
     </div>
   );
 }

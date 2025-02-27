@@ -116,3 +116,21 @@ export const verifyEmailCode = async (payload : {email : string, code : string})
         throw new Error(error.message)
     }
 }
+
+export const getName = async() =>{
+    try {
+        const token = await getToken()
+        const res =  await fetch(`${process.env.URL_BE}/profile/me/name`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "GET",
+        });
+        const data = await res.json()
+        if(!res.ok) throw new Error(data.error)
+        return data 
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+}

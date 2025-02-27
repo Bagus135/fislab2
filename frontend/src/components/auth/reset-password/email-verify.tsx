@@ -71,7 +71,7 @@ export default function EmailVerifyForm() {
                             </div>
                         </div>
                         <Button
-                            disabled={!input.email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) || loading} // Validate email format
+                            disabled={!input.email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) || loading || true} // Validate email format
                             className="w-full text-lg font-bold mt-2">
                             {loading ?
                                 <Loader2Icon className="size-4 animate-spin" />

@@ -1,67 +1,143 @@
-import Head from 'next/head';
+import Head from "next/head";
+import Image from "next/image";
 
-export default function Home() {
+export default function Credits() {
   return (
-    <div className="bg-black text-white min-h-screen">
+    <div className="bg-gray-900 min-h-screen py-10">
       <Head>
-        <title>Web Page</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+        <title>Fislab credits</title>
       </Head>
-      <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4 p-8">
-        <div className="bg-gray-800 rounded-lg p-4 text-center">
-          <img
-            src="https://storage.googleapis.com/a1aa/image/hMyqMajCLmMGyOQUwwJ_02thB8wJirol-3dtpBxX1rg.jpg"
-            alt="Image of Maria Mikhailovna Kujou"
-            className="rounded-full mx-auto mb-4"
-            width="100"
-            height="100"
-          />
-          <h2 className="text-lg font-bold">Maria Mikhailovna Kujou</h2>
-          <p className="text-gray-400">Penghibur</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4 text-center">
-          <img
-            src="https://storage.googleapis.com/a1aa/image/QaFkXV6VBfsgzVxGBs3ZesTUPrelwPu6_YmkZKEz2l4.jpg"
-            alt="Image of Shiina Mahiru"
-            className="rounded-full mx-auto mb-4"
-            width="100"
-            height="100"
-          />
-          <h2 className="text-lg font-bold">Shiina Mahiru</h2>
-          <p className="text-gray-400">Penghibur</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4 text-center">
-          <img
-            src="https://storage.googleapis.com/a1aa/image/hMyqMajCLmMGyOQUwwJ_02thB8wJirol-3dtpBxX1rg.jpg"
-            alt="Image of Maria Mikhailovna Kujou"
-            className="rounded-full mx-auto mb-4"
-            width="100"
-            height="100"
-          />
-          <h2 className="text-lg font-bold">Maria Mikhailovna Kujou</h2>
-          <p className="text-gray-400">Penghibur</p>
-        </div>
-      </div>
-      <div className="border-t border-gray-600 mt-8"></div>
-      <div className="flex flex-col md:flex-row justify-between items-center p-8 space-y-4 md:space-y-0">
-        <div className="bg-gray-600 rounded-lg p-4 text-center">
-          <p>Ini Logo</p>
-        </div>
-        <div className="text-center">
-          <p>Departemen Fisika | FSAD</p>
-          <p>Lantai 3 Laboratorium Fisika Madya</p>
-          <p>Email : fisikamadya@gmail.com</p>
-        </div>
-        <div className="text-center">
-          <p>Sukolilo | Manyar | Tjokroaminoto</p>
-          <p>Kampus Institut Teknologi Sepuluh Nopember Surabaya</p>
-          <p>Phone: 031-5994251-54, 5947274, 5945472</p>
-          <p>Fax: 031-5923465, 5947845</p>
-        </div>
-      </div>
-      <div className="text-center p-4">
-        <p>@2025 Fislab II, inc</p>
+      <div className="container mx-auto px-4">
+        <StaffSection/>
+        <CoordinatorLabSection/>
+        <WebDevSection/>
       </div>
     </div>
   );
 }
+
+const StaffSection = () => (
+  <div className="mb-10">
+    <h2 className="text-white text-2xl font-bold mb-6">Staff</h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/bu-fahmi.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Fahmi Astuti, M.Si., Ph.D.</h2>
+            <p className="text-gray-400">Head of Madya Laboratory</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/pak-eko.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Eko Andri Wahyudi</h2>
+            <p className="text-gray-400">Laboran of Madya Laboratory</p>
+        </div>
+    </div>
+  </div>
+);
+
+const CoordinatorLabSection = () => (
+  <div className="mb-10">
+    <h2 className="text-white text-2xl font-bold mb-6">Coordinator Lab</h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+               src="/image/credits/baha.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">M. Bahaulloh Kholidi</h2>
+            <p className="text-gray-400">Administrative Coordinator</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/alief.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Alief Hisyam Al Hasany MR</h2>
+            <p className="text-gray-400">Modul Coordinator</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/hugo.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Hugo Pramaditya</h2>
+            <p className="text-gray-400">Practicum Coordinator</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/taqim.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Bagus Mustaqim</h2>
+            <p className="text-gray-400">Web Dev Coordinator</p>
+        </div>
+    </div>
+  </div>
+);
+
+const WebDevSection = () => (
+  <div className="mb-10">
+    <h2 className="text-white text-2xl font-bold mb-6">Web Dev</h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/taqim.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Bagus Mustaqim</h2>
+            <p className="text-gray-400">Head of Web Developer</p>
+            <p className="text-gray-400">UI UX Designer</p>
+            <p className="text-gray-400">Frontend Developer</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/agung.jpeg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Agung Sedayu Septiawan</h2>
+            <p className="text-gray-400">Backend Developer</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+          <Image
+              width={100}
+              height={100}
+              src="/image/credits/ilham.jpg"
+              alt="credits picture"
+              className="rounded-full w-24 h-24 mb-4"
+            />
+            <h2 className="text-white text-lg font-bold">Ilham Rasyid Machfudi</h2>
+            <p className="text-gray-400">UI UX Designer</p>
+        </div>
+    </div>
+  </div>
+);
+

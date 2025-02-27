@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2Icon, LockIcon, User } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
@@ -46,11 +47,23 @@ export default function LoginCard (){
         <Card className="max-w-[400px] w-[calc(100vw-2rem)]">
             <CardHeader>
                 <div className="flex flex-col justify-center mx-auto items-center">
-                    <img src="/logofisika.png" className="visible dark:hidden" width="50" alt="Fisika ITS"/>
-                    <img src="/whitephi.png" className="hidden dark:block"  width="50" alt="Fisika ITS"/>
+                    <Image
+                        width={50}
+                        height={50}
+                        src="/logofisika.png"
+                        alt="logo"
+                        className="visible dark:hidden"
+                        />
+                    <Image
+                        width={50}
+                        height={50}
+                        src="/whitephi.png"
+                        alt="logo"
+                        className="hidden dark:block"
+                        />
                 </div>
                 <CardTitle className="text-center text-2xl">LOGIN</CardTitle>
-                <CardDescription className="text-xs text-center">Welcome to dark system of physics laboratory</CardDescription>
+                <CardDescription className="text-xs text-center">Welcome to system management of physics laboratory</CardDescription>
             </CardHeader>
             <CardContent>
                 <form noValidate onSubmit={handleLogin}>
@@ -91,7 +104,7 @@ export default function LoginCard (){
                             </div>
                         </div>
                         <Button 
-                            disabled={!input.nrp.match(/^[a-zA-Z0-9]{8,}/) || loading} 
+                            disabled={!input.nrp.match(/^[a-zA-Z0-9]{8,}/) || loading || true} 
                             className="w-full text-lg font-bold mt-2">
                             {loading?
                                 <Loader2Icon className="size-4 animate-spin"/>
