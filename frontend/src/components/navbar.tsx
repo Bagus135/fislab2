@@ -8,6 +8,8 @@ import { MobileSidebar } from "./sidebar";
 import { Github } from "lucide-react";
 import ProfileDropdown from "./dropdown-profile";
 import { getDecodeToken } from "@/action/auth.action";
+import Image from "next/image";
+import ClientNavbar from "./navbar-client";
 
 const Navbar = async () =>{
     const token = await getDecodeToken()
@@ -17,8 +19,20 @@ const Navbar = async () =>{
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center w-auto">
                         <div className="w-16 md:flex justify-center hidden ">
-                            <img src="/logofisika.png" className=" h-6 w-6  dark:hidden "/>
-                            <img src="/whitephi.png" className=" h-6 w-6  dark:block hidden"/>
+                              <Image
+                                width={100}
+                                height={100}
+                                src="/logofisika.png"
+                                alt="credits picture"
+                                className=" h-6 w-6  dark:hidden "
+                            />
+                              <Image
+                                width={100}
+                                height={100}
+                                src="/whitephi.png"
+                                alt="credits picture"
+                                className=" h-6 w-6  dark:block hidden"
+                            />
                         </div>
                         { token.success ?
                             <MobileSidebar/>
@@ -29,6 +43,7 @@ const Navbar = async () =>{
                             FISLAB
                         </Link>
                     </div>
+                    <ClientNavbar/>
                     <div className="flex space-x-2 md:space-x-4 items-center">
                         <ThemeButton/>
                         <Button size={'icon'} className="flex items-center gap-2 m-0" asChild variant={"ghost"}>

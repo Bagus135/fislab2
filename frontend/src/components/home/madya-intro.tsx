@@ -1,9 +1,12 @@
 import Head from "next/head";
 import Image from "next/image";
+import { Button } from "../ui/button";
+import Link from "next/link";
+import { ChevronDownCircle } from "lucide-react";
 
 export default function MadyaIntro() {
   return (
-    <div className="bg-black text-white min-h-screen">
+    <div id="overview" className="relative bg-black text-white min-h-screen">
       <Head>
         <title>Madya Features</title>
       </Head>
@@ -62,6 +65,11 @@ export default function MadyaIntro() {
           </div>
         </div>
       </div>
+      <Button variant={"ghost"} size={"sm"} className="absolute left-1/2 translate-x-0.5 bottom-1 rounded-full" asChild>
+            <Link href={"#teams"}>
+                <ChevronDownCircle className="size-4 text-muted-foreground"/>
+            </Link>
+        </Button>
     </div>
   )
 }

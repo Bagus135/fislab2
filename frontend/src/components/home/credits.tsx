@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export default function Credits() {
   return (
-    <div className="bg-gray-900 min-h-screen py-10">
+    <div  id="teams" className="bg-gray-900 min-h-screen py-10">
       <Head>
         <title>Fislab credits</title>
       </Head>
