@@ -7,8 +7,8 @@ import NotFound from "../not-found";
 export default async function AnnouncementPage(){
     const [res,decodeToken] = await  Promise.all([getAnnouncment(),getDecodeToken()])
     if(!decodeToken.success) return  NotFound({code : '401', message : "Not Authorized"})
-        const {role} = decodeToken.data
-    if(role !== "SUPER_ADMIN"|| role !== "ADMIN" as string) return  NotFound({code : '401', message : "Not Authorized"})
+    const {role} = decodeToken.data
+    if(!["ADMIN", "SUPER_ADMIN"].includes(role)) return NotFound({code : '401', message:"Only Admin is permitted" })
     return (
         <div className="md:grid md:grid-cols-10 md:gap-4 flex flex-col">
             <div className={`md:col-span-3 lg:col-span-2 md:border-l p-2 md:p-0 md:order-last `}>
