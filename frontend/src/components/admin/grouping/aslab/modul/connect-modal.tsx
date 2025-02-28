@@ -50,7 +50,7 @@ export default function ConnectModulAslabModal({children, assistant, moduls}: Pr
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Aslab - Modul</DialogTitle>
-                    <DialogDescription>Connect {assistant.name} with the desire module</DialogDescription>
+                    <DialogDescription>Connect {assistant.name} - {assistant.nrp}with the desire module</DialogDescription>
                 </DialogHeader>
                 <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">

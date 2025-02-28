@@ -41,6 +41,7 @@ export default function AslabModulGroup ({assistants, moduls}: PropsType){
                         <TableRow >
                         <TableHead className="text-center">No</TableHead>
                         <TableHead className="text-center">Code</TableHead>
+                        <TableHead className="text-center">NRP</TableHead>
                         <TableHead className="text-center">Name</TableHead>
                         <TableHead></TableHead>
                         </TableRow>
@@ -51,6 +52,7 @@ export default function AslabModulGroup ({assistants, moduls}: PropsType){
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{i+1}</TableCell>
                                 <TableCell>{assistant.code||"-"}</TableCell>
+                                <TableCell>{assistant.nrp||"-"}</TableCell>
                                 <TableCell>{assistant.name}</TableCell>
                                 <TableCell >
                                     <DropDownMenu assistant = {assistant} moduls={moduls.data} />
