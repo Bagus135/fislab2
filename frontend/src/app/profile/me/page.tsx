@@ -1,4 +1,4 @@
-import { getSelfProfile } from "@/action/profile.action";
+import { getProfilePic, getSelfProfile } from "@/action/profile.action";
 import EditProfileTabs from "@/components/editprofile/editprofile-tabs";
 import ProfilePreview from "@/components/editprofile/profile-preview";
 import { Button } from "@/components/ui/button";

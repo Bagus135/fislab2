@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 export const setCookies= async (token : string) =>{
     try {
         (await cookies()).set('token', token , {
-            maxAge :  1 * 24* 60 * 60 * 1000,
+            maxAge :  12* 60 * 60 * 1000,
             httpOnly : true,
             sameSite : "strict",
             secure : true,

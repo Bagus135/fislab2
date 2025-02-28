@@ -4,11 +4,12 @@ import (
 	"backend/helper"
 	"backend/prisma/db"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type AttendanceHandler struct {
@@ -29,6 +30,7 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
+
 	var req struct {
 		ScheduleID int `json:"scheduleId"`
 	}
@@ -65,23 +67,47 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Validasi bahwa waktu saat ini sudah melewati waktu mulai praktikum
+	// Validate that the current time is within 1 hour before or after the practicum start time on the same day
 	currentTime := time.Now()
 	startTime, hasStartTime := schedule.StartTime()
-	if hasStartTime {
-		// Jika waktu saat ini masih sebelum waktu mulai praktikum
-		if currentTime.Before(startTime) {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated after the practicum start time"})
-			return
-		}
-	} else {
-		// Jika tidak ada waktu mulai, kembalikan error
+
+	if !hasStartTime {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule start time is not set"})
 		return
 	}
 
+	// Konversi startTime (UTC) ke zona waktu lokal
+	localLocation, err := time.LoadLocation("Local") // Ambil zona waktu lokal
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to load local timezone"})
+		return
+	}
+	startTimeLocal := startTime.In(localLocation) // Konversi ke zona waktu lokal
+
+	// Log waktu untuk debugging
+	log.Printf("Current Time: %s, Scheduled Start Time (Local): %s", currentTime.Format(time.RFC3339), startTimeLocal.Format(time.RFC3339))
+
+	// Periksa apakah currentTime dan startTimeLocal berada pada hari yang sama
+	if currentTime.Year() != startTimeLocal.Year() || currentTime.Month() != startTimeLocal.Month() || currentTime.Day() != startTimeLocal.Day() {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated on the same day as the practicum"})
+		return
+	}
+
+	// Hitung rentang waktu yang diizinkan (1 jam sebelum dan 1 jam sesudah startTimeLocal)
+	oneHourBefore := startTimeLocal.Add(-1 * time.Hour)
+	oneHourAfter := startTimeLocal.Add(1 * time.Hour)
+
+	// Periksa apakah currentTime berada dalam rentang waktu yang diizinkan
+	if currentTime.Before(oneHourBefore) || currentTime.After(oneHourAfter) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated within 1 hour before or after the practicum start time"})
+		return
+	}
+
+	// Generate code
 	code := helper.GenerateRandomCode()
 	expired := time.Now().Add(30 * time.Minute)
 
@@ -97,6 +123,7 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Create default attendance records for all group members
 	for _, member := range schedule.Group().Members() {
 		_, err = h.client.Attendance.CreateOne(
 			db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCode.ID)),

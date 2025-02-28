@@ -19,7 +19,7 @@ import { getDecodeToken, getToken } from "./auth.action";
          data: RejectPromiseType;
      };
  
- export const getGradeUser  = async (): Promise<getGradeUserReturn > => {
+ export const getGradeUser  = async (): Promise<getGradeUserReturn> => {
      try {
          const [token, decodeToken] = await Promise.all([getToken(), getDecodeToken()]);
          
@@ -75,7 +75,6 @@ type postInputGradeProps = InputGradeProps & {
 
  export const postInputGrade = async(payload : postInputGradeProps)=> {
      try {
-        
          const token = await getToken()
          const res =  await fetch(`${process.env.URL_BE}/assistant/grade`,{
              headers : {

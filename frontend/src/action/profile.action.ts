@@ -134,3 +134,41 @@ export const getName = async() =>{
         throw new Error(error.message)
     }
 }
+
+export const uploadProfilePicture = async (formData: FormData) => {
+    try {
+        const token = await getToken()
+        const res = await fetch(`${process.env.URL_BE}/profile/picture`, {
+                method: 'POST',
+                headers: {
+                'Authorization': token, 
+                },
+                body: formData,
+            });
+        const data = await res.json()
+        if(!res.ok) throw new Error(data.error)
+        revalidatePath("/")
+        return data
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+  };
+
+  export const getProfilePic = async (id: string) =>{
+    try {
+        
+        const token = await getToken()
+        const res = await fetch(`${process.env.URL_BE}/profile/picture/${id}`, {
+                method: 'GET',
+                headers: {
+                'Authorization': token, 
+                },
+            });
+        const blob = await res.blob()
+        const image = URL.createObjectURL(blob)
+        if(!res.ok) throw new Error('error')
+        return image
+    } catch (error:any) {
+        return ""
+    }
+  }

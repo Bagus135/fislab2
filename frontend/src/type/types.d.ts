@@ -18,6 +18,7 @@ enum role {
 }
 
 type DetailProfileType = {
+    profile_picture : string
 	"about": string,
 	"email": string,
 	"id": string,
@@ -37,6 +38,7 @@ type AllAnnouncementType = {
 }
 
 type GetSelfProfileType ={
+    profile_picture : string
 	about: string,
 	email: string,
 	id: string,
@@ -222,4 +224,13 @@ type  GetDetailedScoreType = {
         },
         totalScore : number,
     }
+}
+
+type getNearestSchedule = {
+    assistantName: string,
+    code: string,
+    date: string,
+    group: number,
+    practicum: string,
+    time: string,
 }

@@ -127,3 +127,34 @@ export const getCheckSchedule  = async (): Promise<getCheckScheduleReturn > => {
         };
     }
 };
+
+type getNearestScheduleReturn =
+    | { success: true; data: getNearestSchedule[] } // Successful response
+    | { success: false; data: RejectPromiseType }; // Error response
+export const getNearestSchedule = async () : Promise<getNearestScheduleReturn> =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/schedules/nearest`, {
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": token,
+            },
+            method: "GET"
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw data;
+
+        return {
+            success: true,
+            data: data, 
+        };
+
+    } catch (error: any) {
+        return {
+            success: false,
+            data: error,
+        };
+    }
+}

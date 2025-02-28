@@ -104,7 +104,7 @@ export default function LoginCard (){
                             </div>
                         </div>
                         <Button 
-                            disabled={!input.nrp.match(/^[a-zA-Z0-9]{8,}/) || loading || true} 
+                            disabled={!input.nrp.match(/^[a-zA-Z0-9]{8,}/) || loading} 
                             className="w-full text-lg font-bold mt-2">
                             {loading?
                                 <Loader2Icon className="size-4 animate-spin"/>

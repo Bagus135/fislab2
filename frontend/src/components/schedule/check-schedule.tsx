@@ -54,9 +54,12 @@ export  default function CheckScheduleCard ({schedules}:Props) {
             <Separator/>
             <div className="flex text-center flex-col">
                 <div className="flex flex-col gap-2">
-                    { schedules.success &&
+                    { schedules.success && 
                     schedules.data.filter((schedule) => schedule.date.includes(input.date) && schedule.time.includes(input.time))
                     .map((schedule,idx)=>(
+                        Object.values(input).includes("") ? idx < 3 &&
+                        <CardListComponent key={idx} schedule={schedule}/>
+                        :
                         <CardListComponent key={idx} schedule={schedule}/>
                     )) 
                     }
@@ -77,8 +80,8 @@ const CardListComponent = ({schedule}: {schedule : CheckScheduleType}) =>{
                     <p className="font-thin tracking-wide text-xs">Group {schedule.group}</p>
                 </div>
                 <div className="col-span-3 flex flex-col items-end justify-center">
-                    <p className="tracking-wide text-xs font-semibold">{schedule.date}</p>
-                    <p className="font-light tracking-wide text-xs">{schedule.time} - {addTwoHours(schedule.time)}</p>
+                    <p className="tracking-wide text-xs font-semibold">{schedule.date=== "00:00"? "-" :schedule.date}</p>
+                    <p className="font-light tracking-wide text-xs">{`${schedule.time} - ${addTwoHours(schedule.time)}`}</p>
                 </div>
             </CardContent>
         </Card>

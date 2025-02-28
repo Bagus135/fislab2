@@ -29,7 +29,7 @@ export default function ConnectModulAslabModal({children, assistant, moduls}: Pr
             toast({
                 title : "Success Connect Aslab to Modul",
                 variant : "success",
-                description : `${res.assistant.name} - ${res.practicum.title}`
+                description : res.message
             })
         } catch (error:any) {
             toast({

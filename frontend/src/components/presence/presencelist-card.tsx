@@ -51,6 +51,7 @@ export default function PresenceListCard({schedules} : Props){
 
 
 function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
+    
  return (
     <Card className="border-none shadow-none p-0">
         <CardContent className="flex flex-col gap-2 py-4 p-0">
@@ -68,11 +69,11 @@ function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
                 <div className="flex flex-col gap-1">
                     <div className="flex flex-row gap-2">
                         <AlarmClock className="size-4"/>
-                        <p className="text-xs">{schedule.schedule.time} - {addTwoHours(schedule.schedule.time)}</p>
+                        <p className="text-xs">{schedule.schedule.time === "00:00" ? "-" :`${schedule.schedule.time} - ${addTwoHours(schedule.schedule.time)}`}</p>
                     </div>
                     <div className="flex flex-row gap-2">
                         <CalendarDaysIcon className="size-4"/>
-                        <p className="text-xs">{schedule.schedule.date}</p>
+                        <p className="text-xs">{schedule.schedule.date === "1-01-01" ? "-" : schedule.schedule.date}</p>
                     </div>
                     <div className="flex flex-row gap-2">
                         <Building className="size-4"/>
@@ -88,7 +89,7 @@ function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
                             <QrCode className="size-4"/>
                             <p className="text-xs">Enter Code</p>
                         </Button>
-                    <GenerateCodeModal>
+                    <GenerateCodeModal schedule={schedule}>
                         <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
                             <QrCode className="size-4"/>
                             <p className="text-xs">Generate Code</p>
@@ -118,11 +119,11 @@ function PresenceCardPractican({schedule} : {schedule : getPracticanSchedules })
                 <div className="flex flex-col gap-1">
                     <div className="flex flex-row gap-2">
                         <AlarmClock className="size-4"/>
-                        <p className="text-xs">{schedule.schedule.time} - {addTwoHours(schedule.schedule.time)}</p>
+                        <p className="text-xs">{schedule.schedule.time === "00:00"? "-" : `${schedule.schedule.time} - ${addTwoHours(schedule.schedule.time)}`}</p>
                     </div>
                     <div className="flex flex-row gap-2">
                         <CalendarDaysIcon className="size-4"/>
-                        <p className="text-xs">{schedule.schedule.date}</p>
+                        <p className="text-xs">{schedule.schedule.date === "1-01-01" ? "-" : schedule.schedule.date}</p>
                     </div>
                     <div className="flex flex-row gap-2">
                         <Building className="size-4"/>

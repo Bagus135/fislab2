@@ -66,7 +66,8 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	// Buat URL untuk foto profil jika ada
 	var profilePictureUrl string
 	if profilePict != "" {
-		profilePictureUrl = fmt.Sprintf("/api/users/picture/%s", userID)
+		// Ensure this path matches the route defined for serving profile pictures
+		profilePictureUrl = fmt.Sprintf("http://localhost:8080/api/profile/picture/%s", userID) // Adjust the URL as needed
 	}
 
 	response := map[string]interface{}{
@@ -575,7 +576,7 @@ func (h *UserHandler) GetProfilePicture(w http.ResponseWriter, r *http.Request) 
 		var ok bool
 		userID, ok = r.Context().Value("userID").(string)
 		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 	}
@@ -586,7 +587,7 @@ func (h *UserHandler) GetProfilePicture(w http.ResponseWriter, r *http.Request) 
 	).Exec(r.Context())
 
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, "User  not found", http.StatusNotFound)
 		return
 	}
 
@@ -625,8 +626,10 @@ func (h *UserHandler) GetProfilePicture(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache 1 hari
 
 	// Tulis data gambar
+	w.WriteHeader(http.StatusOK) // Set status OK
 	_, err = w.Write(fileData)
 	if err != nil {
+		http.Error(w, "Failed to write image", http.StatusInternalServerError)
 		return
 	}
 }

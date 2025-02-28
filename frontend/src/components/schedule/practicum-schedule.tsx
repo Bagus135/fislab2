@@ -7,6 +7,7 @@ import { Card, CardContent } from "../ui/card"
 import { Separator } from "../ui/separator"
 import {Edit, Users2} from "lucide-react"
 import InputScheduleAslab from "./assistant/schedule-input"
+import { addTwoHours } from "@/utilts/addtwohour"
 
 type Props = {
     schedules :  {
@@ -60,7 +61,7 @@ export default  function CardSchedule({schedules} : Props ) {
                             <div className="col-span-1 flex flex-col items-end justify-end">
                                 <p className="text-end text-xs">{`Week ${schedule.schedule.week}`}</p>
                                 <p className="text-end text-xs">{schedule.schedule.date === "1-01-01" ? "-" :schedule.schedule.date }</p>
-                                <p className="text-end text-xs font-light">{schedule.schedule.time === "00:00" ?"-" : schedule.schedule.time}</p>
+                                <p className="text-end text-xs font-light">{schedule.schedule.time === "00:00" ?"-" : `${schedule.schedule.time} - ${addTwoHours(schedule.schedule.time)}`}</p>
                             </div>
                         </div>
                     </CardContent>
