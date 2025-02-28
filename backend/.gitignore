@@ -7,3 +7,8 @@
 *.iml
 *.iws
 *.ipr.idea/
+
+# Abaikan file gambar dalam data/profile/
+data/profile/*.jpg
+data/profile/*.png
+data/profile/*.jpeg
