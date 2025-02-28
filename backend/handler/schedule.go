@@ -362,7 +362,7 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 	_, err = h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).Update(
-		db.Schedule.Status.Set("COMPLETED"),
+		db.Schedule.Status.Set("FINISHED"),
 	).Exec(r.Context())
 
 	if err != nil {
@@ -511,9 +511,40 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 func (h *ScheduleHandler) GetNearestSchedules(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Ambil semua jadwal dengan status SCHEDULED dan urutkan berdasarkan waktu terdekat
-	schedules, err := h.client.Schedule.FindMany(
+	// Ambil userId dari context (asumsi sudah diset di middleware)
+	userID := r.Context().Value("userID").(string)
+
+	// Cari kelompok (group) dari user yang sedang login
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).With(
+		db.User.MemberGroups.Fetch(),
+	).Exec(r.Context())
+
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+			return
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch user data"})
+		return
+	}
+
+	// Ambil groupId dari kelompok user
+	if len(user.MemberGroups()) == 0 {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(nil) // User tidak memiliki kelompok
+		return
+	}
+	groupID := user.MemberGroups()[0].ID // Ambil kelompok pertama (asumsi 1 user hanya punya 1 kelompok)
+
+	// Cari jadwal terdekat untuk kelompok user
+	schedule, err := h.client.Schedule.FindFirst(
 		db.Schedule.Status.Equals(db.StatusScheduled), // Hanya ambil yang sudah terjadwal
+		db.Schedule.GroupID.Equals(groupID),           // Filter berdasarkan groupId
 	).With(
 		db.Schedule.Assistant.Fetch(),
 		db.Schedule.Practicum.Fetch(),
@@ -523,48 +554,39 @@ func (h *ScheduleHandler) GetNearestSchedules(w http.ResponseWriter, r *http.Req
 	).Exec(r.Context())
 
 	if err != nil {
+		// Jika tidak ada jadwal yang ditemukan, kembalikan null
+		if errors.Is(err, db.ErrNotFound) {
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(nil)
+			return
+		}
+
+		// Jika terjadi error lain, kembalikan error
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch schedules"})
 		return
 	}
 
-	// Jika tidak ada jadwal yang ditemukan, kembalikan array kosong
-	if len(schedules) == 0 {
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
-		return
+	// Format data jadwal
+	var dateStr, timeStr string
+
+	if date, ok := schedule.Date(); ok {
+		dateStr = date.Format("2006-01-02")
+	}
+	if startTime, ok := schedule.StartTime(); ok {
+		timeStr = startTime.Format("15:04")
 	}
 
-	// Ambil hanya 3 jadwal terdekat
-	var nearestSchedules []db.ScheduleModel
-	if len(schedules) > 3 {
-		nearestSchedules = schedules[:3] // Ambil 3 jadwal pertama (terdekat)
-	} else {
-		nearestSchedules = schedules // Jika kurang dari 3, ambil semua
+	scheduleData := map[string]interface{}{
+		"assistantName": schedule.Assistant().Name,
+		"group":         schedule.Group().Name,
+		"date":          dateStr,
+		"time":          timeStr,
+		"code":          schedule.PracticumID,
+		"practicum":     schedule.Practicum().Title,
 	}
 
-	var response []map[string]interface{}
-	for _, schedule := range nearestSchedules {
-		var dateStr, timeStr string
-
-		if date, ok := schedule.Date(); ok {
-			dateStr = date.Format("2006-01-02")
-		}
-		if startTime, ok := schedule.StartTime(); ok {
-			timeStr = startTime.Format("15:04")
-		}
-
-		scheduleData := map[string]interface{}{
-			"assistantName": schedule.Assistant().Name,
-			"group":         schedule.Group().Name,
-			"date":          dateStr,
-			"time":          timeStr,
-			"code":          schedule.PracticumID,
-			"practicum":     schedule.Practicum().Title,
-		}
-		response = append(response, scheduleData)
-	}
-
+	// Kirim response
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(scheduleData)
 }

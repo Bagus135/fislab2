@@ -137,10 +137,9 @@ func (h *GradeHandler) CreateGrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if schedule is already completed
-	if schedule.Status == db.StatusCompleted {
+	if schedule.Status != db.StatusFinished {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "cannot grade completed schedule"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "anda harus klik selesai sebelum melakukan penilaian"})
 		return
 	}
 

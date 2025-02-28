@@ -25,7 +25,7 @@ func main() {
 	assistantHandler := handler.NewAssistantHandler(client)
 	scheduleHandler := handler.NewScheduleHandler(client)
 	gradeHandler := handler.NewGradeHandler(client)
-	attendanceHandler := handler.NewAttendanceHandler(client)
+	attendanceHandler := handler.NewAttendanceHandler(client, cacheService)
 
 	// Initializing router
 	r := router.NewRouter(
