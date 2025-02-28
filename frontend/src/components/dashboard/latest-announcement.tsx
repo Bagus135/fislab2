@@ -12,7 +12,11 @@ export default function AnnouncementCard ({announcements} : {announcements : All
                 <CardDescription>Latest Announcement</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-                {announcements.map((ann,idx)=>(
+                {
+                    !announcements?
+                    <p className="text-center flex justify-center items-center"> No announcement added yet</p>
+                    :
+                announcements.map((ann,idx)=>(
                     idx < 3 &&
                     <AnnouncementModal key={idx} props={ann}>
                         <div className="grid grid-cols-12">
@@ -28,6 +32,7 @@ export default function AnnouncementCard ({announcements} : {announcements : All
             ))
                 }
             </CardContent>
+               {announcements && 
             <CardFooter className="flex justify-end">
                 <Button variant={"outline"} size={"sm"} asChild>
                     <Link href={'/announcement'}>
@@ -35,6 +40,7 @@ export default function AnnouncementCard ({announcements} : {announcements : All
                     </Link>
                 </Button>
             </CardFooter>
+            }
         </Card>
     )
 }

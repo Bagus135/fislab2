@@ -8,23 +8,32 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type EditModulProps = { 
-    modul : getModul, 
+    modul : getModul|null, 
     open:boolean, 
     setOpen : (open : boolean)=> void
 }
 
 export default function EditModulModal ({modul,  open , setOpen}: EditModulProps) {
     const {toast} = useToast();
+    
     const [input, setInput] = useState({
-        code : modul.code,
-        title : modul.title,
-        description : modul.description,
+        code : '',
+        title : '',
+        description : '',
     });
     const [loading, setLoading] = useState(false);
     
+    useEffect(()=>{
+        setInput({
+            code : !modul ? '': modul.code,
+            title : !modul ? '': modul.title,
+            description : !modul ? '': modul.description,
+        });
+    },[modul])
+
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault();
         try {
@@ -47,11 +56,12 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
     };
 
     return (
+        modul &&
         <Dialog open={open} onOpenChange={setOpen} >
             <DialogContent onClick={(e)=> e.stopPropagation()} >
                 <DialogHeader>
                     <DialogTitle> Edit Modul</DialogTitle>
-                    <DialogDescription>Edit your Modul here</DialogDescription>
+                    <DialogDescription>{modul && `${modul.code} - ${modul.title}`}</DialogDescription>
                 </DialogHeader>
                 <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-2">
                     <div className="flex flex-col space-y-2">

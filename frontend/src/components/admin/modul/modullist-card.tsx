@@ -9,14 +9,22 @@ import { useState } from "react";
 import DropdownMenuModul from "./dropdown-menu";
 import CreateModul from "./create-modal";
 import { getModul } from "@/action/admin.action";
+import EditModulModal from "./edit-modal";
+import DeleteModulModal from "./delete-modal";
 
 type ModulListProps = Awaited<ReturnType<typeof getModul>>
 
 export default function ModulList({moduls} :{ moduls : ModulListProps}){
     const [search , setSearch] = useState("")
+    const [selectedModul, setSelectedModul] = useState<getModul|null>(null);
+    const [openEdit , setOpenEdit] = useState(false);
+    const [openDelete , setOpenDelete] = useState(false);
+
     return (
        
         <Card>
+            <EditModulModal modul={selectedModul} open={openEdit} setOpen={setOpenEdit}/>
+            <DeleteModulModal modul={selectedModul} open={openDelete} setOpen={setOpenDelete}/>
             <CardHeader>
                 <CardTitle>Practicum Modul</CardTitle>
                 <CardDescription>Manage practicum modul</CardDescription>
@@ -54,9 +62,9 @@ export default function ModulList({moduls} :{ moduls : ModulListProps}){
                         <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                             <TableCell className="font-medium">{idx + 1}</TableCell>
                             <TableCell>{modul.code}</TableCell>
-                            <TableCell>{modul.description}</TableCell>
-                            <TableCell>
-                              <DropdownMenuModul modul={modul} key={idx}/>
+                            <TableCell>{modul.title}</TableCell>
+                            <TableCell onClick={()=>setSelectedModul(modul)}>
+                              <DropdownMenuModul modul={modul} setOpenDelete={setOpenDelete} setOpenEdit={setOpenEdit} key={idx}/>
                             </TableCell>
                         </TableRow>
                         ))
