@@ -62,6 +62,7 @@ func NewRouter(
 	// ======================
 	api.HandleFunc("/register-first-super-admin", authHandler.RegisterFirstSuperAdmin).Methods("POST")
 	api.HandleFunc("/login", authHandler.Login).Methods("POST")
+	api.HandleFunc("/profile/picture/{id}", userHandler.GetProfilePicture).Methods("GET")
 	api.HandleFunc("/announcement", announcementHandler.GetAnnouncements).Methods("GET")
 	api.HandleFunc("/forgot-password", authHandler.ForgotPassword).Methods("POST")
 	api.HandleFunc("/reset-password", authHandler.ResetPassword).Methods("POST")
@@ -75,7 +76,6 @@ func NewRouter(
 	protectedAPI.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")
 	protectedAPI.HandleFunc("/profile", userHandler.UpdateMyProfile).Methods("PUT")
 	protectedAPI.HandleFunc("/profile/picture", userHandler.UploadProfilePicture).Methods("POST") // Tambahkan endpoint upload
-	protectedAPI.HandleFunc("/profile/picture/{id}", userHandler.GetProfilePicture).Methods("GET")
 	protectedAPI.HandleFunc("/profile/picture/delete", userHandler.DeleteProfilePicture).Methods("DELETE")
 	protectedAPI.HandleFunc("/verify-email", authHandler.VerifyEmail).Methods("POST")
 	protectedAPI.HandleFunc("/send-verification-code", authHandler.SendVerificationCode).Methods("POST")
