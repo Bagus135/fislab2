@@ -164,10 +164,10 @@ export const uploadProfilePicture = async (formData: FormData) => {
                 'Authorization': token, 
                 },
             });
-        const blob = await res.blob()
-        const image = URL.createObjectURL(blob)
-        if(!res.ok) throw new Error('error')
-        return image
+            const data = await res.blob()
+            if(!res.ok) throw new Error('error')
+            const imgUrl = URL.createObjectURL(data)
+            return imgUrl
     } catch (error:any) {
         return ""
     }

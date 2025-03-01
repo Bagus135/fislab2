@@ -1,59 +1,24 @@
-import { AlarmClock, Building, CalendarDaysIcon, Mail, QrCode, UserSquare2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+'use client'
+import { AlarmClock, Building, CalendarDaysIcon, Mail, QrCode, UserSquare, UserSquare2 } from "lucide-react";
+import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { Separator } from "../ui/separator";
-import { Fragment } from "react";
 import GenerateCodeModal from "./generatecode-modal";
 import { addTwoHours } from "@/utilts/addtwohour";
 import InputCodeModal from "./inputcode-modal";
+import CheckAttendance from "./attendance-member";
+import {useState } from "react";
+import { Badge } from "../ui/badge";
+import { isWithinTwoHours } from "@/utilts/iswithintwohour";
 
-type Props = {
-    schedules :  {
-        success: true;
-        role: "PRAKTIKAN";
-        data: getPracticanSchedules[];
-    } | {
-        success: true;
-        role: "ASISTEN";
-        data: getAssistantSchedules[];
-    }
-}
+export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedules[] }){
+    const [selectedSchedule, setSelectedSchedule] = useState<getAssistantSchedules|null>(null)
+    const [openCheck, setOpenCheck] = useState(false);
 
-export default function PresenceListCard({schedules} : Props){
-    return  (
-        <Card>
-            <CardHeader >
-                <CardTitle>Presence List</CardTitle>
-            </CardHeader>
-            <Separator/>
-            <CardContent className="flex flex-col gap-6 mt-4">
-                {schedules.role==="ASISTEN" ?
-
-                schedules.data.map((schedule,idx) => (
-                    <Fragment key={idx}>
-                        <PresenceCardAslab schedule={schedule} />
-                        <Separator/>
-                    </Fragment>
-                ))
-                    :
-                    schedules.data.map((schedule,idx) => (
-                    <Fragment key={idx}>
-                        <PresenceCardPractican schedule={schedule} />
-                        <Separator/>
-                    </Fragment>
-                ))
-                }
-            </CardContent>
-        </Card>
-    )
-}
-
-
-
-function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
-    
  return (
-    <Card className="border-none shadow-none p-0">
+    <>
+    <CheckAttendance open={openCheck} schedule={selectedSchedule} setOpen={setOpenCheck} />
+    { schedules.map((schedule, idx)=>(
+        <Card key={idx} className="border-none shadow-none p-0">
         <CardContent className="flex flex-col gap-2 py-4 p-0">
             <div className="flex-row gap-2  flex justify-start">
                 <div className="flex bg-blue-500 rounded-md items-center">
@@ -85,9 +50,17 @@ function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
                     </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                        <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
-                            <QrCode className="size-4"/>
-                            <p className="text-xs">Enter Code</p>
+                        <Button 
+                            size={"sm"} 
+                            variant={'default'} 
+                            className="flex gap-2 px-2 flex-row"
+                            onClick={()=>{
+                                setSelectedSchedule(schedule)
+                                setOpenCheck(true)
+                            }}
+                            >
+                                <UserSquare className="size-4"/>
+                                <p className="text-xs">Check Attendance</p>
                         </Button>
                     <GenerateCodeModal schedule={schedule}>
                         <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
@@ -99,11 +72,21 @@ function PresenceCardAslab({schedule} : {schedule : getAssistantSchedules }){
             </div>
         </CardContent>
     </Card>
- )
+    ))}
+    </>
+)}
+
+type PracticanProps = {
+    schedules : getPracticanSchedules[], 
+    stats : statAttendanceType['attendanceDetails'] |null
 }
-function PresenceCardPractican({schedule} : {schedule : getPracticanSchedules }){
+
+export function PresenceCardPractican({schedules, stats} : PracticanProps){
+    console.log(stats);
+    
  return (
-    <Card className="border-none shadow-none p-0">
+    schedules.map((schedule, idx)=>(
+    <Card key={idx} className="border-none shadow-none p-0">
         <CardContent className="flex flex-col gap-2 py-4 p-0">
             <div className="flex-row gap-2  flex justify-start">
                 <div className="flex bg-blue-500 rounded-md items-center">
@@ -134,24 +117,43 @@ function PresenceCardPractican({schedule} : {schedule : getPracticanSchedules })
                         <p className="text-xs">{schedule.assistant.name}</p>
                     </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                        <Button size={"sm"} 
-                                variant={'outline'} 
-                                className="flex gap-2 px-2 flex-row"
-                                disabled
-                                >
-                            <Mail className="size-4"/>
-                            <p className="text-xs">Permit Mail</p>
-                        </Button>
-                    <InputCodeModal schedule={schedule}>
-                        <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
-                            <QrCode className="size-4"/>
-                            <p className="text-xs">Generate Code</p>
-                        </Button>
-                    </InputCodeModal>
-                </div>           
+                { stats && !!stats.find((a)=> a.scheduleId === schedule.id) ?
+                    !!stats.find(a => a.status === "TIDAK_HADIR" && a.scheduleId ===schedule.id) ?
+                    isWithinTwoHours(schedule.schedule.date,schedule.schedule.time) ?
+                        <div className="flex flex-col gap-2">
+                            <Button size={"sm"} 
+                                    variant={'outline'} 
+                                    className="flex gap-2 px-2 flex-row"
+                                    disabled
+                                    >
+                                <Mail className="size-4"/>
+                                <p className="text-xs">Permit Mail</p>
+                            </Button>
+                        <InputCodeModal schedule={schedule}>
+                            <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
+                                <QrCode className="size-4"/>
+                                <p className="text-xs">Enter Code</p>
+                            </Button>
+                        </InputCodeModal>
+                    </div>
+                        :
+
+                    <div className="flex items-center">
+                        <Badge variant={"destructive"}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
+                    </div>
+                     :
+                <div className="flex items-center">
+                    <Badge variant={"default"}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
+                </div>
+                     
+                :
+                <div className="flex items-center">
+                    <Badge variant={"secondary"}>Not Started</Badge>           
+                </div>
+        }
             </div>
         </CardContent>
     </Card>
+    ))
  )
 }

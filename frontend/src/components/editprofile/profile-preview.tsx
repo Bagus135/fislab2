@@ -15,9 +15,6 @@ export default function ProfilePreview({profile} : {profile : GetSelfProfileType
         const profilePic = async () =>{
             const res = await getProfilePic(profile.id)
             setProfilePic(res)
-            return () => {
-                URL.revokeObjectURL(res);
-            };
         }
         profilePic()
     }, [profile])

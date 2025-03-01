@@ -70,28 +70,29 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 
 		profilePictureUrl = fmt.Sprintf("/api/profile/picture/%s", userID)
 
-	response := map[string]interface{}{
-		"id":              user.ID,
-		"nrp":             user.Nrp,
-		"name":            user.Name,
-		"phone":           phone,
-		"about":           about,
-		"email":           email,
-		"email_verified":  user.EmailVerified,
-		"role":            string(user.Role),
-		"profile_picture": profilePictureUrl,
-	}
+		response := map[string]interface{}{
+			"id":              user.ID,
+			"nrp":             user.Nrp,
+			"name":            user.Name,
+			"phone":           phone,
+			"about":           about,
+			"email":           email,
+			"email_verified":  user.EmailVerified,
+			"role":            string(user.Role),
+			"profile_picture": profilePictureUrl,
+		}
 
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		fmt.Printf("Error encoding response: %v\n", err)
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			fmt.Printf("Error encoding response: %v\n", err)
+		}
 	}
 }
 
 func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache 1 jam
+	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	vars := mux.Vars(r)
 	requestedUserID := vars["id"]

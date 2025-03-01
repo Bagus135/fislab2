@@ -24,7 +24,13 @@ export default function GenerateCodeModal ({children, schedule}:{children : Reac
     const handleGenerate = async () =>{
         try {
             setLoading(true)
-            const code =await generateCode(schedule.id) 
+            const res =await generateCode(schedule.id);
+            setCode(res.code)
+            toast({
+                title : "Presence Code Generated",
+                description : res.message,
+                variant : "success"
+            })
         } catch (error:any) {
             toast({
                 title : "Error in generating schedule",

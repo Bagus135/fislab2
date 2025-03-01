@@ -234,3 +234,25 @@ type getNearestSchedule = {
     practicum: string,
     time: string,
 }
+
+enum AttendanceStatus {
+    'HADIR',
+    'SAKIT',
+    'IZIN',
+    'TIDAK_HADIR',
+  }
+
+  type statAttendanceType = {
+    "attendanceDetails":{
+			"date": string,
+			"scheduleId": number,
+			"status": string,
+			"title": string
+		}[] | [],
+	"summary": {
+		"HADIR": number,
+		"IZIN": number,
+		"SAKIT": number,
+		"TIDAK_HADIR": number
+	}
+  }
