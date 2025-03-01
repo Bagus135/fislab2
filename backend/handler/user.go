@@ -91,7 +91,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache 1 jam
+	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	vars := mux.Vars(r)
 	requestedUserID := vars["id"]
