@@ -631,6 +631,7 @@ func (h *ScheduleHandler) GetNearestSchedules(w http.ResponseWriter, r *http.Req
 
 	scheduleData := map[string]interface{}{
 		"assistantName": schedule.Assistant().Name,
+		"scheduleId":    schedule.ID,
 		"group":         schedule.Group().Name,
 		"date":          dateStr,
 		"time":          timeStr,
