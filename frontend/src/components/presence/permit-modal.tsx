@@ -7,12 +7,14 @@ import { Button } from "../ui/button"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 export default function PermitModal ({children}:{children : ReactNode}) {
     const [input, setInput] = useState({
         type : "",
         reason : "",
     })
+    const {toast} = useToast()
 
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault()
@@ -20,7 +22,14 @@ export default function PermitModal ({children}:{children : ReactNode}) {
 
     return (
         <Dialog>
-            <DialogTrigger asChild>
+            <DialogTrigger 
+                asChild 
+                disabled 
+                onClick={()=> toast({
+                    title : "Upcoming feature...",
+                    description : 'This function is not available now',
+                    variant : "default"
+                })}>
                 {children}
             </DialogTrigger>
             <DialogHeader className="hidden">

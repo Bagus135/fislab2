@@ -5,11 +5,12 @@ import (
 	"backend/prisma/db"
 	"backend/service"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type AttendanceHandler struct {

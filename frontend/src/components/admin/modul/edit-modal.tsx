@@ -1,40 +1,47 @@
 'use client'
 
 import { editModul } from "@/action/admin.action";
-import { editAnnouncement } from "@/action/announcement.action";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type EditModulProps = { 
-    modul : getModul, 
+    modul : getModul|null, 
     open:boolean, 
     setOpen : (open : boolean)=> void
 }
 
 export default function EditModulModal ({modul,  open , setOpen}: EditModulProps) {
     const {toast} = useToast();
+    
     const [input, setInput] = useState({
-        title : modul.title,
-        description : modul.description,
+        code : '',
+        title : '',
+        description : '',
     });
     const [loading, setLoading] = useState(false);
-
-    const {id} = modul
+    
+    useEffect(()=>{
+        setInput({
+            code : !modul ? '': modul.code,
+            title : !modul ? '': modul.title,
+            description : !modul ? '': modul.description,
+        });
+    },[modul])
 
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await editModul({...input, id}) as getModul
+            const res = await editModul(input)
             toast({
                 title : "Edit Modul Success",
-                description: `Modul ${res.title} successfully updated`,
+                description: res.message,
                 variant : "success"
             })
         } catch (error:any) {
@@ -49,11 +56,12 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
     };
 
     return (
+        modul &&
         <Dialog open={open} onOpenChange={setOpen} >
             <DialogContent onClick={(e)=> e.stopPropagation()} >
                 <DialogHeader>
                     <DialogTitle> Edit Modul</DialogTitle>
-                    <DialogDescription>Edit your Modul here</DialogDescription>
+                    <DialogDescription>{modul && `${modul.code} - ${modul.title}`}</DialogDescription>
                 </DialogHeader>
                 <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-2">
                     <div className="flex flex-col space-y-2">
@@ -62,7 +70,7 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
                             <Input 
                                 id="title"
                                 type="text" 
-                                placeholder="Attention Please !!" 
+                                placeholder="Milikan Oil Drop" 
                                 className="peer invalid:border-red-500"
                                 value={input.title!}
                                 required
@@ -76,7 +84,7 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
                         <div className="">
                             <Textarea 
                                 id="content"
-                                placeholder="Please to be Carefully in Madya Laboratory" 
+                                placeholder="Milikan oil drop is practicum that meassuring ...." 
                                 className="peer invalid:border-red-500"
                                 value={input.description!}
                                 required

@@ -29,28 +29,30 @@ export default function CreateGroupPractican ({children, practicans}:{children :
     })
     const [loading, setLoading] = useState(false);
 
-    const handleCheckboxChange = (checked : boolean|string , id : string, nrp : string)=> {
-        checked? 
-            setInput({...input, 
-                    member_ids : [...input.member_ids, id],
-                    nrp : [...input.nrp, nrp]
-                })
-            : 
-            setInput({...input, 
-                member_ids : input.member_ids.filter((item)=> item !== id), 
-                nrp : input.nrp.filter((item)=> item !== nrp), 
-            })
+    const handleCheckboxChange = (checked: boolean | string, id: string, nrp: string) => {
+        if (checked) {
+            setInput({
+                ...input,
+                member_ids: [...input.member_ids, id],
+                nrp: [...input.nrp, nrp],
+            });
+        } else {
+            setInput({
+                ...input,
+                member_ids: input.member_ids.filter((item) => item !== id),
+                nrp: input.nrp.filter((item) => item !== nrp),
+            });
+        }
     };
-
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await createGroupPractican({ kelompok : Number(input.kelompok),member_ids : input.member_ids });
+            const res = await createGroupPractican({ group : Number(input.kelompok),member_ids : input.member_ids });
             toast({
                 title : "Practican group created",
                 variant : "success",
-                description : `Practican group ${res.kelompok} created`
+                description : res.message
             })
         } catch (error:any) {
             toast({
@@ -130,7 +132,7 @@ export default function CreateGroupPractican ({children, practicans}:{children :
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>{
-                                        practicans.success &&
+                                        practicans.success && practicans.data.users &&
                                         practicans.data.users.filter(practican => 
                                             practican.nrp.toLowerCase().includes(search.toLowerCase()) || 
                                             practican.name.toLowerCase().includes(search.toLowerCase())

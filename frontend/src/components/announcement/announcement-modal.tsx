@@ -7,7 +7,7 @@ import { ScrollArea } from "../ui/scroll-area";
 export default function AnnouncementModal ({children, props} :{children : ReactNode, props : AllAnnouncementType}){
     return (
         <Dialog>
-            <DialogTrigger asChild>
+            <DialogTrigger asChild className="cursor-pointer hover:bg-accent hover:text-accent-foreground">
                 {children}
             </DialogTrigger>
             <DialogHeader className="hidden">

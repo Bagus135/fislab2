@@ -63,9 +63,37 @@ export const addUser = async(input:AddUserType)=>{
         }
     }
 
-// create modul practicum
+export const deleteUser = async(id :string)=>{
+    try {
+        const token = await getToken();
+        
+        const res = await fetch(`${process.env.URL_BE}/admin/users/delete`, {
+            method : "DELETE",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            body : JSON.stringify({id})
+        })
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.token)
+        
+        revalidatePath('/')
+        return data
+              
+        } catch (error : any) {
+           throw new Error(error.message)
+        }
+    }
 
-export const createModul = async (payload : {title : string, description : string}) =>{
+// create modul practicum
+type CreateModulType = {
+    code : string,
+    title : string,
+    description : string,
+}
+
+export const createModul = async (payload : CreateModulType) =>{
     try {
         const token = await getToken();
         const res = await fetch(`${process.env.URL_BE}/admin/practicum`, {
@@ -81,14 +109,14 @@ export const createModul = async (payload : {title : string, description : strin
         if(!res.ok) throw new Error(data.error)
         
         revalidatePath('/')
-        return data.title
+        return data
         
     } catch (error:any) {
         throw new Error(error.message)
     }
 }
 
-export const editModul = async (payload : { id : number, title : string, description : string}) =>{
+export const editModul = async (payload : CreateModulType) =>{
     try {
         const token = await getToken();
         const res = await fetch(`${process.env.URL_BE}/admin/practicum`, {
@@ -111,7 +139,7 @@ export const editModul = async (payload : { id : number, title : string, descrip
     }
 }
 
-export const deleteModul = async (id : number) =>{
+export const deleteModul = async (code : string) =>{
     try {
         const token = await getToken();
         const res = await fetch(`${process.env.URL_BE}/admin/practicum`, {
@@ -120,7 +148,7 @@ export const deleteModul = async (id : number) =>{
                 "Content-Type" : "application/json",
                 "Authorization" : token,
             },
-            body : JSON.stringify({id})
+            body : JSON.stringify({code})
         })
         const data = await res.json();
         
@@ -164,7 +192,7 @@ export const getModul = async () : Promise<getModulReturn> =>{
     }
 }
 
-export const getAssistant = async () : Promise<getModulReturn> =>{
+export const getAssistant = async () =>{
     try {
         const token = await getToken();
         const res = await fetch(`${process.env.URL_BE}/admin/assistant`, {
@@ -225,7 +253,7 @@ export const getPractican = async () : Promise<getPracticanReturn> =>{
 
 // Practican Group
 type getPracticanGroupReturn =
-    | { success: true; data: getPracticanGroup[] } // Successful response
+    | { success: true; data: getPracticanGroup[]|null } // Successful response
     | { success: false; data: RejectPromiseType }; // Error response
     
     export const getPracticanGroup = async () : Promise<getPracticanGroupReturn> =>{
@@ -255,7 +283,7 @@ type getPracticanGroupReturn =
         }
     }
     
-    export const createGroupPractican = async (payload : {kelompok : number, member_ids : string[]}) =>{
+    export const createGroupPractican = async (payload : {group : number, member_ids : string[]}) =>{
         try {
             const token = await getToken();
             const res = await fetch(`${process.env.URL_BE}/admin/groups`, {
@@ -278,11 +306,36 @@ type getPracticanGroupReturn =
             }
         }
         
-export const editGroupPractican = async (payload : { id : string, name : number, member_ids : string[]}) =>{
+export const editGroupPractican = async (payload : { id : string, group : number, member_ids : string[]}) =>{
     try {
         const token = await getToken();
+        
         const res = await fetch(`${process.env.URL_BE}/admin/groups`, {
             method : "PUT",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            body : JSON.stringify(payload)
+        })
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error)
+            
+            revalidatePath('/')
+            return data
+            
+        } catch (error:any) {
+            
+            throw new Error(error.message)
+        }
+    }
+export const deleteGroupPractican = async (payload : { groupId : string}) =>{
+    try {
+        const token = await getToken();
+        
+        const res = await fetch(`${process.env.URL_BE}/admin/groups/delete`, {
+            method : "DELETE",
             headers : {
                 "Content-Type" : "application/json",
                 "Authorization" : token,
@@ -302,8 +355,8 @@ export const editGroupPractican = async (payload : { id : string, name : number,
     }
     
     
-    type getAllAssistantReturn =
-    | { success: true; data: getAllAssistant[] } // Successful response
+type getAllAssistantReturn =
+    | { success: true; data: getAllAssistant[]|null } // Successful response
     | { success: false; data: RejectPromiseType }; // Error response
     export const getAllAssistant = async () : Promise<getAllAssistantReturn> =>{
     try {
@@ -332,10 +385,10 @@ export const editGroupPractican = async (payload : { id : string, name : number,
 }
 
 
-export const editAslabtoModul = async (payload : { practicumId : number, assistantId : string, }) =>{
+export const connectAslabtoModul = async (payload : { practicumCode : string, assistantId : string, }) =>{
     try {
         const token = await getToken();
-        const res = await fetch(`${process.env.URL_BE}/admin/assistant-to-practicum`, {
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/practicum`, {
             method : "POST",
             headers : {
                 "Content-Type" : "application/json",
@@ -355,11 +408,40 @@ export const editAslabtoModul = async (payload : { practicumId : number, assista
         }
     }
 
-export const cretaeAslabtoGroup = async (payload : { practicumId : number, assistantId : string, groupId : string }) =>{
+type editAslabtoModulType = {
+    oldPracticumCode:string,
+    newPracticumCode:string,
+    assistantId:string,
+}
+
+export const editAslabtoModul = async (payload : editAslabtoModulType) =>{
     try {
         const token = await getToken();
-        const res = await fetch(`${process.env.URL_BE}/admin/assistant-to-group`, {
-            method : "POST",
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/practicum/update`, {
+            method : "PUT",
+        headers : {
+            "Content-Type" : "application/json",
+            "Authorization" : token,
+        },
+        body : JSON.stringify(payload)
+    })
+    const data = await res.json();
+    
+    if(!res.ok) throw new Error(data.error)
+        
+        revalidatePath('/')
+        return data
+        
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+}
+
+export const removeAslabtoModul = async (payload : { practicumCode : string, assistantId : string, } ) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/practicum/remove`, {
+            method : "DELETE",
             headers : {
                 "Content-Type" : "application/json",
                 "Authorization" : token,
@@ -377,3 +459,119 @@ export const cretaeAslabtoGroup = async (payload : { practicumId : number, assis
             throw new Error(error.message)
         }
     }
+    
+    type cretaeAslabtoGroup = {
+        practicumCode: string,
+        groupId : string,
+        assistantId : string,
+        week : number
+    }
+    
+
+export const connectAslabtoGroup = async (payload : cretaeAslabtoGroup) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/group`, {
+            method : "POST",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+        body : JSON.stringify(payload)
+    })
+    
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error)
+        
+        revalidatePath('/')
+        return data
+        
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+}
+
+type  editAslabtoGroupType = {
+	scheduleId : number,
+	assistantId :string,
+	week : number
+}
+export const editAslabtoGroup = async (payload : editAslabtoGroupType) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/group`, {
+            method : "POST",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+        body : JSON.stringify(payload)
+    })
+    const data = await res.json();
+    
+    if(!res.ok) throw new Error(data.error)
+        
+        revalidatePath('/')
+        return data
+        
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+}
+
+type  deleteAslabtoGroupType = {
+	groupId : string,
+	assistantId :string,
+}
+export const deleteAslabtoGroup = async (payload : deleteAslabtoGroupType) =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/group/remove`, {
+            method : "DELETE",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+        body : JSON.stringify(payload)
+    })
+    const data = await res.json();
+    
+    if(!res.ok) throw new Error(data.error)
+        
+        revalidatePath('/')
+        return data
+        
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+}
+
+type getAllScheduleReturn =
+    | { success: true; data: AllScheduleAdmin[] } // Successful response
+    | { success: false; data: RejectPromiseType }; // Error response
+
+export const getAllScheduleAdmin = async () : Promise<getAllScheduleReturn> =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/schedules`, {
+            method : "GET",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+        })
+        const data = await res.json();
+        if(!res.ok) throw data
+            return {
+                success : true,
+                data
+            }
+            
+        } catch (error:any) {
+            return {
+                success : false,
+                data : error
+            }
+        }
+    }
+

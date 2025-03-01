@@ -1,8 +1,8 @@
 'use client'
 
-import { createAnnouncement, editAnnouncement } from "@/action/announcement.action";
+import { editAnnouncement } from "@/action/announcement.action";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,10 +23,10 @@ export default function EditAnnouncementModal ({announcement, open , setOpen}: {
         e.preventDefault();
         try {
             setLoading(true)
-            const message = await editAnnouncement({ id, ...input});
+            const res = await editAnnouncement({ id, ...input});
             toast({
                 title : "Success Create a New Announcement",
-                description : message,
+                description : res.message,
                 variant : 'success'
             })
             

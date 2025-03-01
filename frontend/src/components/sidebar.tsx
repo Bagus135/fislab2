@@ -5,6 +5,8 @@ import { Calendar, CheckSquare, FlaskConical, Gauge, GaugeCircle, Megaphone, Men
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { useState } from "react";
 import { Separator } from "./ui/separator";
+import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 export default function SideBar () {
     return (
@@ -55,7 +57,9 @@ export default function SideBar () {
 
 export function MobileSidebar () {
     const [showMenu, setShowMenu] = useState(false);
+    const pathname = usePathname()
     return (
+        !pathname.startsWith("/admin") &&
         <Sheet open={showMenu} onOpenChange={setShowMenu}>
             <SheetTrigger asChild>
                 <Button variant={'outline'} size={'lg'} className="h-8 px-2 mr-2 w-auto md:hidden">
@@ -65,8 +69,20 @@ export function MobileSidebar () {
             <SheetContent side={"left"} className="w-[200px] min-h-screen pt-5">
                 <SheetHeader>
                     <SheetTitle className="flex flex-row items-center gap-4 ">
-                        <img src="/logofisika.png" className=" h-6 w-6 dark:hidden"/>
-                        <img src="/whitephi.png" className=" h-6 w-6 hidden dark:block"/>
+                         <Image
+                                                        width={100}
+                                                        height={100}
+                                                        src="/logofisika.png"
+                                                        alt="credits picture"
+                                                        className=" h-6 w-6  dark:hidden "
+                                                    />
+                                                      <Image
+                                                        width={100}
+                                                        height={100}
+                                                        src="/whitephi.png"
+                                                        alt="credits picture"
+                                                        className=" h-6 w-6  dark:block hidden"
+                                                    />
                         <p className="text-xl font-mono font-bold text-primary tracking-wider ">
                                 FISLAB
                             </p>

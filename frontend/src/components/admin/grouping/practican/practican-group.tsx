@@ -4,32 +4,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Circle, Edit, EllipsisVertical, Pencil, PlusSquare, Search, Trash, User} from "lucide-react";
+import { Circle, EllipsisVertical, PlusSquare, Search} from "lucide-react";
 import { useState } from "react";
 import CreateGroupPractican from "./create-modal";
 import { getPractican, getPracticanGroup } from "@/action/admin.action";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import EditMemberPracticanModal from "./editmember-modal";
+import DropDownMenu from "./dropdown-menu";
 import DeleteModal from "./delete-modal";
-import DetailPracticanGroupsModal from "./showdetail-modal";
 
 type GetPracticanRes = Awaited<ReturnType<typeof getPractican>>
 type GetGroupRes = Awaited<ReturnType<typeof getPracticanGroup>>
 
+
 export default function PracticanGroup ({practicans , groups } : {practicans : GetPracticanRes, groups : GetGroupRes}){
     const [search , setSearch] = useState("")
     const [openDelete, setOpenDelete] = useState(false)
-    const [openEdit, setOpenEdit] = useState(false)
-    const [openShowMember, setOpenShowMember] = useState(false);
-    const [openDropdown, setOpenDropdown] = useState(false)
-    const [group, setGroup] = useState<getPracticanGroup|null>(null)
-
+    const [selectGroup, setSelectedGroup] = useState<getPracticanGroup|null>(null)
+    
     return (
-    <>
-        <DeleteModal open={openDelete} setOpen={setOpenDelete} group={group}/>
-        <DetailPracticanGroupsModal group={group} open={openShowMember} setOpen={setOpenShowMember}/>
-        <EditMemberPracticanModal group={group} open={openEdit} setOpen={setOpenEdit} practicans={practicans}/>
         <Card>
+            <DeleteModal group={selectGroup} open={openDelete} setOpen={setOpenDelete}/>
             <CardHeader>
                 <CardTitle>Practican Group</CardTitle>
                 <CardDescription>Create Group for practican</CardDescription>
@@ -63,7 +56,7 @@ export default function PracticanGroup ({practicans , groups } : {practicans : G
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        groups.success &&
+                        groups.success && practicans.success && groups.data &&
                         groups.data.map((group,idx) =>(
                             <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{group.kelompok}</TableCell>
@@ -74,58 +67,12 @@ export default function PracticanGroup ({practicans , groups } : {practicans : G
                                         Normal
                                     </div>
                                 </TableCell>
-                                <TableCell>
-                                    <DropdownMenu key={idx} onOpenChange={setOpenDropdown} open={openDropdown}>
-                                        <DropdownMenuTrigger asChild >
-                                            <Button variant={"ghost"} size={"sm"} >
-                                                <EllipsisVertical className="size-4"/>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-auto">
-                                            <DropdownMenuGroup className="flex flex-col gap-2 items-start" >
-                                                <Button 
-                                                    variant={"ghost"} 
-                                                    className="font-semibold gap-2"
-                                                    onClick={()=>{
-                                                        setOpenDropdown(false);
-                                                        setOpenShowMember(true);
-                                                        setGroup(group)
-                                                    }}
-                                                    >
-                                                    <User className="size-4 mr-1"/>
-                                                    <span className="inline text-sm ">
-                                                        Show Member
-                                                    </span>
-                                                </Button>
-                                                <Button 
-                                                    variant={"ghost"} 
-                                                    className="font-semibold gap-2"
-                                                    onClick={()=>{
-                                                        setOpenDropdown(false);
-                                                        setOpenEdit(true);
-                                                        setGroup(group)
-                                                    }}>
-                                                    <Edit className="size-4 mr-1"/>
-                                                    <span className="inline text-sm ">
-                                                        Edit Member
-                                                    </span>
-                                                </Button>
-                                                <Button 
-                                                    variant={"ghost"} 
-                                                    className="text-red-500 hover:text-red-600 font-semibold  gap-2"
-                                                    onClick={()=>{
-                                                        setOpenDropdown(false);
-                                                        setOpenDelete(true);
-                                                        setGroup(group)
-                                                    }}>
-                                                    <Trash className="size-4 mr-1"/>
-                                                    <span className="inline text-sm ">
-                                                        Delete Group
-                                                    </span>
-                                                </Button>
-                                            </DropdownMenuGroup>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                <TableCell onClick={()=> setSelectedGroup(group)} >
+                                    <DropDownMenu group={group} practicans={practicans.data} setOpenDel={setOpenDelete}>
+                                        <Button variant={"ghost"} size={"sm"} >
+                                            <EllipsisVertical className="size-4"/>
+                                        </Button>
+                                    </DropDownMenu>
                                 </TableCell>
                             </TableRow>
                         ))
@@ -134,6 +81,5 @@ export default function PracticanGroup ({practicans , groups } : {practicans : G
                 </Table>
             </CardContent>
         </Card>
-    </>
     )
 }

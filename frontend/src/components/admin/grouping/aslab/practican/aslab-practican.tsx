@@ -4,19 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {PlusSquare, Search, Trash} from "lucide-react";
+import {PlusSquare, Search,} from "lucide-react";
 import { useState } from "react";
 import CreateSesionPracticum from "./createsession-modal";
-import { getAllAssistant, getPracticanGroup } from "@/action/admin.action";
+import { getAllAssistant, getAllScheduleAdmin, getPracticanGroup } from "@/action/admin.action";
+import DropDownMenu from "./dropdown-menu";
+import DeleteModal from "./delete-modal";
 
 type PropsType = {
-    assistant : Awaited<ReturnType<typeof getAllAssistant>>,
+    assistants : Awaited<ReturnType<typeof getAllAssistant>>,
     groups : Awaited<ReturnType<typeof getPracticanGroup>>, 
+    schedules : Awaited<ReturnType<typeof getAllScheduleAdmin>>,
 }
-export default function AslabPracticanGroup ({assistant,groups}: PropsType){
+
+export default function AslabPracticanGroup ({assistants,groups, schedules}: PropsType){
     const [search , setSearch] = useState("")
+    const [openDelete, setOpenDelete] = useState(false);
+    const [selectedSchedule, setSelectedSchedule] = useState<AllScheduleAdmin|null>(null)
     return (
+        assistants.success && groups.success && schedules.success &&
         <Card>
+            <DeleteModal open={openDelete} schedule={selectedSchedule} setOpen={setOpenDelete}/>
             <CardHeader>
                 <CardTitle>Aslab-Practican Grouping</CardTitle>
                 <CardDescription>Connect Asistant Laboratorium to Practican Group</CardDescription>
@@ -34,7 +42,7 @@ export default function AslabPracticanGroup ({assistant,groups}: PropsType){
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <CreateSesionPracticum>
+                    <CreateSesionPracticum assistants={assistants.data} groups={groups.data}>
                         <Button>
                             <PlusSquare className="size-4"/>
                         </Button>
@@ -51,17 +59,15 @@ export default function AslabPracticanGroup ({assistant,groups}: PropsType){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        [...Array(20)].map((group,i) =>(
+                         schedules.data.length > 0 && schedules.data.map((schedule,i) =>(
 
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
-                                <TableCell className="font-medium">Group {i}</TableCell>
-                                <TableCell>{i}</TableCell>
-                                <TableCell>MP-{i}</TableCell>
-                                <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
-                                <TableCell>
-                                    <Button size={"sm"} className="bg-red-500 hover:bg-red-600 text-black">
-                                        <Trash className="size-4"/>
-                                    </Button>
+                                <TableCell className="font-medium">{schedule.group.group}</TableCell>
+                                <TableCell>{schedule.group.week}</TableCell>
+                                <TableCell>{schedule.practicum.code}</TableCell>
+                                <TableCell>{schedule.assistant.nrp}</TableCell>
+                                <TableCell onClick={()=>setSelectedSchedule(schedule)}>
+                                    <DropDownMenu schedule={schedule} setOpenDelete={setOpenDelete}/>
                                 </TableCell>
                             </TableRow>
                         ))

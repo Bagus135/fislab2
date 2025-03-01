@@ -1,5 +1,4 @@
-import { getAllAssistant, getAllUsers, getModul, getPractican, getPracticanGroup } from "@/action/admin.action";
-import { getToken } from "@/action/auth.action";
+import { getAllAssistant, getAllScheduleAdmin, getAllUsers, getModul, getPractican, getPracticanGroup } from "@/action/admin.action";
 import AslabModulGroup from "@/components/admin/grouping/aslab/modul/aslab-modul";
 import AslabPracticanGroup from "@/components/admin/grouping/aslab/practican/aslab-practican";
 import PracticanGroup from "@/components/admin/grouping/practican/practican-group";
@@ -16,13 +15,15 @@ export default async function AdminPage (){
         moduls, 
         practicans, 
         practicanGroups, 
-        assistants
+        assistants,
+        schedules
                     ]  = await Promise.all([
                         getAllUsers(), 
                         getModul(),
                         getPractican(),
                         getPracticanGroup(), 
-                        getAllAssistant()
+                        getAllAssistant(),
+                        getAllScheduleAdmin()
                     ]);
     
     return (
@@ -34,7 +35,7 @@ export default async function AdminPage (){
                         <AslabModulGroup assistants={assistants} moduls={moduls}/>
                     </div>
                     <div className="col-span-5">
-                        <AslabPracticanGroup/>
+                        <AslabPracticanGroup assistants={assistants} groups={practicanGroups} schedules={schedules}/>
                     </div>
                 </div>
             </TabsContent>

@@ -1,15 +1,19 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DialogTrigger } from "@radix-ui/react-dialog"
+import { ReactNode } from "react"
 
 type Props = {
-    group : getPracticanGroup|null,
-    open : boolean,
-    setOpen : (open : boolean) => void
+    group : getPracticanGroup,
+    children : ReactNode
 }
 
-export default function DetailPracticanGroupsModal ({group, open, setOpen } : Props){
+export default function DetailPracticanGroupsModal ({ children, group} : Props){
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog>
+            <DialogTrigger asChild>
+                {children}
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Group {group?.kelompok}</DialogTitle>

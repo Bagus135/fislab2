@@ -466,7 +466,7 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 		db.Schedule.Practicum.Fetch(),
 		db.Schedule.Group.Fetch(),
 	).OrderBy(
-		db.Schedule.StartTime.Order(db.SortOrderAsc), // Urutkan berdasarkan waktu
+		db.Schedule.StartTime.Order(db.SortOrderDesc), // Urutkan berdasarkan waktu
 	).Exec(r.Context())
 
 	if err != nil {
