@@ -5,6 +5,7 @@ import (
 	"backend/prisma/db"
 	"backend/service"
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -202,7 +203,7 @@ func (h *AttendanceHandler) SubmitAttendance(w http.ResponseWriter, r *http.Requ
 	// Cari kode presensi berdasarkan code DAN schedule_id
 	attendanceCode, err := h.client.AttendanceCode.FindFirst(
 		db.AttendanceCode.Code.Equals(req.Code),
-		db.AttendanceCode.ScheduleID.Equals(scheduleID), // Pastikan field ini di-fetch
+		db.AttendanceCode.ScheduleID.Equals(scheduleID),
 	).Exec(r.Context())
 
 	if err != nil {
@@ -218,18 +219,38 @@ func (h *AttendanceHandler) SubmitAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Cek apakah user sudah pernah submit attendance untuk schedule ini
+	// Cek apakah user sudah pernah submit attendance untuk kode ini
 	existingAttendance, err := h.client.Attendance.FindFirst(
 		db.Attendance.UserID.Equals(userID),
+		db.Attendance.CodeID.Equals(attendanceCode.ID),
 	).Exec(r.Context())
 
 	if err == nil && existingAttendance != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Anda sudah melakukan presensi untuk jadwal ini"})
+		// Jika sudah ada, perbarui statusnya
+		_, err = h.client.Attendance.FindUnique(
+			db.Attendance.ID.Equals(existingAttendance.ID),
+		).Update(
+			db.Attendance.Status.Set(db.AttendanceStatusHadir),
+		).Exec(r.Context())
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "gagal memperbarui presensi"})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "presensi berhasil diperbarui",
+		})
+		return
+	} else if err != nil && !errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "gagal memeriksa presensi"})
 		return
 	}
 
-	// Buat attendance record baru
+	// Jika belum ada, buat record baru
 	_, err = h.client.Attendance.CreateOne(
 		db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCode.ID)),
 		db.Attendance.User.Link(db.User.ID.Equals(userID)),
