@@ -79,8 +79,6 @@ type getAnnouncementType =
 
 export const getAnnouncment = async() : Promise<getAnnouncementType>=>{
     try {
-        console.log('RENDER');
-        
         const token = await getToken();
         const res =  await fetch(`${process.env.URL_BE}/announcement`,{
             headers : {

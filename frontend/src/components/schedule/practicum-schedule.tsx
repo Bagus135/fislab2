@@ -13,11 +13,11 @@ type Props = {
     schedules :  {
         success: true;
         role: "PRAKTIKAN";
-        data: getPracticanSchedules[];
+        data: getPracticanSchedules[]|null;
     } | {
         success: true;
         role: "ASISTEN";
-        data: getAssistantSchedules[];
+        data: getAssistantSchedules[]|null;
     }
 }
 
@@ -34,6 +34,11 @@ export default  function CardSchedule({schedules} : Props ) {
         <div className="flex flex-col gap-2">
             <ProfileModal id={selectedId} open={open} setOpen={setOpen}/>
             { 
+              !schedules.data ?
+              <div className="w-full flex justify-center">
+                  <p className="text-center"> No Practicum Assigned</p>
+              </div> 
+              :
             schedules.role === "PRAKTIKAN" ? 
             schedules.data.map((schedule,idx)=>(
                 <Card key={idx} className="bg-slate-200">
@@ -68,6 +73,11 @@ export default  function CardSchedule({schedules} : Props ) {
                 </Card>
             ))
                 : 
+                !schedules.data ?
+                <div className="w-full flex justify-center">
+                    <p className="text-center"> No Practicum Assigned</p>
+                </div> 
+                :
                 schedules.data.map((schedule,idx)=>(
                     <Card key={idx} className="bg-slate-200">
                         <CardContent className="grid grid-flow-row h-auto p-3 py-4 space-y-2  ">

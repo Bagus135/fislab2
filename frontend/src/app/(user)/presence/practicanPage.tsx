@@ -4,7 +4,7 @@ import { PresenceCardPractican } from "@/components/presence/presencelist-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-export default async function PracticanPresencePage({schedules} : {schedules : getPracticanSchedules[]}){
+export default async function PracticanPresencePage({schedules} : {schedules : getPracticanSchedules[]|null}){
     const statAttend = await statAttendance()
     
     return (
@@ -13,6 +13,13 @@ export default async function PracticanPresencePage({schedules} : {schedules : g
             <AttendanceStat summary={statAttend ? statAttend.summary : null}/>
         </div>
         <div className="md:col-span-6 flex flex-col gap-4">
+        {!schedules ?
+            <div className="w-full flex justify-center">
+                <p className="text-center">
+                    No Practicum Assigned
+                </p>
+            </div>
+        :
         <Card>
             <CardHeader >
                 <CardTitle>Presence List</CardTitle>
@@ -22,6 +29,7 @@ export default async function PracticanPresencePage({schedules} : {schedules : g
                 <PresenceCardPractican schedules={schedules} stats={statAttend? statAttend.attendanceDetails : null}/>
             </CardContent>
         </Card>
+        }
         </div>
     </div>
     )

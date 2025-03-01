@@ -7,6 +7,7 @@ import Link from "next/link";
 
 export default async function ProfilePage(){
     const profileRes = await getSelfProfile()
+    
     return (
           <div className="flex flex-col gap-4 md:flex-row w-full">
             { profileRes.success ?

@@ -18,6 +18,7 @@ export const getSelfProfile = async() : Promise<getSelfProfileReturn> => {
             },
             method : "GET"
         })
+        
         const data = await res.json();
        
         if(!res.ok) throw data
@@ -156,7 +157,6 @@ export const uploadProfilePicture = async (formData: FormData) => {
 
   export const getProfilePic = async (id: string) =>{
     try {
-        
         const token = await getToken()
         const res = await fetch(`${process.env.URL_BE}/profile/picture/${id}`, {
                 method: 'GET',
@@ -164,10 +164,15 @@ export const uploadProfilePicture = async (formData: FormData) => {
                 'Authorization': token, 
                 },
             });
-            const data = await res.blob()
-            if(!res.ok) throw new Error('error')
-            const imgUrl = URL.createObjectURL(data)
-            return imgUrl
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to fetch profile picture');
+              }
+      
+              // Create a blob URL for the image
+              const blob = await res.blob();
+              const imageUrl = URL.createObjectURL(blob);
+              return imageUrl
     } catch (error:any) {
         return ""
     }

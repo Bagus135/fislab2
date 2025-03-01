@@ -10,7 +10,7 @@ export default function TimeCard(){
                     <p className="tracking-wider text-start">{format(new Date, 'dd MMMM yyyy')}</p>
                 </div>
                 <div className="flex items-center justify-end">
-                    <span className="text-sm text-end ">Week {differenceInWeeks(new Date(), new Date(2025, 1, 24))}</span>
+                    <span className="text-sm text-end ">Week {differenceInWeeks(new Date(), new Date(2025, 1, 24))+1}</span>
                 </div>
             </CardContent>
         </Card>

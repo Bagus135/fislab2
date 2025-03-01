@@ -13,7 +13,6 @@ export default async function DashboardPage (){
   if(!dcodeTkn.success)  return NotFound({code : '401', message : "Not Authorized"})
   const [{name}, announcements, nearestSchedule] = await Promise.all([getName(), getAnnouncment(), getNearestSchedule()])
   const {role} = dcodeTkn.data
-  
   return (
       <div className="flex flex-1 flex-col md:grid md:grid-flow-row gap-4 p-2 pt-0">
         <div className="flex flex-col md:mx-4">
@@ -32,7 +31,7 @@ export default async function DashboardPage (){
                 </div>
                 { nearestSchedule.success &&
                   <div className="grid">
-                  <UpcomingCard schedules={nearestSchedule.data}/>
+                  <UpcomingCard schedule={nearestSchedule.data}/>
                 </div>
                 }
             </div>

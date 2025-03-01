@@ -82,8 +82,6 @@ type PracticanProps = {
 }
 
 export function PresenceCardPractican({schedules, stats} : PracticanProps){
-    console.log(stats);
-    
  return (
     schedules.map((schedule, idx)=>(
     <Card key={idx} className="border-none shadow-none p-0">

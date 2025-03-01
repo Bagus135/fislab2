@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Loader2Icon, LogOut, UserRoundCog, UserRoundPen } from "lucide-react";
+import { BarChartBigIcon, ChevronDown, Loader2Icon, LogOut, UserRoundCog, UserRoundPen } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar } from "@radix-ui/react-avatar";
 import { AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -49,6 +49,14 @@ export default function ProfileDropdown ({role} : {role : string}){
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-auto -translate-x-2">
                     <DropdownMenuGroup >
+                        <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
+                            <Link href={`/dashboard`}>
+                                <BarChartBigIcon className="w-4 h-4"/>
+                                <span className="inline">
+                                    Dashboard
+                                </span>
+                            </Link>
+                        </DropdownMenuLabel>
                         <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
                             <Link href={`/profile/me`}>
                                 <UserRoundPen className="w-4 h-4"/>

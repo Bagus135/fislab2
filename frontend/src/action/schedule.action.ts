@@ -8,13 +8,13 @@ type getScheduleUserReturn<T extends 'PRAKTIKAN' | 'ASISTEN'> =
         ? {
             success: true;
             role: 'PRAKTIKAN';
-            data: getPracticanSchedules[];
+            data: getPracticanSchedules[]|null;
         }
         : T extends 'ASISTEN'
         ? {
             success: true;
             role: 'ASISTEN';
-            data: getAssistantSchedules[];
+            data: getAssistantSchedules[]|null;
         }
         : {
             success: false;
@@ -129,7 +129,7 @@ export const getCheckSchedule  = async (): Promise<getCheckScheduleReturn > => {
 };
 
 type getNearestScheduleReturn =
-    | { success: true; data: getNearestSchedule[] } // Successful response
+    | { success: true; data: getNearestSchedule } // Successful response
     | { success: false; data: RejectPromiseType }; // Error response
 export const getNearestSchedule = async () : Promise<getNearestScheduleReturn> =>{
     try {

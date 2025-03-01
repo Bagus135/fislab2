@@ -6,7 +6,6 @@ import (
 	"backend/service"
 	"encoding/json"
 	"errors"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"

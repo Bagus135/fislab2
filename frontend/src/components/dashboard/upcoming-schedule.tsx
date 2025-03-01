@@ -2,11 +2,13 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { format, isAfter, isToday, parse, parseISO } from "date-fns";
 import { addTwoHours } from "@/utilts/addtwohour";
+import { format, parseISO } from "date-fns";
+import Link from "next/link";
 
-export default function UpcomingCard({schedules} : {schedules : getNearestSchedule[]}){
-    const nearestSchedule = getNearestSchedule(schedules)
+export default function UpcomingCard({schedule} : {schedule : getNearestSchedule}){
+    console.log(schedule);
+    
     return (
         <Card>
             <CardHeader className="space-y-0 rounded-t-lg flex-row justify-between items-center p-4">
@@ -14,49 +16,26 @@ export default function UpcomingCard({schedules} : {schedules : getNearestSchedu
             </CardHeader>
             <Separator orientation="horizontal"/>
             <CardContent>
-                { nearestSchedule ?  
+                { !!schedule ?  
                     <div className="flex flex-col gap-1 text-center mt-2">
-                        <p className="font-bold tracking-wider">{nearestSchedule.practicum}</p>
-                        <p>{nearestSchedule.code}</p>
-                        <p>{nearestSchedule.assistantName}</p>
-                        <p>{format(parseISO(nearestSchedule.date), "dd MMMM yyyy")}</p>
-                        <p>{nearestSchedule.time} - {addTwoHours(nearestSchedule.time)}</p>
+                        <p className="font-bold tracking-wider">{schedule.practicum}</p>
+                        <p>{schedule.code}</p>
+                        <p>{schedule.assistantName}</p>
+                        <p>{format(parseISO(schedule.date), "dd MMMM yyyy")}</p>
+                        <p>{schedule.time} - {addTwoHours(schedule.time)}</p>
                     </div>
                 :
                 <div className="flex justify-center items-center"> No upcoming schedule</div>
                 }
             </CardContent>
             <CardFooter className="flex justify-end">
-                <Button variant={"outline"}>
-                    Schedule
-                    <ArrowRight className="size-4"/>         
+                <Button variant={"outline"} asChild>
+                    <Link href={'/schedule'}>
+                        Schedule
+                        <ArrowRight className="size-4"/>         
+                    </Link>
                 </Button>
             </CardFooter>
         </Card>
     )
 }
-
-const getNearestSchedule = (schedules: getNearestSchedule[]): getNearestSchedule | null => {
-    const today = new Date(); // Tanggal hari ini
-
-    // Filter jadwal yang belum berlalu (tanggal >= hari ini)
-    const upcomingSchedules = schedules.filter(schedule => {
-        const scheduleDate = parseISO(schedule.date); // Konversi string date ke objek Date
-        return isAfter(scheduleDate, today) || isToday(scheduleDate);
-    });
-
-    // Jika tidak ada jadwal yang tersedia
-    if (upcomingSchedules.length === 0) {
-        return null;
-    }
-
-    // Urutkan jadwal berdasarkan tanggal terdekat
-    upcomingSchedules.sort((a, b) => {
-        const dateA = parseISO(a.date);
-        const dateB = parseISO(b.date);
-        return dateA.getTime() - dateB.getTime();
-    });
-
-    // Kembalikan jadwal terdekat
-    return upcomingSchedules[0];
-};

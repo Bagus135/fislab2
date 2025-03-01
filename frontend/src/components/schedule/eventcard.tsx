@@ -51,11 +51,11 @@ type Props = {
     schedules: {
         success: true;
         role: "PRAKTIKAN";
-        data: getPracticanSchedules[];
+        data: getPracticanSchedules[]|null;
     } | {
         success: true;
         role: "ASISTEN";
-        data: getAssistantSchedules[];
+        data: getAssistantSchedules[]|null;
     }
 }
 
@@ -69,7 +69,10 @@ export default function EventCard({ schedules }: Props) {
     ];
 
     const filterSchedules = (schedules: Props['schedules'], month: number, year: number) => {
-        return schedules.data.filter(schedule => {
+        if(!schedules.success||!schedules.data) return []
+        console.log(schedules);
+        
+        return schedules.data && schedules.data.filter(schedule => {
             const scheduleDate = parseISO(schedule.schedule.date);
             return scheduleDate.getFullYear() === year && scheduleDate.getMonth() === month - 1; // Month is 0-indexed
         });

@@ -12,7 +12,7 @@ import { getDecodeToken, getToken } from "./auth.action";
      | {
          success: true;
          role: 'ASISTEN';
-         data: AllGradeAslab[];
+         data: AllGradeAslab[]|null;
      }
      | {
          success: false;
