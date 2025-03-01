@@ -72,3 +72,20 @@ func (s *CacheService) RemoveSession(userID string) error {
 	key := fmt.Sprintf("session:%s", userID)
 	return s.client.Del(context.Background(), key).Err()
 }
+
+func (s *CacheService) SetAttendanceCode(scheduleID int, code string, expiration time.Duration) error {
+	key := fmt.Sprintf("attendance:%d", scheduleID)
+	return s.Set(key, code, expiration)
+}
+
+func (s *CacheService) GetAttendanceCode(scheduleID int) (string, error) {
+	key := fmt.Sprintf("attendance:%d", scheduleID)
+	code, err := s.Get(key)
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", fmt.Errorf("attendance code not found or expired")
+		}
+		return "", fmt.Errorf("failed to get attendance code: %v", err)
+	}
+	return code, nil
+}

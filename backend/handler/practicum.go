@@ -67,9 +67,11 @@ func (h *PracticumHandler) GetPracticum(w http.ResponseWriter, r *http.Request) 
 	// Buat slice untuk menyimpan data practicum yang sudah dimodifikasi
 	var response []map[string]interface{}
 
-	desc, _ := practicums[0].Description()
 	// Loop melalui setiap practicum dan modifikasi strukturnya
 	for _, practicum := range practicums {
+		// Ambil deskripsi dari setiap practicum
+		desc, _ := practicum.Description()
+
 		response = append(response, map[string]interface{}{
 			"code":        practicum.ID,
 			"title":       practicum.Title,

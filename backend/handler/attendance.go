@@ -3,6 +3,7 @@ package handler
 import (
 	"backend/helper"
 	"backend/prisma/db"
+	"backend/service"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -13,13 +14,16 @@ import (
 )
 
 type AttendanceHandler struct {
-	client *db.PrismaClient
+	client       *db.PrismaClient
+	cacheService *service.CacheService
 }
 
-func NewAttendanceHandler(client *db.PrismaClient) *AttendanceHandler {
-	return &AttendanceHandler{client: client}
+func NewAttendanceHandler(client *db.PrismaClient, cacheService *service.CacheService) *AttendanceHandler {
+	return &AttendanceHandler{
+		client:       client,
+		cacheService: cacheService,
+	}
 }
-
 func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -28,13 +32,13 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 
 	if userRole != "ASISTEN" {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only assistants can generate attendance codes"})
 		return
 	}
 
 	var req struct {
 		ScheduleID int `json:"scheduleId"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request format"})
@@ -48,7 +52,6 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 			db.Group.Members.Fetch(),
 		),
 	).Exec(r.Context())
-
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule not found"})
@@ -67,80 +70,79 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Validate that the current time is within 1 hour before or after the practicum start time on the same day
 	currentTime := time.Now()
-	startTime, hasStartTime := schedule.StartTime()
-
-	if !hasStartTime {
+	scheduleDate, hasScheduleDate := schedule.Date()
+	if !hasScheduleDate {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule start time is not set"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule date is not set"})
 		return
 	}
 
-	// Konversi startTime (UTC) ke zona waktu lokal
-	localLocation, err := time.LoadLocation("Local") // Ambil zona waktu lokal
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to load local timezone"})
-		return
-	}
-	startTimeLocal := startTime.In(localLocation) // Konversi ke zona waktu lokal
-
-	// Log waktu untuk debugging
-	log.Printf("Current Time: %s, Scheduled Start Time (Local): %s", currentTime.Format(time.RFC3339), startTimeLocal.Format(time.RFC3339))
-
-	// Periksa apakah currentTime dan startTimeLocal berada pada hari yang sama
-	if currentTime.Year() != startTimeLocal.Year() || currentTime.Month() != startTimeLocal.Month() || currentTime.Day() != startTimeLocal.Day() {
+	if currentTime.Format("2006-01-02") != scheduleDate.Format("2006-01-02") {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated on the same day as the practicum"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated on the same date as the practicum"})
 		return
 	}
 
-	// Hitung rentang waktu yang diizinkan (1 jam sebelum dan 1 jam sesudah startTimeLocal)
-	oneHourBefore := startTimeLocal.Add(-1 * time.Hour)
-	oneHourAfter := startTimeLocal.Add(1 * time.Hour)
+	// **PERBAIKAN: Cek apakah masih ada kode aktif di database**
+	existingCode, err := h.client.AttendanceCode.FindFirst(
+		db.AttendanceCode.ScheduleID.Equals(req.ScheduleID),
+		db.AttendanceCode.ExpiredAt.Gt(currentTime),
+	).Exec(r.Context())
 
-	// Periksa apakah currentTime berada dalam rentang waktu yang diizinkan
-	if currentTime.Before(oneHourBefore) || currentTime.After(oneHourAfter) {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated within 1 hour before or after the practicum start time"})
+	if err == nil {
+		// Jika ada kode aktif, kembalikan kode yang sudah ada
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"code":         existingCode.Code,
+			"expired":      existingCode.ExpiredAt.Format("15:04:05"),
+			"message":      "Existing attendance code is still active",
+			"totalMembers": len(schedule.Group().Members()),
+		})
 		return
 	}
 
-	// Generate code
+	// **Generate kode baru**
 	code := helper.GenerateRandomCode()
 	expired := time.Now().Add(30 * time.Minute)
 
+	// **Simpan kode baru ke database**
 	attendanceCode, err := h.client.AttendanceCode.CreateOne(
 		db.AttendanceCode.Code.Set(code),
 		db.AttendanceCode.ExpiredAt.Set(expired),
 		db.AttendanceCode.Schedule.Link(db.Schedule.ID.Equals(req.ScheduleID)),
 	).Exec(r.Context())
-
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to generate code"})
 		return
 	}
 
-	// Create default attendance records for all group members
+	// **Simpan ke Redis**
+	if err := h.cacheService.SetAttendanceCode(req.ScheduleID, code, 30*time.Minute); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to store attendance code in cache"})
+		return
+	}
+
+	// **Buat default attendance untuk setiap anggota kelompok**
 	for _, member := range schedule.Group().Members() {
 		_, err = h.client.Attendance.CreateOne(
 			db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCode.ID)),
 			db.Attendance.User.Link(db.User.ID.Equals(member.ID)),
 			db.Attendance.Status.Set("TIDAK_HADIR"),
 		).Exec(r.Context())
-
 		if err != nil {
 			log.Printf("Failed to create default attendance for user %s: %v\n", member.ID, err)
 		}
 	}
 
+	// **Kirim respons sukses**
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"code":         code,
 		"expired":      expired.Format("15:04:05"),
-		"message":      "Code will expire in 30 minutes",
+		"message":      "New code generated, will expire in 30 minutes",
 		"totalMembers": len(schedule.Group().Members()),
 	})
 }
@@ -148,66 +150,102 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 func (h *AttendanceHandler) SubmitAttendance(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	userRole := r.Context().Value("role").(string)
-	userID := r.Context().Value("userID").(string)
-
-	if userRole != "PRAKTIKAN" {
+	// Validasi role praktikan
+	userRole, ok := r.Context().Value("role").(string)
+	if !ok || userRole != "PRAKTIKAN" {
 		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "akses ditolak"})
 		return
 	}
 
+	// Ambil userID dari context
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "tidak terautentikasi"})
+		return
+	}
+
+	// Ambil schedule_id dari URL path parameter
+	vars := mux.Vars(r)
+	scheduleIDStr, exists := vars["id"]
+	if !exists {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule_id wajib diisi"})
+		return
+	}
+
+	// Konversi ke integer
+	scheduleID, err := strconv.Atoi(scheduleIDStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "format schedule_id tidak valid"})
+		return
+	}
+
+	// Ambil kode dari request body
 	var req struct {
 		Code string `json:"code"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "format request tidak valid"})
 		return
 	}
 
+	// Validasi kode tidak kosong
 	if req.Code == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "code is required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "kode wajib diisi"})
 		return
 	}
 
-	attendanceCode, err := h.client.AttendanceCode.FindUnique(
-		db.AttendanceCode.Code.Equals(req.Code)).Exec(r.Context())
+	// Cari kode presensi berdasarkan code DAN schedule_id
+	attendanceCode, err := h.client.AttendanceCode.FindFirst(
+		db.AttendanceCode.Code.Equals(req.Code),
+		db.AttendanceCode.ScheduleID.Equals(scheduleID), // Pastikan field ini di-fetch
+	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid code"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "kode tidak valid atau tidak sesuai jadwal"})
 		return
 	}
 
+	// Cek expired
 	if time.Now().After(attendanceCode.ExpiredAt) {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "code has expired"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "kode sudah kedaluwarsa"})
 		return
 	}
 
-	_, err = h.client.Attendance.UpsertOne(
-		db.Attendance.CodeIDUserID(
-			db.Attendance.CodeID.Equals(attendanceCode.ID),
-			db.Attendance.UserID.Equals(userID),
-		),
-	).Create(
+	// Cek apakah user sudah pernah submit attendance untuk schedule ini
+	existingAttendance, err := h.client.Attendance.FindFirst(
+		db.Attendance.UserID.Equals(userID),
+	).Exec(r.Context())
+
+	if err == nil && existingAttendance != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Anda sudah melakukan presensi untuk jadwal ini"})
+		return
+	}
+
+	// Buat attendance record baru
+	_, err = h.client.Attendance.CreateOne(
 		db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCode.ID)),
 		db.Attendance.User.Link(db.User.ID.Equals(userID)),
-		db.Attendance.Status.Set(db.AttendanceStatusHadir),
-	).Update(
 		db.Attendance.Status.Set(db.AttendanceStatusHadir),
 	).Exec(r.Context())
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to submit attendance"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "gagal menyimpan presensi"})
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "attendance success",
+		"message": "presensi berhasil dicatat",
 	})
 }
 
@@ -297,53 +335,70 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Ambil kode absensi pertama
-	if len(schedule.AttendanceCodes()) == 0 {
+	// Cari semua AttendanceCode untuk schedule ini
+	attendanceCodes, err := h.client.AttendanceCode.FindMany(
+		db.AttendanceCode.ScheduleID.Equals(req.ScheduleID),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch attendance codes"})
+		return
+	}
+
+	if len(attendanceCodes) == 0 {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code not found"})
 		return
 	}
-	attendanceCodeID := schedule.AttendanceCodes()[0].ID
 
-	// Lakukan Upsert tanpa With() karena tidak didukung
-	_, err = h.client.Attendance.UpsertOne(
-		db.Attendance.CodeIDUserID(
-			db.Attendance.CodeID.Equals(attendanceCodeID),
+	// Cari Attendance yang sudah ada untuk scheduleId dan userId ini
+	var existingAttendance *db.AttendanceModel
+	for _, code := range attendanceCodes {
+		attendance, err := h.client.Attendance.FindFirst(
+			db.Attendance.CodeID.Equals(code.ID),
 			db.Attendance.UserID.Equals(req.UserID),
-		),
-	).Create(
-		db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCodeID)),
-		db.Attendance.User.Link(db.User.ID.Equals(req.UserID)),
-		db.Attendance.Status.Set(req.Status),
-	).Update(
-		db.Attendance.Status.Set(req.Status),
-	).Exec(r.Context())
+		).Exec(r.Context())
 
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update attendance"})
-		return
+		if err == nil {
+			existingAttendance = attendance
+			break
+		}
 	}
 
-	// Query ulang untuk mendapatkan data lengkap dengan User
-	_, err = h.client.Attendance.FindUnique(
-		db.Attendance.CodeIDUserID(
-			db.Attendance.CodeID.Equals(attendanceCodeID),
-			db.Attendance.UserID.Equals(req.UserID),
-		),
-	).With(
-		db.Attendance.User.Fetch(),
-	).Exec(r.Context())
+	// Jika record sudah ada, update statusnya
+	if existingAttendance != nil {
+		_, err = h.client.Attendance.FindUnique(
+			db.Attendance.ID.Equals(existingAttendance.ID),
+		).Update(
+			db.Attendance.Status.Set(req.Status),
+		).Exec(r.Context())
 
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch updated attendance"})
-		return
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to update attendance"})
+			return
+		}
+	} else {
+		// Jika record belum ada, buat record baru menggunakan AttendanceCode pertama
+		_, err = h.client.Attendance.CreateOne(
+			db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCodes[0].ID)),
+			db.Attendance.User.Link(db.User.ID.Equals(req.UserID)),
+			db.Attendance.Status.Set(req.Status),
+		).Exec(r.Context())
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create attendance"})
+			return
+		}
 	}
 
 	// Kirim response
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "atendance updated"})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "attendance updated",
+	})
 }
 
 func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.Request) {
@@ -423,4 +478,76 @@ func (h *AttendanceHandler) GetAttendanceStatus(w http.ResponseWriter, r *http.R
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *AttendanceHandler) GetAttendanceSummary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil userID dari context (asumsi sudah di-set oleh middleware auth)
+	userID := r.Context().Value("userID").(string)
+
+	// Ambil semua attendance untuk user tersebut
+	attendances, err := h.client.Attendance.FindMany(
+		db.Attendance.UserID.Equals(userID),
+	).With(
+		db.Attendance.Code.Fetch().With(
+			db.AttendanceCode.Schedule.Fetch().With(
+				db.Schedule.Practicum.Fetch(),
+			),
+		),
+	).Exec(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch attendance records"})
+		return
+	}
+
+	// Hitung total kehadiran berdasarkan status
+	summary := map[string]int{
+		"HADIR":       0,
+		"SAKIT":       0,
+		"IZIN":        0,
+		"TIDAK_HADIR": 0,
+	}
+
+	// Map untuk menyimpan status kehadiran per praktikum (menghindari duplikasi)
+	attendanceMap := make(map[int]map[string]interface{})
+
+	for _, attendance := range attendances {
+		// Update total kehadiran berdasarkan status
+		summary[string(attendance.Status)]++
+
+		// Ambil data schedule dari attendance
+		schedule := attendance.Code().Schedule()
+
+		// Tangani nilai tanggal schedule
+		scheduleDate, hasScheduleDate := schedule.Date()
+		if !hasScheduleDate {
+			// Jika tanggal tidak diatur, gunakan nilai default atau lewati
+			scheduleDate = time.Time{} // Atau tangani sesuai kebutuhan
+		}
+
+		// Gunakan scheduleID sebagai kunci untuk menghindari duplikasi
+		if _, exists := attendanceMap[schedule.ID]; !exists {
+			attendanceMap[schedule.ID] = map[string]interface{}{
+				"scheduleId": schedule.ID,
+				"title":      schedule.Practicum().Title,
+				"date":       scheduleDate.Format("2006-01-02"), // Format tanggal
+				"status":     string(attendance.Status),
+			}
+		}
+	}
+
+	// Konversi map ke slice untuk respons
+	var attendanceDetails []map[string]interface{}
+	for _, detail := range attendanceMap {
+		attendanceDetails = append(attendanceDetails, detail)
+	}
+
+	// Kirim respons
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"summary":           summary,
+		"attendanceDetails": attendanceDetails,
+	})
 }

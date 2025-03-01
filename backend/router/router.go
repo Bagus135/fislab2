@@ -131,7 +131,8 @@ func NewRouter(
 	protectedAPI.HandleFunc("/grade/{id}", gradeHandler.GetGradeDetail).Methods("GET")
 	protectedAPI.HandleFunc("/schedules/me", scheduleHandler.GetSchedules).Methods("GET")
 	protectedAPI.HandleFunc("/schedules/nearest", scheduleHandler.GetNearestSchedules).Methods("GET")
-	protectedAPI.HandleFunc("/attendance", attendanceHandler.SubmitAttendance).Methods("POST")
+	protectedAPI.HandleFunc("/attendance/summary", attendanceHandler.GetAttendanceSummary).Methods("GET")
+	protectedAPI.HandleFunc("/attendance/{id}", attendanceHandler.SubmitAttendance).Methods("POST")
 
 	return r
 }

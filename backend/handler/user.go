@@ -39,6 +39,7 @@ func NewUserHandler(client *db.PrismaClient) *UserHandler {
 // GetMyProfile - Ambil profile sendiri
 func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache 1 jam
 
 	userID, ok := r.Context().Value("userID").(string)
 	if !ok {
@@ -66,9 +67,8 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	// Buat URL untuk foto profil jika ada
 	var profilePictureUrl string
 	if profilePict != "" {
-		// Ensure this path matches the route defined for serving profile pictures
-		profilePictureUrl = fmt.Sprintf("http://localhost:8080/api/profile/picture/%s", userID) // Adjust the URL as needed
-	}
+
+		profilePictureUrl = fmt.Sprintf("/api/profile/picture/%s", userID)
 
 	response := map[string]interface{}{
 		"id":              user.ID,
@@ -91,6 +91,7 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache 1 jam
 
 	vars := mux.Vars(r)
 	requestedUserID := vars["id"]
@@ -122,7 +123,7 @@ func (h *UserHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	// Buat URL untuk foto profil jika ada
 	var profilePictureUrl string
 	if profilePict != "" {
-		profilePictureUrl = fmt.Sprintf("/api/users/picture/%s", requestedUserID)
+		profilePictureUrl = fmt.Sprintf("/api/profile/picture/%s", requestedUserID)
 	}
 
 	response := map[string]interface{}{
@@ -565,73 +566,57 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-// GetProfilePicture - Handler khusus untuk mengambil data gambar profil
 func (h *UserHandler) GetProfilePicture(w http.ResponseWriter, r *http.Request) {
-	// Ambil ID pengguna
 	vars := mux.Vars(r)
 	userID := vars["id"]
 
-	// Jika tidak ada ID di path, gunakan dari context
 	if userID == "" {
-		var ok bool
-		userID, ok = r.Context().Value("userID").(string)
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user ID is required"})
+		return
 	}
 
-	// Ambil data pengguna dari database
+	// Ambil nama file gambar profil dari database
 	user, err := h.client.User.FindUnique(
 		db.User.ID.Equals(userID),
 	).Exec(r.Context())
-
 	if err != nil {
-		http.Error(w, "User  not found", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
-	// Cek apakah user memiliki foto profil
-	profileID, ok := user.ProfilePict()
-	if !ok || profileID == "" {
-		// Kembalikan gambar default
-		helper.ServeDefaultImage(w)
+	profilePict, _ := user.ProfilePict()
+	if profilePict == "" {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "profile picture not found"})
 		return
 	}
 
-	// Cari file berdasarkan ID di direktori
-	matches, err := filepath.Glob(filepath.Join(h.uploadDir, profileID+".*"))
-	if err != nil || len(matches) == 0 {
-		helper.ServeDefaultImage(w)
-		return
-	}
-
-	// Ambil file yang ditemukan
-	filePath := matches[0]
-
-	// Baca file
-	fileData, err := os.ReadFile(filePath)
+	// Baca file gambar dari direktori upload
+	filePath := filepath.Join(h.uploadDir, profilePict)
+	fileBytes, err := os.ReadFile(filePath)
 	if err != nil {
-		helper.ServeDefaultImage(w)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read profile picture"})
 		return
 	}
 
-	// Deteksi Content-Type
-	contentType := http.DetectContentType(fileData)
+	// Tentukan Content-Type berdasarkan ekstensi file
+	ext := filepath.Ext(profilePict)
+	contentType := "image/jpeg" // Default
+	switch ext {
+	case ".png":
+		contentType = "image/png"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	}
 
-	// Set security headers
+	// Set header dan kirim file
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Security-Policy", "default-src 'self'")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache 1 hari
-
-	// Tulis data gambar
-	w.WriteHeader(http.StatusOK) // Set status OK
-	_, err = w.Write(fileData)
-	if err != nil {
-		http.Error(w, "Failed to write image", http.StatusInternalServerError)
-		return
-	}
+	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache 1 jam
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(fileBytes)
 }
 
 // DeleteProfilePicture - Handler untuk menghapus foto profil

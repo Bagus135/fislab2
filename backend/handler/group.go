@@ -75,9 +75,9 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	// Validasi semua user sebelum membuat group
 	validUsers := make([]db.UserModel, 0)
-	for _, memberID := range req.MemberIDs {
+	for _, memberName := range req.MemberIDs {
 		user, err := h.client.User.FindUnique(
-			db.User.ID.Equals(memberID),
+			db.User.ID.Equals(memberName),
 		).With(
 			db.User.MemberGroups.Fetch(),
 		).Exec(r.Context())
@@ -85,7 +85,7 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with id %s not found", memberID)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with name %s not found", memberName)})
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
@@ -96,14 +96,14 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		// Cek role user (harus PRAKTIKAN)
 		if user.Role != "PRAKTIKAN" {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberID)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberName)})
 			return
 		}
 
 		// Cek apakah user sudah terdaftar di kelompok lain
 		if len(user.MemberGroups()) > 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberID)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberName)})
 			return
 		}
 
@@ -291,7 +291,6 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only SUPER_ADMIN and ADMIN can update groups"})
 		return
 	}
 
@@ -315,9 +314,9 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	// Validasi semua user baru
 	validUsers := make([]db.UserModel, 0)
-	for _, memberID := range req.MemberIDs {
+	for _, memberName := range req.MemberIDs {
 		user, err := h.client.User.FindUnique(
-			db.User.ID.Equals(memberID),
+			db.User.ID.Equals(memberName),
 		).With(
 			db.User.MemberGroups.Fetch(),
 		).Exec(r.Context())
@@ -325,7 +324,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with id %s not found", memberID)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with name %s not found", memberName)})
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
@@ -336,7 +335,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		// Cek role user (harus PRAKTIKAN)
 		if user.Role != "PRAKTIKAN" {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberID)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberName)})
 			return
 		}
 
@@ -345,7 +344,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 			for _, group := range user.MemberGroups() {
 				if group.ID != req.Id {
 					w.WriteHeader(http.StatusBadRequest)
-					_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberID)})
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberName)})
 					return
 				}
 			}

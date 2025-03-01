@@ -460,7 +460,6 @@ func (h *AssistantHandler) UpdateAssistantGroupAssignment(w http.ResponseWriter,
 	userRole := r.Context().Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "only SUPER_ADMIN and ADMIN can update assistant assignments"})
 		return
 	}
 
@@ -706,13 +705,14 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 		schedules := assistant.AssistantSchedules()
 
 		assistantData := map[string]interface{}{
-			"id":    assistant.ID,
-			"name":  assistant.Name,
-			"nrp":   assistant.Nrp,
-			"code":  nil,
-			"judul": nil,
-			"group": nil,
-			"weeks": nil,
+			"id":          assistant.ID,
+			"name":        assistant.Name,
+			"nrp":         assistant.Nrp,
+			"code":        nil,
+			"judul":       nil,
+			"group":       nil,
+			"weeks":       nil,
+			"scheduleIds": []int{},
 		}
 
 		// Jika asisten memiliki praktikum yang diampu
@@ -721,9 +721,10 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 			assistantData["code"] = practicum.ID
 			assistantData["judul"] = practicum.Title
 
-			// Kumpulkan informasi grup dan minggu
+			// Kumpulkan informasi grup, minggu, dan scheduleId
 			var groups []string
 			var weeks []int
+			var scheduleIds []int
 			groupMap := make(map[string]bool) // untuk menghindari duplikasi grup
 
 			for _, schedule := range schedules {
@@ -741,6 +742,9 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 					if weekVal, ok := schedule.Week(); ok {
 						weeks = append(weeks, weekVal)
 					}
+
+					// Tambahkan scheduleId
+					scheduleIds = append(scheduleIds, schedule.ID)
 				}
 			}
 
@@ -753,6 +757,9 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 			}
 			if len(weeks) > 0 {
 				assistantData["weeks"] = weeks
+			}
+			if len(scheduleIds) > 0 {
+				assistantData["scheduleIds"] = scheduleIds
 			}
 		}
 
