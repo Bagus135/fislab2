@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -118,6 +119,32 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Hapus semua record AttendanceCode dan Attendance yang terkait dengan jadwal lama
+	attendanceCodes, err := h.client.AttendanceCode.FindMany(
+		db.AttendanceCode.ScheduleID.Equals(existingSchedule.ID),
+	).Exec(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch attendance codes"})
+		return
+	}
+
+	for _, code := range attendanceCodes {
+		// Hapus semua Attendance yang terkait dengan AttendanceCode ini
+		_, err := h.client.Attendance.FindMany(db.Attendance.CodeID.Equals(code.ID)).Delete().Exec(r.Context())
+		if err != nil {
+			log.Printf("Failed to delete attendance records for code %d: %v\n", code.ID, err)
+		}
+
+		// Hapus AttendanceCode
+		_, err = h.client.AttendanceCode.FindUnique(
+			db.AttendanceCode.ID.Equals(code.ID),
+		).Delete().Exec(r.Context())
+		if err != nil {
+			log.Printf("Failed to delete attendance code %d: %v\n", code.ID, err)
+		}
+	}
+
 	// Cek jadwal bentrok untuk group
 	conflictGroupSchedule, err := h.client.Schedule.FindFirst(
 		db.Schedule.GroupID.Equals(group.ID),
@@ -198,6 +225,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		"message": "schedule changed",
 	})
 }
+
 func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
