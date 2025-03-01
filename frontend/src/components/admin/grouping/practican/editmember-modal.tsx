@@ -1,21 +1,20 @@
 'use client'
-import { editGroupPractican, getPractican } from "@/action/admin.action";
+import { editGroupPractican } from "@/action/admin.action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon, Save, Search, X } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 type Props = {
-    group : getPracticanGroup|null,
-    practicans : Awaited<ReturnType<typeof getPractican>>,
-    open : boolean,
-    setOpen : (open : boolean) => void
+    group : getPracticanGroup,
+    practicans : getPractican,
+    children : ReactNode
 }
 
 type InputType = {
@@ -23,24 +22,23 @@ type InputType = {
     nrp : string[],
 }
 
-export default function EditMemberPracticanModal ({group, open, setOpen ,practicans}: Props){
+export default function EditMemberPracticanModal ({group, children,practicans}: Props){
     const {toast} = useToast()
     
     const [search , setSearch] = useState("")
     const [input, setInput] = useState<InputType>({
-        member_ids : !!group ? group.members.map(member => member.id) : [],
-        nrp : !!group ? group.members.map(member => member.nrp) : [],
+        member_ids :  group.members.map(member => member.id),
+        nrp : group.members.map(member => member.nrp),
     })
-    console.log(group?.members.map(member => member.nrp) );
     const [loading, setLoading] = useState(false);
 
     const handleCheckboxChange = (checked : boolean|string , id : string, nrp : string)=> {
-        checked? 
+        if(checked) 
             setInput({...input, 
                     member_ids : [...input.member_ids, id],
                     nrp : [...input.nrp, nrp]
                 })
-            : 
+            else 
             setInput({...input, 
                 member_ids : input.member_ids.filter((item)=> item !== id), 
                 nrp : input.nrp.filter((item)=> item !== nrp), 
@@ -53,14 +51,14 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
             setLoading(true);
             if(!group) throw new Error('Group is not defined') 
             const res = await editGroupPractican({ 
-                    name : group.kelompok,
+                    group : group.kelompok,
                     member_ids : input.member_ids, 
                     id :group.id 
                 });
             toast({
                 title : "Updated Success",
                 variant : "success",
-                description : `Practican group ${res.kelompok} updated`
+                description : res.message
             })
         } catch (error:any) {
             toast({
@@ -73,7 +71,10 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
         }
     };
     return (
-        <Dialog onOpenChange={setOpen} open={open}>
+        <Dialog>
+            <DialogTrigger asChild>
+                {children}
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Edit Group</DialogTitle>
@@ -121,8 +122,8 @@ export default function EditMemberPracticanModal ({group, open, setOpen ,practic
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>{
-                                        practicans.success &&
-                                        practicans.data.users.filter(practican => 
+                                        practicans && practicans.users &&
+                                        practicans.users.filter(practican => 
                                             practican.nrp.toLowerCase().includes(search.toLowerCase()) || 
                                             practican.name.toLowerCase().includes(search.toLowerCase())
                                         ).map((practican,idx) =>(

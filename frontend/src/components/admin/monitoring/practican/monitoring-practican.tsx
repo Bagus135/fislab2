@@ -14,8 +14,8 @@ export default function AslabMonitoring (){
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Practican's Score Monitor</CardTitle>
-                <CardDescription>See all practican's score</CardDescription>
+                <CardTitle>Practican Score Monitor</CardTitle>
+                <CardDescription>See all practican score</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-row gap-4 justify-between mb-4">

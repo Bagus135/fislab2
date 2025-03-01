@@ -1,10 +1,9 @@
 'use client'
 
-import { ArrowRightCircle, BookCopy, Gauge, SquareActivity, SquareUser, User, UsersRound } from "lucide-react";
+import { ArrowRightCircle, BookCopy, SquareActivity, SquareUser, UsersRound } from "lucide-react";
 import { TabsList, TabsTrigger } from "../ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet";
 import { Button } from "../ui/button";
-import { Separator } from "../ui/separator";
 import { useState } from "react";
 
 export function AdminTabsListDesktop (){

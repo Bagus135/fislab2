@@ -1,9 +1,16 @@
+import Credit from '@/components/home/credits';
+import Footer from '@/components/home/footer';
+import MadyaLab from '@/components/home/madya-intro';
+import MainHome from '@/components/home/main';
 
 export default function Home() {
+
   return (
-    <div className="flex">
-        Lorem ipsum dolor sit amet, consectetur adi asad
-        pisicing elit. Esse, dolorum? Mollitia quibusdam vel molestias culpa aperiam, necessitatibus illo perspiciatis voluptate adipisci, nemo beatae, voluptatum ipsum. Velit recusandae culpa aliquid beatae. 
+    <div className='flex flex-col w-full'>
+      <MainHome/>
+      <MadyaLab/>
+      <Credit/>
+      <Footer/>
     </div>
   );
 }

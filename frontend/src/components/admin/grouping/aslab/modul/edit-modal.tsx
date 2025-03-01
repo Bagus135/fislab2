@@ -4,41 +4,42 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Loader2Icon, X } from "lucide-react";
-import {FormEvent, useState } from "react";
+import { DialogTrigger } from "@radix-ui/react-dialog";
+import { ArrowLeftRight, Loader2Icon, X } from "lucide-react";
+import {FormEvent, ReactNode, useState } from "react";
 
 type PropsType = {
-    open : boolean,
-    setopen : (open : boolean) => void,
-    assistant : getAllAssistant|null,
-    moduls : getModul[]
+    children : ReactNode,
+    assistant : getAllAssistant,
+    moduls : getModul[],
 }
 
-export default function EditModulAslabModal({open, setopen, assistant, moduls}: PropsType){
-    const [input, setInput] = useState({
-        practicumId : "",
-        assistantId : "",
-    });
+export default function EditModulAslab({children, assistant, moduls}: PropsType){
+    
+    const [newPracticumCode, setNewPracticumCode] = useState("");
+
     const [loading, setLoading] = useState(false);
     const {toast} = useToast()
     
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault()
         try {
-            setLoading(true)
-            const res = await editAslabtoModul({
-                practicumId : Number(input.practicumId),
-                assistantId :input.assistantId
-            })
-            console.log(res);
+            if(!assistant.code) throw new Error("Assistant has been not assign modul")
+            setLoading(true);
+           await editAslabtoModul({
+                                newPracticumCode , 
+                                assistantId : assistant.id,
+                                oldPracticumCode : assistant.code
+                            });
             toast({
-                title : "Success Connect Aslab to Modul",
+                title : "Success change assistant modul",
                 variant : "success",
-                description : `${res.assistant.name} - ${res.practicum.title}`
-            })
+                description : `${assistant.name} - ${newPracticumCode}`
+            });
+
         } catch (error:any) {
             toast({
-                title : "Failed Connect Aslab to Modul",
+                title : "Failed to change assistant modul",
                 description : error.message,
                 variant : "destructive"
             })
@@ -48,25 +49,27 @@ export default function EditModulAslabModal({open, setopen, assistant, moduls}: 
     }
 
     return (
-        assistant && 
-        <Dialog open={open} onOpenChange={setopen}>
+        <Dialog>
+            <DialogTrigger asChild>
+                {children}
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Aslab - Modul</DialogTitle>
-                    <DialogDescription>Connect {assistant.name} with the desire module</DialogDescription>
+                    <DialogDescription>Change {assistant.name} with the desire module</DialogDescription>
                 </DialogHeader>
                 <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">
                         <div className="flex flex-col gap-1">
-                            <Label htmlFor="aslab">Module Code</Label>
-                            <Select required onValueChange={(value)=>setInput({...input, practicumId: value, assistantId : assistant.id})}>
+                            <Label htmlFor="aslab">New Modul Code</Label>
+                            <Select required onValueChange={(value)=>setNewPracticumCode(value)}>
                                 <SelectTrigger id="aslab">
                                     <SelectValue placeholder="Select Here"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                      <SelectGroup>
                                       { moduls.map((modul, idx)=>(
-                                          <SelectItem key={idx} value={ `${modul.id}`}>{`${modul.title} | ${modul.description}`}</SelectItem>
+                                          <SelectItem key={idx} value={modul.code}>{`${modul.code} | ${modul.title}`}</SelectItem>
                                       ))
                                     }
                                     </SelectGroup>
@@ -81,18 +84,17 @@ export default function EditModulAslabModal({open, setopen, assistant, moduls}: 
                                     Cancel
                                 </Button>
                             </DialogClose>
-                            <Button type="submit" className="flex flex-row gap-2" disabled={Object.values(input).includes("")||loading}>
+                            <Button type="submit" className="flex flex-row gap-2" disabled={!newPracticumCode.trim()||loading}>
                                 { loading ?
                                     <Loader2Icon className="animate-spin size-4"/>
                                     :
                                     <>
-                                        <Edit className="size-4"/>
+                                        <ArrowLeftRight className="size-4"/>
                                         Edit
                                     </>
                                 }
                             </Button>
                         </DialogFooter>
-
                     </div>
                 </form>
             </DialogContent>

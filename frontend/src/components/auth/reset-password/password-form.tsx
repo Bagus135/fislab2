@@ -1,6 +1,6 @@
 'use client'
 
-import { resetPass, setCookies } from "@/action/auth.action" // Assuming you still need this for setting cookies
+import { resetPass } from "@/action/auth.action" // Assuming you still need this for setting cookies
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,10 +22,8 @@ export default function PasswordResetForm({token} : {token :string}) {
     const handlePasswordReset = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         try {
-            setLoading(true)
-            const res = await resetPass({...input, token})
-            console.log(res);
-            
+            setLoading(true);
+            await resetPass({...input, token})
             toast({
                 title: "Password Reset Successful",
                 description: "Your password has been reset successfully.",
