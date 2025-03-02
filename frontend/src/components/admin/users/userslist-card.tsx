@@ -42,7 +42,7 @@ export default function UserListCard({ users }: { users: UsersPropsType }) {
                             <Search className="size-4" />
                         </span>
                         <Input
-                            placeholder="Search group number..."
+                            placeholder="Search name..."
                             className="pl-12"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}

@@ -155,7 +155,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                     <form noValidate onSubmit={handleUpdateProfile}>
                         <CardContent className="flex flex-col gap-6 pt-2">
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="nickname" className="font-bold tracking-wide text-sm ">Nickname</Label>
+                                <Label htmlFor="nickname" className="font-bold tracking-wide text-sm ">Fullname</Label>
                                 <Input 
                                     id="nickname" 
                                     placeholder="Nickname" 
