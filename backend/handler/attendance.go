@@ -25,6 +25,7 @@ func NewAttendanceHandler(client *db.PrismaClient, cacheService *service.CacheSe
 		cacheService: cacheService,
 	}
 }
+
 func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -85,7 +86,7 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// **PERBAIKAN: Cek apakah masih ada kode aktif di database**
+	// Cek apakah masih ada kode aktif di database
 	existingCode, err := h.client.AttendanceCode.FindFirst(
 		db.AttendanceCode.ScheduleID.Equals(req.ScheduleID),
 		db.AttendanceCode.ExpiredAt.Gt(currentTime),
@@ -103,11 +104,11 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// **Generate kode baru**
+	// Generate kode baru
 	code := helper.GenerateRandomCode()
 	expired := time.Now().Add(30 * time.Minute)
 
-	// **Simpan kode baru ke database**
+	// Simpan kode baru ke database
 	attendanceCode, err := h.client.AttendanceCode.CreateOne(
 		db.AttendanceCode.Code.Set(code),
 		db.AttendanceCode.ExpiredAt.Set(expired),
@@ -119,14 +120,14 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// **Simpan ke Redis**
+	// Simpan ke Redis (opsional, tergantung kebutuhan)
 	if err := h.cacheService.SetAttendanceCode(req.ScheduleID, code, 30*time.Minute); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to store attendance code in cache"})
 		return
 	}
 
-	// **Buat default attendance untuk setiap anggota kelompok**
+	// Buat default attendance untuk setiap anggota kelompok
 	for _, member := range schedule.Group().Members() {
 		_, err = h.client.Attendance.CreateOne(
 			db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCode.ID)),
@@ -138,7 +139,7 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// **Kirim respons sukses**
+	// Kirim respons sukses
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"code":         code,

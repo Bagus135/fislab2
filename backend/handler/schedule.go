@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -118,6 +119,32 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Hapus semua record AttendanceCode dan Attendance yang terkait dengan jadwal lama
+	attendanceCodes, err := h.client.AttendanceCode.FindMany(
+		db.AttendanceCode.ScheduleID.Equals(existingSchedule.ID),
+	).Exec(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch attendance codes"})
+		return
+	}
+
+	for _, code := range attendanceCodes {
+		// Hapus semua Attendance yang terkait dengan AttendanceCode ini
+		_, err := h.client.Attendance.FindMany(db.Attendance.CodeID.Equals(code.ID)).Delete().Exec(r.Context())
+		if err != nil {
+			log.Printf("Failed to delete attendance records for code %d: %v\n", code.ID, err)
+		}
+
+		// Hapus AttendanceCode
+		_, err = h.client.AttendanceCode.FindUnique(
+			db.AttendanceCode.ID.Equals(code.ID),
+		).Delete().Exec(r.Context())
+		if err != nil {
+			log.Printf("Failed to delete attendance code %d: %v\n", code.ID, err)
+		}
+	}
+
 	// Cek jadwal bentrok untuk group
 	conflictGroupSchedule, err := h.client.Schedule.FindFirst(
 		db.Schedule.GroupID.Equals(group.ID),
@@ -198,6 +225,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		"message": "schedule changed",
 	})
 }
+
 func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -511,47 +539,71 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 func (h *ScheduleHandler) GetNearestSchedules(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Ambil userId dari context (asumsi sudah diset di middleware)
+	// Ambil userID dan role dari context (asumsi sudah diset di middleware)
 	userID := r.Context().Value("userID").(string)
+	userRole := r.Context().Value("role").(string)
 
-	// Cari kelompok (group) dari user yang sedang login
-	user, err := h.client.User.FindUnique(
-		db.User.ID.Equals(userID),
-	).With(
-		db.User.MemberGroups.Fetch(),
-	).Exec(r.Context())
+	// Cari jadwal terdekat berdasarkan role
+	var schedule *db.ScheduleModel
+	var err error
 
-	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+	if userRole == "PRAKTIKAN" {
+		// Jika pengguna adalah praktikan, cari jadwal untuk kelompoknya
+		user, err := h.client.User.FindUnique(
+			db.User.ID.Equals(userID),
+		).With(
+			db.User.MemberGroups.Fetch(),
+		).Exec(r.Context())
+
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+				return
+			}
+
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch user data"})
 			return
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch user data"})
+		// Ambil groupId dari kelompok user
+		if len(user.MemberGroups()) == 0 {
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(nil) // User tidak memiliki kelompok
+			return
+		}
+		groupID := user.MemberGroups()[0].ID // Ambil kelompok pertama (asumsi 1 user hanya punya 1 kelompok)
+
+		// Cari jadwal terdekat untuk kelompok user
+		schedule, err = h.client.Schedule.FindFirst(
+			db.Schedule.Status.Equals(db.StatusScheduled), // Hanya ambil yang sudah terjadwal
+			db.Schedule.GroupID.Equals(groupID),           // Filter berdasarkan groupId
+		).With(
+			db.Schedule.Assistant.Fetch(),
+			db.Schedule.Practicum.Fetch(),
+			db.Schedule.Group.Fetch(),
+		).OrderBy(
+			db.Schedule.StartTime.Order(db.SortOrderAsc), // Urutkan berdasarkan waktu terdekat
+		).Exec(r.Context())
+	} else if userRole == "ASISTEN" {
+		// Jika pengguna adalah asisten, cari jadwal yang terkait dengan asisten tersebut
+		schedule, err = h.client.Schedule.FindFirst(
+			db.Schedule.Status.Equals(db.StatusScheduled), // Hanya ambil yang sudah terjadwal
+			db.Schedule.AssistantID.Equals(userID),        // Filter berdasarkan assistantID
+		).With(
+			db.Schedule.Assistant.Fetch(),
+			db.Schedule.Practicum.Fetch(),
+			db.Schedule.Group.Fetch(),
+		).OrderBy(
+			db.Schedule.StartTime.Order(db.SortOrderAsc), // Urutkan berdasarkan waktu terdekat
+		).Exec(r.Context())
+	} else {
+		// Jika role tidak valid
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "akses ditolak"})
 		return
 	}
-
-	// Ambil groupId dari kelompok user
-	if len(user.MemberGroups()) == 0 {
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(nil) // User tidak memiliki kelompok
-		return
-	}
-	groupID := user.MemberGroups()[0].ID // Ambil kelompok pertama (asumsi 1 user hanya punya 1 kelompok)
-
-	// Cari jadwal terdekat untuk kelompok user
-	schedule, err := h.client.Schedule.FindFirst(
-		db.Schedule.Status.Equals(db.StatusScheduled), // Hanya ambil yang sudah terjadwal
-		db.Schedule.GroupID.Equals(groupID),           // Filter berdasarkan groupId
-	).With(
-		db.Schedule.Assistant.Fetch(),
-		db.Schedule.Practicum.Fetch(),
-		db.Schedule.Group.Fetch(),
-	).OrderBy(
-		db.Schedule.StartTime.Order(db.SortOrderAsc), // Urutkan berdasarkan waktu terdekat
-	).Exec(r.Context())
 
 	if err != nil {
 		// Jika tidak ada jadwal yang ditemukan, kembalikan null
@@ -579,6 +631,7 @@ func (h *ScheduleHandler) GetNearestSchedules(w http.ResponseWriter, r *http.Req
 
 	scheduleData := map[string]interface{}{
 		"assistantName": schedule.Assistant().Name,
+		"scheduleId":    schedule.ID,
 		"group":         schedule.Group().Name,
 		"date":          dateStr,
 		"time":          timeStr,
