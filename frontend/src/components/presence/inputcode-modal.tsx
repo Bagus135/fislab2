@@ -6,16 +6,40 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp"
 import { REGEXP_ONLY_DIGITS } from "input-otp"
 import { Button } from "../ui/button"
+import { submitAttendance } from "@/action/presense.action"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2Icon } from "lucide-react"
 
-export default function InputCodeModal ({children}:{children : ReactNode}) {
+export default function InputCodeModal ({children , schedule}:{children : ReactNode, schedule : getPracticanSchedules}) {
     const [input, setInput] = useState("")
+    const {toast}= useToast()
+    const [loading, setLoading] = useState(false)
+    const [open , setOpen] = useState(false)
 
     const handleSubmit = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault()
+        try {
+            setLoading(true)
+            const res = await submitAttendance(input,schedule.id )
+            setOpen(false)
+            toast({
+                title : "Code Submitted",
+                variant : "success",
+                description : res.message
+            })
+        } catch (error:any) {
+            toast({
+                title : "Failed to submit code",
+                variant : "destructive",
+                description : error.message
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
@@ -27,7 +51,7 @@ export default function InputCodeModal ({children}:{children : ReactNode}) {
                 <Card className="shadow-none border-none">
                     <CardHeader>
                         <CardTitle>Presence Code</CardTitle>
-                        <CardDescription>Input 6 digit code from MP-2 Asistant</CardDescription>
+                        <CardDescription>Input 6 digit code from {schedule.practicum.code} Assistant {schedule.assistant.name}</CardDescription>
                     </CardHeader>
                     <form className="p-0 m-0" noValidate onSubmit={handleSubmit}>
                         <CardContent className="flex justify-center my-2">
@@ -36,7 +60,7 @@ export default function InputCodeModal ({children}:{children : ReactNode}) {
                                 value={input}
                                 onChange={(val)=>setInput(val)}
                             >
-                                <InputOTPGroup>
+                                <InputOTPGroup className="space-x-2">
                                     <InputOTPSlot index={0}/>
                                     <InputOTPSlot index={1}/>
                                     <InputOTPSlot index={2}/>
@@ -48,7 +72,12 @@ export default function InputCodeModal ({children}:{children : ReactNode}) {
                         </CardContent>
                         <CardFooter className="flex justify-end">
                             <Button variant={"default"} type="submit">
-                                Submit
+                                {   
+                                    loading? 
+                                        <Loader2Icon className="animate-spin size-4"/>
+                                    :
+                                    'Submit'
+                                }
                             </Button>
                         </CardFooter>
                     </form>

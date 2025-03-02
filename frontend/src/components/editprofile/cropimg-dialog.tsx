@@ -1,6 +1,6 @@
 'use client';
 
-import { RefObject, useCallback, useRef, useState } from 'react';
+import { RefObject, useRef, useState } from 'react';
 import Image from 'next/image';
 import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -14,20 +14,21 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Loader2Icon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
+import { uploadProfilePicture } from '@/action/profile.action';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2Icon, Save, X } from 'lucide-react';
 
 interface ProfileImageDialogProps {
-  inputRef : RefObject<HTMLInputElement | null>
+  inputRef: RefObject<HTMLInputElement | null>
 }
 
 export default function ProfileImageDialog({ 
   inputRef,
 }: ProfileImageDialogProps) {
+  const {toast} = useToast()
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false)
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>({
     unit: 'px',
@@ -52,75 +53,130 @@ export default function ProfileImageDialog({
     }
   };
 
+  const handleSaveChanges = async () => {
+    if (!completedCrop || !originalImage || !imgRef.current) return;
+
+    // Create a canvas to crop the image
+    const canvas = document.createElement('canvas');
+    const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+    const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+    canvas.width = completedCrop.width;
+    canvas.height = completedCrop.height;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(
+        imgRef.current!,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width,
+        completedCrop.height
+      );
+
+      // Convert the canvas to a Blob
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            setLoading(true)
+            const formData = new FormData();
+            formData.append('profilePicture', blob, 'profile-picture.png');
+            const res = await uploadProfilePicture(formData);
+            console.log(res)
+            toast({
+              title : "Image Uploaded sucessfully",
+              variant : 'success',
+              description : res.message
+            })
+            setOpen(false);
+            setOriginalImage(null);
+            setCompletedCrop(null)
+          } catch (error:any) {
+            toast({
+              title : "Error to uploading image",
+              variant : 'destructive',
+              description : 'Something went wrong :('
+            })
+          } finally {
+            setLoading(false)
+          }
+        }
+      }, 'image/png');
+    }
+
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-          <Input
-          
-            type="file"
-            ref={inputRef}
-            accept="image/jpeg,image/png"
-            onChange={handleImageUpload}
-            className="hidden"
-            />
+      <Input
+        type="file"
+        ref={inputRef}
+        accept="image/jpeg,image/png"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
       <DialogContent className="sm:max-w-screen-sm p-0">
         <ScrollArea className="max-h-[calc(100vh-10rem)] p-0">
           <div className="w-full p-8">
+            <DialogHeader>
+              <DialogTitle>Edit Profile Picture</DialogTitle>
+              <DialogDescription>
+                Upload and crop your profile picture. The image will be cropped to a square.
+              </DialogDescription>
+            </DialogHeader>
 
-         
-        <DialogHeader>
-          <DialogTitle>Edit Profile Picture</DialogTitle>
-          <DialogDescription>
-            Upload and crop your profile picture. The image will be cropped to a square.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-
-          {originalImage && (
-            <div className="max-w-full overflow-hidden rounded-lg border mb-2">
-              <ReactCrop
-                crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => setCompletedCrop(c)}
-                aspect={1}
-                circularCrop
-                keepSelection
-              >
-                <Image
-                  ref={imgRef as any}
-                  src={originalImage}
-                  alt='img'
-                  width="0"
-                  height="0"
-                  sizes="100%"
-                  className="w-full h-auto"
-                />
-              </ReactCrop>
+            <div className="space-y-4 py-4">
+              {originalImage && (
+                <div className="max-w-full overflow-hidden rounded-lg border mb-2">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)}
+                    onComplete={(c) => setCompletedCrop(c)}
+                    aspect={1}
+                    circularCrop
+                    keepSelection
+                  >
+                    <Image
+                      ref={imgRef}
+                      src={originalImage}
+                      alt='img'
+                      width="0"
+                      height="0"
+                      sizes="100%"
+                      className="w-full h-auto"
+                    />
+                  </ReactCrop>
+                </div>
+              )}
             </div>
-          )}
-          <p className={`${!error.trim()? "hidden": "block text-red-500 mt-0"}`}>test</p>
-        </div>
 
-        <DialogFooter className='gap-4'>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setOpen(false);
-              setOriginalImage(null);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            disabled={!completedCrop || !originalImage|| loading}
-          >
-            { loading? <Loader2Icon className='size-4 animate-spin'/>
-              :
-            `Save Changes`
-            }
-          </Button>
-        </DialogFooter>
+            <DialogFooter className='gap-4'>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setOpen(false);
+                  setOriginalImage(null);
+                }}
+              >
+                <X className='size-4'/>
+                Cancel
+              </Button>
+              <Button 
+                disabled={!completedCrop || !originalImage||  loading}
+                onClick={handleSaveChanges}
+              >{ loading ?
+                <Loader2Icon className='size-4 animate-spin'/>
+                  :
+                  <>
+                  <Save className='size-4'/>
+                    Save
+                  </>
+              }
+              </Button>
+            </DialogFooter>
           </div>
         </ScrollArea>
       </DialogContent>

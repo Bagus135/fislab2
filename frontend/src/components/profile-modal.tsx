@@ -1,11 +1,12 @@
 'use client'
 
-import {Mail, MessageCircle, Tag } from "lucide-react";
+import {Loader2Icon, Mail, MessageCircle, Tag } from "lucide-react";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Card, CardContent } from "./ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { getToken } from "@/action/auth.action";
 import { useEffect, useState } from "react";
+import { getProfilePic } from "@/action/profile.action";
 
 
 type GetDetailProfileType =
@@ -14,33 +15,38 @@ type GetDetailProfileType =
 
 export default  function ProfileModal({id , open ,setOpen} : { id : string ,open:boolean ,setOpen : (open : boolean) => void }) {
    const [user , setUser] = useState<GetDetailProfileType|null>(null)
+   const [loading, setLoading] = useState(false)
    
     useEffect( () =>{
-        console.log(id);
-        
         const getDetailProfile = async(id : string) =>{
             try {
+                setLoading(true)
                 const token = await getToken();
-                const res =  await fetch(`/api/profile/${id}`,{
+                const [res, imgRes] =  await Promise.all([fetch(`/api/profile/${id}`,{
                     headers : {
                         "Content-Type" : "application/json",
                         "Authorization" : token,
                     },
                     method : "GET"
-                })
+                }),
+                getProfilePic(id)
+                ])
+
                 const data = await res.json();
                 
                 if(!res.ok) throw data
         
                 setUser({
                     success : true,
-                    data : data
+                    data : {...data, profile_picture : imgRes}
                 })  
             } catch (error : any) {
                 setUser({
                     success : false,
                     data : error
                 })  
+            } finally {
+                setLoading(false)
             }
         }
         getDetailProfile(id)
@@ -48,23 +54,25 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
     
     return (
         <Dialog open={open} onOpenChange={setOpen} >
-            <DialogTrigger>
-
-            </DialogTrigger>
             <DialogContent className="p-0 border-none shadow-none">
                 <DialogHeader className="hidden">
                     <DialogTitle />
                     <DialogDescription />
                 </DialogHeader>
                 <Card className="border-none shadow-none">
-                  { user &&
+                    { loading ? 
+                    <CardContent className="h-[calc(50vh)] flex items-center justify-center">
+                        <Loader2Icon className="size-6 animate-spin"/>
+                    </CardContent>
+                        :
+                   user &&
                     <CardContent className="p-0 border-none shadow-none">
                         { user.success ?
                         <>
                             <div className="bg-slate-500 relative h-[120px] py-4">
                                 <div className="w-full absolute flex justify-center">
                                     <Avatar className="w-40 h-40 relative z-[0] bg-slate-500" >
-                                        <AvatarImage src={"/avatar.png"}/>
+                                        <AvatarImage src={!user.data.profile_picture.trim()? "/avatar.png" : user.data.profile_picture}/>
                                     </Avatar>
                                 </div>
                             </div>

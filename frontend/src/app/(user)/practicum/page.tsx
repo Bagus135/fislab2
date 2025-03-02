@@ -1,14 +1,23 @@
+import { getGradeUser } from "@/action/grade.action";
+import { GradeCardAsistant, GradeCardPractican } from "@/components/practicum/gradecard";
 import ModulPracticumCard from "@/components/practicum/modulcard";
-import ScoreCard from "@/components/practicum/scorecard";
 
-export default function PracticumPage(){
+export default async function PracticumPage(){
+    const userGrade = await getGradeUser()
+    
     return (
             <div className="grid md:grid-cols-9 gap-4">
                 <div className="md:col-span-3 flex-1 md:order-last">
                     <ModulPracticumCard/>
                 </div>
                 <div className="md:col-span-6 flex flex-col gap-4">
-                        <ScoreCard/>
+                {userGrade.success && 
+                     userGrade.role === 'ASISTEN' &&
+                        <GradeCardAsistant grades={userGrade.data}  />
+                }{ userGrade.success && 
+                    userGrade.role === "PRAKTIKAN" &&
+                        <GradeCardPractican grades={userGrade.data}/>
+                    }
                 </div>
             </div>
     )

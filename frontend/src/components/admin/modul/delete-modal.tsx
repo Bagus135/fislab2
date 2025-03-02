@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Trash } from "lucide-react";
 
 type DeleteModulProps={
-    modul: getModul , 
+    modul: getModul|null , 
     open : boolean , 
     setOpen : (open : boolean)=>void
 }
@@ -15,7 +15,8 @@ export default function DeleteModulModal ({modul, open, setOpen }: DeleteModulPr
 
     const handleDelete = async() =>{
         try {
-            const res = await deleteModul(modul.id);
+            if(!modul) throw new Error("Modul nod defined")
+            const res = await deleteModul(modul.code);
             toast({
                 title : "Success Delete the Modul",
                 description : res.message,
@@ -35,7 +36,7 @@ export default function DeleteModulModal ({modul, open, setOpen }: DeleteModulPr
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Delete Modul</DialogTitle>
-                    <DialogDescription>Are you sure delete this Modul {modul.title}? This action is permanent </DialogDescription>
+                    <DialogDescription>Are you sure delete this Modul {modul && modul.title}? This action is permanent </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex flex-row justify-end">
                     <DialogClose asChild>

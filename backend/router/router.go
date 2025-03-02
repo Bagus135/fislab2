@@ -4,9 +4,10 @@ import (
 	"backend/handler"
 	"backend/middleware"
 	"backend/service"
-	"github.com/gorilla/mux"
 	"net/http"
 	"os"
+
+	"github.com/gorilla/mux"
 )
 
 func NewRouter(
@@ -73,6 +74,7 @@ func NewRouter(
 	protectedAPI.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	protectedAPI.HandleFunc("/change-password", authHandler.ChangePassword).Methods("PUT")
 	protectedAPI.HandleFunc("/profile/me", userHandler.GetMyProfile).Methods("GET")
+	protectedAPI.HandleFunc("/profile/me/name", userHandler.GetUserName).Methods("GET")
 	protectedAPI.HandleFunc("/profile/{id}", userHandler.GetUserProfile).Methods("GET")
 	protectedAPI.HandleFunc("/profile", userHandler.UpdateMyProfile).Methods("PUT")
 	protectedAPI.HandleFunc("/profile/picture", userHandler.UploadProfilePicture).Methods("POST") // Tambahkan endpoint upload

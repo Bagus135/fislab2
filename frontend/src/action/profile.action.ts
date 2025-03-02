@@ -11,13 +11,14 @@ type getSelfProfileReturn =
 export const getSelfProfile = async() : Promise<getSelfProfileReturn> => {
     try {
         const token = await getToken()
-        const res =  await fetch(`${process.env.URL_BE}/profile`,{
+        const res =  await fetch(`${process.env.URL_BE}/profile/me`,{
             headers : {
                 "Content-Type" : "application/json",
                 "Authorization" : token,
             },
             method : "GET"
         })
+        
         const data = await res.json();
        
         if(!res.ok) throw data
@@ -95,8 +96,6 @@ export const verifyEmail = async (email : string)=>{
 
 export const verifyEmailCode = async (payload : {email : string, code : string})=>{
     try {
-        console.log('body :', payload);
-        
         const token = await getToken()
         const res =  await fetch(`${process.env.URL_BE}/verify-email`,{
             headers : {
@@ -118,3 +117,63 @@ export const verifyEmailCode = async (payload : {email : string, code : string})
         throw new Error(error.message)
     }
 }
+
+export const getName = async() =>{
+    try {
+        const token = await getToken()
+        const res =  await fetch(`${process.env.URL_BE}/profile/me/name`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "GET",
+        });
+        const data = await res.json()
+        if(!res.ok) throw new Error(data.error)
+        return data 
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+}
+
+export const uploadProfilePicture = async (formData: FormData) => {
+    try {
+        const token = await getToken()
+        const res = await fetch(`${process.env.URL_BE}/profile/picture`, {
+                method: 'POST',
+                headers: {
+                'Authorization': token, 
+                },
+                body: formData,
+            });
+        const data = await res.json()
+        if(!res.ok) throw new Error(data.error)
+        revalidatePath("/")
+        return data
+    } catch (error:any) {
+        throw new Error(error.message)
+    }
+  };
+
+  export const getProfilePic = async (id: string) =>{
+    try {
+        const token = await getToken()
+        const res = await fetch(`${process.env.URL_BE}/profile/picture/${id}`, {
+                method: 'GET',
+                headers: {
+                'Authorization': token, 
+                },
+            });
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to fetch profile picture');
+              }
+      
+              // Create a blob URL for the image
+              const blob = await res.blob();
+              const imageUrl = URL.createObjectURL(blob);
+              return imageUrl
+    } catch (error:any) {
+        return ""
+    }
+  }

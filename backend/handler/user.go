@@ -5,8 +5,8 @@ import (
 	"backend/prisma/db"
 	"backend/types"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"mime/multipart"
@@ -14,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type UserHandler struct {
@@ -65,25 +67,26 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	// Buat URL untuk foto profil jika ada
 	var profilePictureUrl string
 	if profilePict != "" {
+
 		profilePictureUrl = fmt.Sprintf("/api/profile/picture/%s", userID)
-	}
 
-	response := map[string]interface{}{
-		"id":              user.ID,
-		"nrp":             user.Nrp,
-		"name":            user.Name,
-		"phone":           phone,
-		"about":           about,
-		"email":           email,
-		"email_verified":  user.EmailVerified,
-		"role":            string(user.Role),
-		"profile_picture": profilePictureUrl,
-	}
+		response := map[string]interface{}{
+			"id":              user.ID,
+			"nrp":             user.Nrp,
+			"name":            user.Name,
+			"phone":           phone,
+			"about":           about,
+			"email":           email,
+			"email_verified":  user.EmailVerified,
+			"role":            string(user.Role),
+			"profile_picture": profilePictureUrl,
+		}
 
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		fmt.Printf("Error encoding response: %v\n", err)
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			fmt.Printf("Error encoding response: %v\n", err)
+		}
 	}
 }
 
@@ -670,4 +673,41 @@ func (h *UserHandler) DeleteProfilePicture(w http.ResponseWriter, r *http.Reques
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"message": "profile picture removed"})
+}
+
+func (h *UserHandler) GetUserName(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Ambil ID user dari context
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	// Cari user berdasarkan ID
+	user, err := h.client.User.FindUnique(
+		db.User.ID.Equals(userID),
+	).Exec(r.Context())
+
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch user"})
+		return
+	}
+
+	// Akses field Name langsung
+	name := user.Name
+
+	// Format response
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"name": name,
+	})
 }
