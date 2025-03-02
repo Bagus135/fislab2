@@ -12,6 +12,7 @@ import { UpdateSelfProfile, verifyEmail } from "@/action/profile.action";
 import { FormEvent, useRef, useState } from "react";
 import { updatePass } from "@/action/auth.action";
 import EmailVerifyDialog from "./emailverify-dialog";
+import { formatPhoneNumber } from "@/utilts/formatphone";
 
 export default function EditProfileTabs({profile} : {profile : GetSelfProfileType}){
     const [profileInput, setProfileInput] = useState({
@@ -30,7 +31,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
         pass : false,
         verifyemail : false
     })
-
+    
     const btnRef = useRef<HTMLButtonElement | null>(null);
 
     const {toast} = useToast()
@@ -61,7 +62,11 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
         e.preventDefault()
         try {
             setLoading({...loading, profile : true}) 
-            const res = await UpdateSelfProfile({...profileInput,name : profile.name, about : profile.about })
+            const res = await UpdateSelfProfile({...profileInput,
+                                        name : profile.name, 
+                                        about : profile.about,
+                                        phone :  formatPhoneNumber(profileInput.phone)
+                                    })
             toast({
                 title : "Success Update Profile",
                 description : res.message,

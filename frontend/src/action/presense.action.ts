@@ -28,6 +28,7 @@ export const generateCode = async(scheduleId : number) => {
     }
 }
 
+
 type ChangeAttendanceType = {
     scheduleId: number,
     userId: string ,
@@ -43,7 +44,7 @@ type ChangeAttendanceType = {
                 "Authorization" : token,
             },
             method : "PUT",
-            body : JSON.stringify({payload})
+            body : JSON.stringify(payload)
         })
         
         
@@ -94,8 +95,28 @@ export const statAttendance = async() : Promise<statAttendanceType|null> =>{
         const data = await res.json()
         if(!res.ok) throw new Error(data.error)
         return data
+    
+    } catch (error:any) {
+        return null
+    }
+}
+export const markfinished = async(scheduleId : number) =>{
+    try {
+        const token = await getToken();
+        const res =  await fetch(`${process.env.URL_BE}/assistant/schedule/mark-finished`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "POST",
+            body : JSON.stringify({scheduleId})
+        })
+        const data = await res.json()
+        if(!res.ok) throw new Error(data.error)
+        revalidatePath("/")
+        return data
 
     } catch (error:any) {
-       return null
+        throw new Error(error.message)
     }
 }

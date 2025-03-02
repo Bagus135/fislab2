@@ -3,21 +3,12 @@ import { Mail, MessageCircle, PencilIcon, SquareUser } from "lucide-react";
 import { Avatar, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { useEffect, useRef, useState } from "react";
+import { useRef} from "react";
 import ProfileImageDialog from "./cropimg-dialog";
-import { getProfilePic } from "@/action/profile.action";
 
 export default function ProfilePreview({profile} : {profile : GetSelfProfileType}){
     const ref = useRef<HTMLInputElement | null>(null);
-    const [profilePic , setProfilePic] = useState('');
-    
-    useEffect(()=>{
-        const profilePic = async () =>{
-            const res = await getProfilePic(profile.id)
-            setProfilePic(res)
-        }
-        profilePic()
-    }, [profile])
+    console.log(profile.profile_picture);
     
     const handleClickImg = ()=>{
         
@@ -33,7 +24,7 @@ export default function ProfilePreview({profile} : {profile : GetSelfProfileType
                 <div className="flex flex-col">
                     <div className="w-full flex justify-center">
                         <Avatar className="w-40 h-40 relative z-[0] bg-slate-500" >
-                            <AvatarImage src={!profilePic.trim()? "/avatar.png" : profilePic}/>
+                            <AvatarImage src={!profile.profile_picture.trim()? "/avatar.png" : `${process.env.URL_BE}/profile/picture/${profile.id}`}/>
                             <Button variant={'outline'} 
                                     className="px-2 rounded-full absolute right-0 bottom-0 transform -translate-x-1/2 -translate-y-1/2 z-[10]" 
                                     size={'sm'}

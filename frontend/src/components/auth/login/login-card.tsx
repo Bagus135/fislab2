@@ -29,7 +29,7 @@ export default function LoginCard (){
             router.push("/dashboard")
             toast({
                 title : "Login Successfully" ,
-                description : "Welcome to The Dark System Fislab",
+                description : "Welcome to The Management System  of Fislab",
                 variant : "success"
             });
         } catch (error : any) {

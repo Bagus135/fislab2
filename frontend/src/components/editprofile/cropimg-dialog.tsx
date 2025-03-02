@@ -15,9 +15,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { uploadProfilePicture } from '@/action/profile.action';
+import { deleteProfilePicture, uploadProfilePicture } from '@/action/profile.action';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2Icon, Save, X } from 'lucide-react';
+import { Loader2Icon, Save, Trash,  } from 'lucide-react';
 
 interface ProfileImageDialogProps {
   inputRef: RefObject<HTMLInputElement | null>
@@ -109,6 +109,28 @@ export default function ProfileImageDialog({
 
   };
 
+  const handleDeletePic = async()=>{
+    try {
+      setLoading(true)
+      const res = await deleteProfilePicture()
+      toast({
+         title : "Profile Picture Deleted",
+         description : res.message,
+         variant : 'success'
+      })
+      setOpen(false)
+    } catch (error:any) {
+      toast({
+         title : "Failed to deleted Profile Picture",
+         description : 'Something Went Wrong',
+         variant : 'destructive'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Input
@@ -156,13 +178,16 @@ export default function ProfileImageDialog({
             <DialogFooter className='gap-4'>
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setOpen(false);
-                  setOriginalImage(null);
-                }}
-              >
-                <X className='size-4'/>
-                Cancel
+                className='bg-red-500 hover:bg-red-600'
+                onClick={handleDeletePic}>
+                  {loading ? 
+                    <Loader2Icon className='animate-spin size-4'/>
+                    :
+                      <>
+                      <Trash className='size-4'/>
+                      Delete
+                      </>
+                  }
               </Button>
               <Button 
                 disabled={!completedCrop || !originalImage||  loading}

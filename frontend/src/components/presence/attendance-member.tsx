@@ -2,10 +2,10 @@
 import { getToken } from "@/action/auth.action"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2Icon } from "lucide-react"
+import { CheckIcon, Loader2Icon, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "../ui/button"
-import { changeAttendance } from "@/action/presense.action"
+import { changeAttendance, markfinished } from "@/action/presense.action"
 import { useToast } from "@/hooks/use-toast"
 
 type Props = {
@@ -74,6 +74,28 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                 description : "Someting went wrong",
                 variant : "destructive"
             })
+        }
+    }
+
+    const handleMarkFinished = async () =>{
+        try {
+            setLoading(true)
+            if(!schedule) return
+            const res = await markfinished(schedule.id)
+            toast({
+                title : "Practicum Finished",
+                description : res.message,
+                variant : "success"
+            })
+            setOpen(false)
+        } catch (error:any) {
+            toast({
+                title : "Failed to finished practicum",
+                description : "Someting went wrong",
+                variant : "destructive"
+            })
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -163,6 +185,22 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                     </TableBody>
                 </Table>
             }
+            <div className="flex flex-row justify-end items-center gap-4 px-2 mt-2">
+               <Button variant={"outline"} className="flex flex-row gap-2" onClick={()=>setOpen(false)}>
+                    <X className="size-4"/>
+                    Close 
+               </Button> 
+               <Button variant={"default"} className="flex hover:bg-green-600 bg-green-500 flex-row gap-2" onClick={handleMarkFinished}>
+                    { loading?
+                        <Loader2Icon className="animate-spin size-4"/>
+                        :
+                        <>
+                        <CheckIcon className="size-4"/>
+                        Finish
+                        </>
+                    }
+               </Button> 
+            </div>
             </DialogContent>
         </Dialog>
     )

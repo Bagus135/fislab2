@@ -7,12 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2Icon, MailIcon } from "lucide-react" // Import MailIcon for email input
-import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 
 export default function EmailVerifyForm() {
     const { toast } = useToast()
-    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [input, setInput] = useState({
         email: '', 
@@ -23,7 +21,6 @@ export default function EmailVerifyForm() {
         try {
             setLoading(true)
             const res = await getTokenResetPass(input)
-            router.push("/reset-password/asasas")
             toast({
                 title: "Token send to your email",
                 description: res.message,

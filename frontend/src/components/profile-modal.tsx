@@ -6,7 +6,7 @@ import { Card, CardContent } from "./ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { getToken } from "@/action/auth.action";
 import { useEffect, useState } from "react";
-import { getProfilePic } from "@/action/profile.action";
+import Link from "next/link";
 
 
 type GetDetailProfileType =
@@ -22,15 +22,13 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
             try {
                 setLoading(true)
                 const token = await getToken();
-                const [res, imgRes] =  await Promise.all([fetch(`/api/profile/${id}`,{
+                const res =  await fetch(`/api/profile/${id}`,{
                     headers : {
                         "Content-Type" : "application/json",
                         "Authorization" : token,
                     },
                     method : "GET"
-                }),
-                getProfilePic(id)
-                ])
+                })
 
                 const data = await res.json();
                 
@@ -38,8 +36,11 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
         
                 setUser({
                     success : true,
-                    data : {...data, profile_picture : imgRes}
-                })  
+                    data : data
+                })
+                console.log(user);
+                
+                
             } catch (error : any) {
                 setUser({
                     success : false,
@@ -88,9 +89,11 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
                                         <Tag className="size-4 mr-2"/>
                                         {user.data.role }
                                     </div>
-                                        <div className="flex items-center text-muted-foreground">
-                                            <MessageCircle className="size-4 mr-2"/>
-                                            {user.data.phone || '-'}
+                                        <div className="flex items-center text-muted-foreground"> 
+                                            <Link href={`https://wa.me/${user.data.phone || '-'}`} className="flex items-center text-muted-foreground hover:underline">
+                                                <MessageCircle className="size-4 mr-2"/>
+                                                {user.data.phone || '-'}
+                                            </Link>
                                         </div>
                                         
                                     <div className="flex items-center text-muted-foreground">

@@ -67,26 +67,25 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	// Buat URL untuk foto profil jika ada
 	var profilePictureUrl string
 	if profilePict != "" {
-
 		profilePictureUrl = fmt.Sprintf("/api/profile/picture/%s", userID)
+	}
 
-		response := map[string]interface{}{
-			"id":              user.ID,
-			"nrp":             user.Nrp,
-			"name":            user.Name,
-			"phone":           phone,
-			"about":           about,
-			"email":           email,
-			"email_verified":  user.EmailVerified,
-			"role":            string(user.Role),
-			"profile_picture": profilePictureUrl,
-		}
+	response := map[string]interface{}{
+		"id":              user.ID,
+		"nrp":             user.Nrp,
+		"name":            user.Name,
+		"phone":           phone,
+		"about":           about,
+		"email":           email,
+		"email_verified":  user.EmailVerified,
+		"role":            string(user.Role),
+		"profile_picture": profilePictureUrl,
+	}
 
-		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(response)
-		if err != nil {
-			fmt.Printf("Error encoding response: %v\n", err)
-		}
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Printf("Error encoding response: %v\n", err)
 	}
 }
 
