@@ -52,7 +52,7 @@ const Navbar = async () =>{
                             </Link>
                         </Button>
                         { token.success ?
-                            <ProfileDropdown role={token.data.role}/>
+                            <ProfileDropdown role={token.data.role} id={token.data.id}/>
                             :
                             <Button size={"default"} asChild>
                                 <Link href={'/login'}>

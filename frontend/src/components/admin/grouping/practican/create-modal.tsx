@@ -54,6 +54,11 @@ export default function CreateGroupPractican ({children, practicans}:{children :
                 variant : "success",
                 description : res.message
             })
+            setInput({
+                kelompok : '',
+                member_ids : [],
+                nrp : [],
+            })
         } catch (error:any) {
             toast({
                 title : "Failed to Create Practican group",

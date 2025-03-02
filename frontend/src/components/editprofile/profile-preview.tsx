@@ -24,7 +24,7 @@ export default function ProfilePreview({profile} : {profile : GetSelfProfileType
                 <div className="flex flex-col">
                     <div className="w-full flex justify-center">
                         <Avatar className="w-40 h-40 relative z-[0] bg-slate-500" >
-                            <AvatarImage src={!profile.profile_picture.trim()? "/avatar.png" : `${process.env.URL_BE}/profile/picture/${profile.id}`}/>
+                            <AvatarImage src={!profile.profile_picture.trim()? "/avatar.png" : `/api/profile/picture/${profile.id}?t=${new Date().getTime()}`}/>
                             <Button variant={'outline'} 
                                     className="px-2 rounded-full absolute right-0 bottom-0 transform -translate-x-1/2 -translate-y-1/2 z-[10]" 
                                     size={'sm'}

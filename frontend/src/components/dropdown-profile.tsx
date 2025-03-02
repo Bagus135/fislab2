@@ -9,13 +9,25 @@ import Link from "next/link";
 import { removeCookies } from "@/action/auth.action";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getProfilePic } from "@/action/profile.action";
 
 
 
 
-export default function ProfileDropdown ({role} : {role : string}){
+export default function ProfileDropdown ({role , id} : {role : string, id : string}){
+    const [pic , setPic] = useState(false)
     const {toast} = useToast();
     const router = useRouter();
+
+    useEffect(()=>{
+        const getPic = async () =>{
+            const res = await getProfilePic(id)
+            setPic(res)
+        }
+        getPic()
+    }, [id])
+
     const handleLogout = async () => {
         try {
             await removeCookies();
@@ -33,13 +45,15 @@ export default function ProfileDropdown ({role} : {role : string}){
             })
         }
     }
+    
+
     return (
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Avatar >
                         <Button variant={'ghost'} className="flex px-2 md:px-2 ">
-                            <AvatarImage src="/avatar.png" alt="profilePic" className="w-6 h-6"/>
+                            <AvatarImage src={!pic ? `/avatar.png` : `/api/profile/picture/${id}?t=${new Date().getTime()}`} alt="profilePic" className="w-6 h-6"/>
                             <ChevronDown className="size-4 hidden md:block"/>
                         </Button>
                         <AvatarFallback>

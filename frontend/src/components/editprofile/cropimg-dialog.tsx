@@ -28,7 +28,10 @@ export default function ProfileImageDialog({
 }: ProfileImageDialogProps) {
   const {toast} = useToast()
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState({
+    save : false,
+    delete : false
+  })
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>({
     unit: 'px',
@@ -81,7 +84,9 @@ export default function ProfileImageDialog({
       canvas.toBlob(async (blob) => {
         if (blob) {
           try {
-            setLoading(true)
+            setLoading({
+              ...loading , save : true
+            })
             const formData = new FormData();
             formData.append('profilePicture', blob, 'profile-picture.png');
             const res = await uploadProfilePicture(formData);
@@ -101,7 +106,9 @@ export default function ProfileImageDialog({
               description : 'Something went wrong :('
             })
           } finally {
-            setLoading(false)
+            setLoading({
+              ...loading, save : false
+            })
           }
         }
       }, 'image/png');
@@ -111,7 +118,9 @@ export default function ProfileImageDialog({
 
   const handleDeletePic = async()=>{
     try {
-      setLoading(true)
+      setLoading({
+        ...loading, delete : true
+      })
       const res = await deleteProfilePicture()
       toast({
          title : "Profile Picture Deleted",
@@ -126,7 +135,9 @@ export default function ProfileImageDialog({
          variant : 'destructive'
       })
     } finally {
-      setLoading(false)
+      setLoading({
+        ...loading, delete : false
+      })
     }
   }
 
@@ -180,7 +191,7 @@ export default function ProfileImageDialog({
                 variant="outline" 
                 className='bg-red-500 hover:bg-red-600'
                 onClick={handleDeletePic}>
-                  {loading ? 
+                  {loading.delete ? 
                     <Loader2Icon className='animate-spin size-4'/>
                     :
                       <>
@@ -190,9 +201,9 @@ export default function ProfileImageDialog({
                   }
               </Button>
               <Button 
-                disabled={!completedCrop || !originalImage||  loading}
+                disabled={!completedCrop || !originalImage||  loading.delete || loading.save}
                 onClick={handleSaveChanges}
-              >{ loading ?
+              >{ loading.save ?
                 <Loader2Icon className='size-4 animate-spin'/>
                   :
                   <>

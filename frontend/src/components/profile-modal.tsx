@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { getToken } from "@/action/auth.action";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getProfilePic } from "@/action/profile.action";
 
 
 type GetDetailProfileType =
@@ -15,30 +16,33 @@ type GetDetailProfileType =
 
 export default  function ProfileModal({id , open ,setOpen} : { id : string ,open:boolean ,setOpen : (open : boolean) => void }) {
    const [user , setUser] = useState<GetDetailProfileType|null>(null)
-   const [loading, setLoading] = useState(false)
+   const [loading, setLoading] = useState(false);
+   const [pic, setPic] = useState(false)
    
     useEffect( () =>{
         const getDetailProfile = async(id : string) =>{
             try {
                 setLoading(true)
                 const token = await getToken();
-                const res =  await fetch(`/api/profile/${id}`,{
+                const [res, profilePic] =  await Promise.all([fetch(`/api/profile/${id}`,{
                     headers : {
                         "Content-Type" : "application/json",
                         "Authorization" : token,
                     },
                     method : "GET"
-                })
+                }),
+                getProfilePic(id)
+                ])
 
                 const data = await res.json();
                 
                 if(!res.ok) throw data
-        
+                
+                setPic(profilePic)
                 setUser({
                     success : true,
                     data : data
                 })
-                console.log(user);
                 
                 
             } catch (error : any) {
@@ -73,7 +77,7 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
                             <div className="bg-slate-500 relative h-[120px] py-4">
                                 <div className="w-full absolute flex justify-center">
                                     <Avatar className="w-40 h-40 relative z-[0] bg-slate-500" >
-                                        <AvatarImage src={!user.data.profile_picture.trim()? "/avatar.png" : user.data.profile_picture}/>
+                                        <AvatarImage src={!pic? "/avatar.png" : `/api/profile/picture/${user.data.id}?t=${new Date().getTime()}`}/>
                                     </Avatar>
                                 </div>
                             </div>

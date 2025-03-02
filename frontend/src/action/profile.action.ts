@@ -175,3 +175,19 @@ export const deleteProfilePicture = async () => {
 };
 
 
+export const getProfilePic = async (id:string) =>{
+    try {
+        const token = await getToken()
+        const res =  await fetch(`${process.env.URL_BE}/profile/picture/${id}`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "GET",
+        });
+        if(!res.ok) throw new Error('error')
+        return  true 
+    } catch (error:any) {
+        return false
+    }
+}
