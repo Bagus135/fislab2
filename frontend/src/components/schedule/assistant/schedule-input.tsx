@@ -59,7 +59,7 @@ export default function InputScheduleAslab ({ children, schedule}:Props){
             <form noValidate className="mt-4" onSubmit={handleSubmit}>
                 <div className="flex flex-col justify-center gap-6">
                     <div className="flex flex-col gap-1">
-                        <Label htmlFor="aslab">Assistant</Label>
+                        <Label htmlFor="aslab">Date</Label>
                         <Input
                             className="block" 
                             type="date"
@@ -69,7 +69,7 @@ export default function InputScheduleAslab ({ children, schedule}:Props){
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <Label htmlFor="aslab">Week</Label>
+                        <Label htmlFor="aslab">Time</Label>
                         <Select required onValueChange={(value)=>setInput({...input, startTime: value})}>
                             <SelectTrigger id="aslab">
                                 <SelectValue placeholder="Select Here"/>

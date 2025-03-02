@@ -1,4 +1,6 @@
+import { checkToken, getToken } from "@/action/auth.action";
 import { getSelfProfile } from "@/action/profile.action";
+import NotFound from "@/app/(user)/not-found";
 import EditProfileTabs from "@/components/editprofile/editprofile-tabs";
 import ProfilePreview from "@/components/editprofile/profile-preview";
 import { Button } from "@/components/ui/button";
@@ -6,6 +8,10 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default async function ProfilePage(){
+    await checkToken()
+    const token = await getToken()
+        
+    if(!token.trim()) return NotFound({code : '401', message : "Not Authorized"})
     const profileRes = await getSelfProfile()
     
     return (

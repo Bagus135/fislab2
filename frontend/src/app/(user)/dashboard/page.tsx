@@ -31,7 +31,7 @@ export default async function DashboardPage (){
                 </div>
                 { nearestSchedule.success &&
                   <div className="grid">
-                  <UpcomingCard schedule={nearestSchedule.data}/>
+                  <UpcomingCard schedule={nearestSchedule.data} role={role}/>
                 </div>
                 }
             </div>

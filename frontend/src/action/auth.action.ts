@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 export const setCookies= async (token : string) =>{
     try {
         (await cookies()).set('token', token , {
-            maxAge :  12* 60 * 60 * 1000,
+            maxAge :  12* 60 * 60,
             httpOnly : true,
             sameSite : "strict",
             secure : true,
@@ -74,6 +74,7 @@ export const getDecodeToken = async () : Promise<getDecodeTokenType> =>{
             data : decodedJWT,
         }
     } catch (error: any) {
+
         return {
             success : false,
             data : {
@@ -181,5 +182,27 @@ export const resetPass = async(payload: ResetPassProps) =>{
         }
     } catch (error : any) {
         throw new Error(error.message)
+    }
+}
+
+export const checkToken = async() =>{
+    try {
+        const token = await getToken()
+        const res =  await fetch(`${process.env.URL_BE}/profile/me/name`,{
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+            method : "GET",
+        });
+        const data = await res.json()
+        if(!res.ok) throw new Error(data.error)
+        return 
+    } catch (error:any) {
+        if(error.message === "invalid session") {
+            (await cookies()).delete('token');
+            revalidatePath('/')
+        }
+        return
     }
 }

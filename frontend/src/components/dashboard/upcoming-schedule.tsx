@@ -6,9 +6,7 @@ import { addTwoHours } from "@/utilts/addtwohour";
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
 
-export default function UpcomingCard({schedule} : {schedule : getNearestSchedule}){
-    console.log(schedule);
-    
+export default function UpcomingCard({schedule, role} : {schedule : getNearestSchedule, role : string}){
     return (
         <Card>
             <CardHeader className="space-y-0 rounded-t-lg flex-row justify-between items-center p-4">
@@ -20,7 +18,7 @@ export default function UpcomingCard({schedule} : {schedule : getNearestSchedule
                     <div className="flex flex-col gap-1 text-center mt-2">
                         <p className="font-bold tracking-wider">{schedule.practicum}</p>
                         <p>{schedule.code}</p>
-                        <p>{schedule.assistantName}</p>
+                        <p>{ role === "ASISTEN" ? schedule.group : schedule.assistantName}</p>
                         <p>{format(parseISO(schedule.date), "dd MMMM yyyy")}</p>
                         <p>{schedule.time} - {addTwoHours(schedule.time)}</p>
                     </div>

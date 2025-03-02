@@ -53,7 +53,7 @@ export default function ProfileDropdown ({role , id} : {role : string, id : stri
                 <DropdownMenuTrigger asChild>
                     <Avatar >
                         <Button variant={'ghost'} className="flex px-2 md:px-2 ">
-                            <AvatarImage src={!pic ? `/avatar.png` : `/api/profile/picture/${id}?t=${new Date().getTime()}`} alt="profilePic" className="w-6 h-6"/>
+                            <AvatarImage src={!pic ? `/avatar.png` : `/api/profile/picture/${id}?t=${new Date().getTime()}`} alt="profilePic" className="w-6 h-6 rounded-full"/>
                             <ChevronDown className="size-4 hidden md:block"/>
                         </Button>
                         <AvatarFallback>
