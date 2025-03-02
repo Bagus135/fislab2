@@ -51,7 +51,7 @@ export default function EditSessionModal ({schedule, children}: Props){
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Edit Session</DialogTitle>
-                    <DialogDescription>{schedule.practicum.code} | {schedule.assistant.name} - Group {schedule.group.group}</DialogDescription>
+                    <DialogDescription>{schedule.practicum.code} | {schedule.assistant.name || schedule.assistant.nrp} - Group {schedule.group.group}</DialogDescription>
                 </DialogHeader>
                 <form noValidate className="mt-4" onSubmit={handleSubmit}>
                     <div className="flex flex-col justify-center gap-6">

@@ -65,7 +65,7 @@ export default function AslabPracticanGroup ({assistants,groups, schedules}: Pro
                                 <TableCell className="font-medium">{schedule.group.group}</TableCell>
                                 <TableCell>{schedule.group.week}</TableCell>
                                 <TableCell>{schedule.practicum.code}</TableCell>
-                                <TableCell>{schedule.assistant.nrp}</TableCell>
+                                <TableCell>{schedule.assistant.name||schedule.assistant.nrp}</TableCell>
                                 <TableCell onClick={()=>setSelectedSchedule(schedule)}>
                                     <DropDownMenu schedule={schedule} setOpenDelete={setOpenDelete}/>
                                 </TableCell>

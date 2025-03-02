@@ -90,7 +90,7 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                                     <SelectGroup>
                                     { assistants && assistants.filter(assistant => assistant.code !== null).
                                             map(((assistant,idx) =>(
-                                                <SelectItem key={idx} value={assistant.id}>{assistant.code} - {assistant.name}</SelectItem>
+                                                <SelectItem key={idx} value={assistant.id}>{assistant.code} - {assistant.name ||assistant.nrp}</SelectItem>
                                             )))
                                         }
                                     </SelectGroup>
