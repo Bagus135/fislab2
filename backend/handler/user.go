@@ -420,7 +420,6 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 	var err error
 
 	contentType = r.Header.Get("Content-Type")
-	log.Printf("Upload Content-Type: %s", contentType)
 
 	// Periksa apakah request adalah image/* langsung atau multipart/form-data
 	if strings.HasPrefix(contentType, "image/") {
@@ -444,8 +443,6 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 
 		filename = "direct_upload" + ext
 
-		log.Printf("Direct upload detected: size=%d bytes, ext=%s", fileSize, ext)
-
 	} else {
 		// Kasus 2: File dalam multipart/form-data
 		err = r.ParseMultipartForm(h.maxSize)
@@ -464,7 +461,7 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 		defer func(file multipart.File) {
 			err := file.Close()
 			if err != nil {
-
+				log.Printf("Error closing file: %v", err)
 			}
 		}(file)
 
@@ -478,14 +475,6 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 		filename = handler.Filename
 		fileSize = handler.Size
 		contentType = handler.Header.Get("Content-Type")
-
-		log.Printf("Form upload detected: size=%d bytes, filename=%s, content-type=%s",
-			fileSize, filename, contentType)
-	}
-
-	// Log raw bytes untuk debugging
-	if len(fileBytes) >= 4 {
-		log.Printf("First 4 bytes: %X %X %X %X", fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3])
 	}
 
 	// Validasi ukuran file
@@ -511,10 +500,16 @@ func (h *UserHandler) UploadProfilePicture(w http.ResponseWriter, r *http.Reques
 		// Cek apakah ada foto profil sebelumnya
 		if oldProfilePict, ok := oldUser.ProfilePict(); ok && oldProfilePict != "" {
 			oldFilePath := filepath.Join(h.uploadDir, filepath.Base(oldProfilePict))
+			oldFilePath = helper.SanitizePath(oldFilePath)
+
+			// Periksa apakah file ada
 			if _, err := os.Stat(oldFilePath); err == nil {
-				oldFilePath = helper.SanitizePath(oldFilePath)
+				// Hapus file
 				if removeErr := os.Remove(oldFilePath); removeErr != nil {
-					log.Printf("Error removing old profile picture: %v", removeErr)
+					log.Printf("Failed to remove old profile picture: %v", removeErr)
+					w.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to remove old profile picture"})
+					return
 				}
 			}
 		}
