@@ -8,7 +8,6 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default async function ProfilePage(){
-    await checkToken()
     const token = await getToken()
         
     if(!token.trim()) return NotFound({code : '401', message : "Not Authorized"})

@@ -1,3 +1,4 @@
+import GuidesPresenceCard from "@/components/presence/assistantGuides-card";
 import { PresenceCardAslab } from "@/components/presence/presencelist-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -6,7 +7,7 @@ export default function AsistantPresencePage({schedules} : {schedules : getAssis
     return (
         <div className="grid md:grid-cols-9 gap-4">
         <div className="md:col-span-3 flex-1 md:order-last">
-            
+            <GuidesPresenceCard/>
         </div>
         <div className="md:col-span-6 flex flex-col gap-4">
         {!schedules ?

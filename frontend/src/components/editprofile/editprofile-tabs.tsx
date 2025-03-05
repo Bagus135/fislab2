@@ -177,7 +177,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                                 <Button type="reset" variant={"outline"} className="w-1/5" onClick={()=> setProfileInput({...profileInput, name : "", about : ""})}>
                                     Reset
                                 </Button>
-                                <Button type="submit" className="w-1/5" disabled={loading.profile || Object.values(profileInput).includes("")} >
+                                <Button type="submit" className="w-1/5" disabled={loading.profile ||!profileInput.name.trim() || !profileInput.about.trim()} >
                                     {
                                         loading.profile ?
                                         <Loader2Icon className="animate-spin size-4"/>
@@ -227,7 +227,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                             </div>
                             <div className="w-full flex flex-row gap-4 justify-end mt-8">
                                 <Button type="reset" variant={"outline"} className="w-1/5" onClick={()=> setProfileInput({...profileInput, phone : "", email : ""})}>Reset</Button>
-                                <Button type="submit" className="w-1/5" disabled={loading.profile || Object.values(profileInput).includes("")}>
+                                <Button type="submit" className="w-1/5" disabled={loading.profile || !profileInput.email.trim() || !profileInput.phone.trim()}>
                                 {
                                         loading.profile ?
                                         <Loader2Icon className="animate-spin size-4"/>

@@ -2,8 +2,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "../ui/separator";
 
 export function AttendanceStat({summary}: {summary : statAttendanceType['summary']|null}) {
-    console.log(summary);
-    
   return (
     <Card>
         <CardHeader>

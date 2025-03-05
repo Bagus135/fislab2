@@ -1,4 +1,6 @@
-import { checkToken, getDecodeToken } from "@/action/auth.action";
+'use server'
+
+import { getDecodeToken } from "@/action/auth.action";
 import { AdminTabsListDesktop, AdminTabsListMobile } from "@/components/admin/admin-tabslist";
 import { Tabs } from "@/components/ui/tabs";
 import React from "react";
@@ -6,7 +8,6 @@ import NotFound from "./not-found";
 
 export default async function AdminLayout ({children} : Readonly<{children : React.ReactNode}>) {
     try {
-        await checkToken()
         const res = await getDecodeToken()
         if(!res.success) return NotFound({code : res.data.code, message:res.data.message })
         if(!["ADMIN", "SUPER_ADMIN"].includes(res.data.role)) return NotFound({code : '401', message:"Only Admin is permitted" })

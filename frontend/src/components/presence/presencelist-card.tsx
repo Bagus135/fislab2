@@ -8,7 +8,7 @@ import InputCodeModal from "./inputcode-modal";
 import CheckAttendance from "./attendance-member";
 import {useState } from "react";
 import { Badge } from "../ui/badge";
-import { isWithinTwoHours } from "@/utilts/iswithintwohour";
+import { isTodayDate } from "@/utilts/isToday";
 
 export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedules[] }){
     const [selectedSchedule, setSelectedSchedule] = useState<getAssistantSchedules|null>(null)
@@ -49,28 +49,40 @@ export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedul
                         <p className="text-xs">Group {schedule.group}</p>
                     </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                        <Button 
-                            size={"sm"} 
-                            variant={'default'} 
-                            className="flex gap-2 px-2 flex-row"
-                            onClick={()=>{
-                                setSelectedSchedule(schedule)
-                                setOpenCheck(true)
-                            }}
-                            >
-                                <UserSquare className="size-4"/>
-                                <p className="text-xs">Check Attendance</p>
-                        </Button>
-                    <GenerateCodeModal schedule={schedule}>
-                        <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
-                            <QrCode className="size-4"/>
-                            <p className="text-xs">Generate Code</p>
-                        </Button>
-                    </GenerateCodeModal>
+                {
+                    ['UNSCHEDULED', 'SCHEDULED'].includes(schedule.schedule.status) ?
+                    !!isTodayDate(schedule.schedule.date) ?
+                        <div className="flex flex-col gap-2">
+                            <Button 
+                                size={"sm"} 
+                                variant={'default'} 
+                                className="flex gap-2 px-2 flex-row"
+                                onClick={()=>{
+                                    setSelectedSchedule(schedule)
+                                    setOpenCheck(true)
+                                }}
+                                >
+                                    <UserSquare className="size-4"/>
+                                    <p className="text-xs">Check Attendance</p>
+                            </Button>
+                        <GenerateCodeModal schedule={schedule}>
+                            <Button size={"sm"} variant={'default'} className="flex gap-2 px-2 flex-row">
+                                <QrCode className="size-4"/>
+                                <p className="text-xs">Generate Code</p>
+                            </Button>
+                        </GenerateCodeModal>
+                    </div>
+                    :
+                    <div className="flex items-center">
+                        <Badge variant={"secondary"}>Not on the schedule</Badge>           
+                    </div>           
+                :
+                <div className="flex items-center">
+                    <Badge variant={"secondary"} className="bg-green-500">{schedule.schedule.status}</Badge>           
                 </div>           
+                }
             </div>
-        </CardContent>
+            </CardContent>
     </Card>
     ))}
     </>
@@ -117,7 +129,7 @@ export function PresenceCardPractican({schedules, stats} : PracticanProps){
                 </div>
                 { stats && !!stats.find((a)=> a.scheduleId === schedule.id) ?
                     !!stats.find(a => a.status === "TIDAK_HADIR" && a.scheduleId ===schedule.id) ?
-                    isWithinTwoHours(schedule.schedule.date,schedule.schedule.time) ?
+                    !!isTodayDate(schedule.schedule.date) || schedule.schedule.status === 'SCHEDULED'?
                         <div className="flex flex-col gap-2">
                             <Button size={"sm"} 
                                     variant={'outline'} 

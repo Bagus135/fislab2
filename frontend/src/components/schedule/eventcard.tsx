@@ -60,8 +60,8 @@ type Props = {
 }
 
 export default function EventCard({ schedules }: Props) {
-    const [monthToFilter, setMonthToFilter] = useState(2); // February
-    const [yearToFilter, setYearToFilter] = useState(2025); // Year 2025
+    const [monthToFilter, setMonthToFilter] = useState(new Date().getMonth() + 1); 
+    const [yearToFilter, setYearToFilter] = useState(new Date().getFullYear()); 
 
     const monthNames = [
         "January", "February", "March", "April", "May", "June",
@@ -70,7 +70,6 @@ export default function EventCard({ schedules }: Props) {
 
     const filterSchedules = (schedules: Props['schedules'], month: number, year: number) => {
         if(!schedules.success||!schedules.data) return []
-        console.log(schedules);
         
         return schedules.data && schedules.data.filter(schedule => {
             const scheduleDate = parseISO(schedule.schedule.date);

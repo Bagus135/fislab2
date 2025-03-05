@@ -7,7 +7,6 @@ export default async function RootLayout({
   }: Readonly<{
     children: React.ReactNode;
   }>) {
-    await checkToken()
     const token = await getToken()
     
     if(!token.trim()) return NotFound({code : '401', message : "Not Authorized"})

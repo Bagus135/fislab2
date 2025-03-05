@@ -185,24 +185,30 @@ export const resetPass = async(payload: ResetPassProps) =>{
     }
 }
 
-export const checkToken = async() =>{
+
+export const checkToken = async () => {
     try {
-        const token = await getToken()
-        const res =  await fetch(`${process.env.URL_BE}/profile/me/name`,{
-            headers : {
-                "Content-Type" : "application/json",
-                "Authorization" : token,
+        const token = await getToken(); // Assuming getToken is defined elsewhere
+        const res = await fetch(`${process.env.URL_BE}/profile/me/name`, {
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": token,
             },
-            method : "GET",
+            method: "GET",
         });
-        const data = await res.json()
-        if(!res.ok) throw new Error(data.error)
-        return 
-    } catch (error:any) {
-        if(error.message === "invalid session") {
-            (await cookies()).delete('token');
-            revalidatePath('/')
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error);
         }
-        return
+        return; // Return if everything is okay
+    } catch (error: any) {
+        if (error.message === "invalid token") {
+            const cookieStore = await cookies(); // Access the cookie store
+            cookieStore.delete('token'); // Delete the token cookie
+            revalidatePath('/'); // Optionally revalidate the path
+        }
+        return; // Return after handling the error
     }
-}
+};
