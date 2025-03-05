@@ -41,7 +41,7 @@ export default  function CardSchedule({schedules} : Props ) {
               :
             schedules.role === "PRAKTIKAN" ? 
             schedules.data.map((schedule,idx)=>(
-                <Card key={idx} className="bg-slate-200">
+                <Card key={idx}>
                     <CardContent className="grid grid-flow-row h-auto p-3 py-4 space-y-2  ">
                         <div className=" grid grid-cols-3 space-x-2 w-full ">
                             <div className="col-span-2 flex flex-col ">
@@ -79,7 +79,7 @@ export default  function CardSchedule({schedules} : Props ) {
                 </div> 
                 :
                 schedules.data.map((schedule,idx)=>(
-                    <Card key={idx} className="bg-slate-200">
+                    <Card key={idx}>
                         <CardContent className="grid grid-flow-row h-auto p-3 py-4 space-y-2  ">
                             <div className=" grid grid-cols-3 space-x-2 w-full ">
                                 <div className="col-span-2 flex flex-col ">
