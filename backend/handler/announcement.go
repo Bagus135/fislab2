@@ -72,9 +72,14 @@ func (h *AnnouncementHandler) CreateAnnouncement(w http.ResponseWriter, r *http.
 }
 
 func (h *AnnouncementHandler) GetAnnouncements(w http.ResponseWriter, r *http.Request) {
-	announcements, err := h.client.Announcement.FindMany().With(
-		db.Announcement.Author.Fetch(),
-	).Exec(r.Context())
+	announcements, err := h.client.Announcement.FindMany().
+		OrderBy(
+			db.Announcement.CreatedAt.Order(db.SortOrderDesc),
+		).
+		With(
+			db.Announcement.Author.Fetch(),
+		).
+		Exec(r.Context())
 	if err != nil {
 		log.Printf("Error getting announcements: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)

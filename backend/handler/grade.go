@@ -275,8 +275,6 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 				db.Schedule.Practicum.Fetch(),
 				db.Schedule.Assistant.Fetch(),
 			),
-		).OrderBy(
-			db.Grade.CreatedAt.Order(db.SortOrderDesc),
 		).Exec(r.Context())
 
 		if err != nil {
@@ -332,8 +330,6 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 			db.Grade.User.Fetch(),
 		),
 		db.Schedule.Practicum.Fetch(),
-	).OrderBy(
-		db.Schedule.GroupID.Order(db.SortOrderAsc),
 	).Exec(r.Context())
 
 	if err != nil {
