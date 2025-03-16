@@ -67,7 +67,7 @@ export const getDecodeToken = async () : Promise<getDecodeTokenType> =>{
     try {
         const token = (await cookies()).get('token')?.value;
         if(!token) throw new Error('Token not found');
-
+        await checkToken();
         const decodedJWT =  jwt.verify(token, process.env.JWT_SECRET!) as decodedJWT
         return {
             success : true,
@@ -188,27 +188,21 @@ export const resetPass = async(payload: ResetPassProps) =>{
 
 export const checkToken = async () => {
     try {
-        const token = await getToken(); // Assuming getToken is defined elsewhere
-        const res = await fetch(`${process.env.URL_BE}/profile/me/name`, {
+        const token = await getToken()
+        const res = await fetch(`${process.env.URL_FE}/checktoken`, {
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": token,
+                'Authorization' : token
             },
             method: "GET",
         });
 
         const data = await res.json();
-
         if (!res.ok) {
             throw new Error(data.error);
         }
-        return; // Return if everything is okay
+        return true;
     } catch (error: any) {
-        if (error.message === "invalid token") {
-            const cookieStore = await cookies(); // Access the cookie store
-            cookieStore.delete('token'); // Delete the token cookie
-            revalidatePath('/'); // Optionally revalidate the path
-        }
-        return; // Return after handling the error
+        throw new Error ('error')
     }
 };

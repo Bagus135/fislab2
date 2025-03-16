@@ -40,33 +40,7 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
         e.preventDefault()
         try {
             setLoading({...loading, profile : true}) 
-            const res = await UpdateSelfProfile({...profileInput,email : profile.email, phone : profile.phone })
-            toast({
-                title : "Success Update Profile",
-                description : res.message,
-                variant : "success"
-            })
-        } catch (error:any) {
-            toast({
-                title : "Failed to Update Profile",
-                description : error.message,
-                variant : "destructive"
-            })
-        } finally{
-            setLoading({...loading, profile : false}) 
-            
-        }
-    }
-
-    const handleUpdateContact = async(e : FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        try {
-            setLoading({...loading, profile : true}) 
-            const res = await UpdateSelfProfile({...profileInput,
-                                        name : profile.name, 
-                                        about : profile.about,
-                                        phone :  formatPhoneNumber(profileInput.phone)
-                                    })
+            const res = await UpdateSelfProfile({...profileInput, phone : formatPhoneNumber(profileInput.phone) })
             toast({
                 title : "Success Update Profile",
                 description : res.message,
@@ -139,12 +113,6 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                         Profile
                 </TabsTrigger>
                 <TabsTrigger
-                    value="contact"
-                    className="p-2 text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
-                        <ContactRound className="size-4"/>
-                        Contact
-                </TabsTrigger>
-                <TabsTrigger
                     value="password"
                     className="p-2 text-xs md:text-sm flex w-full items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:bg-transparent px-6 font-semibold">
                         <Lock className="size-4"/>
@@ -173,25 +141,6 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                                             onChange={(e)=>setProfileInput({...profileInput, about : e.target.value}) }
                                             />
                             </div>
-                            <div className="w-full flex flex-row gap-4 justify-end mt-8">
-                                <Button type="reset" variant={"outline"} className="w-1/5" onClick={()=> setProfileInput({...profileInput, name : "", about : ""})}>
-                                    Reset
-                                </Button>
-                                <Button type="submit" className="w-1/5" disabled={loading.profile ||!profileInput.name.trim() || !profileInput.about.trim()} >
-                                    {
-                                        loading.profile ?
-                                        <Loader2Icon className="animate-spin size-4"/>
-                                            :
-                                        "Save"
-                                    }
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </form>
-            </TabsContent>
-            <TabsContent value="contact">
-                    <form onSubmit={handleUpdateContact} noValidate>
-                        <CardContent className="flex flex-col gap-6 pt-2">
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="Email" className="font-bold tracking-wide text-sm ">Email</Label>
                                 <div className="flex flex-row gap-2">
@@ -226,9 +175,11 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                                         onChange={(e)=> setProfileInput({...profileInput, phone : e.target.value})}/>
                             </div>
                             <div className="w-full flex flex-row gap-4 justify-end mt-8">
-                                <Button type="reset" variant={"outline"} className="w-1/5" onClick={()=> setProfileInput({...profileInput, phone : "", email : ""})}>Reset</Button>
-                                <Button type="submit" className="w-1/5" disabled={loading.profile || !profileInput.email.trim() || !profileInput.phone.trim()}>
-                                {
+                                <Button type="reset" variant={"outline"} className="w-1/5" onClick={()=> setProfileInput({...profileInput, name : "", about : ""})}>
+                                    Reset
+                                </Button>
+                                <Button type="submit" className="w-1/5" disabled={loading.profile ||!profileInput.name.trim() || !profileInput.about.trim()} >
+                                    {
                                         loading.profile ?
                                         <Loader2Icon className="animate-spin size-4"/>
                                             :

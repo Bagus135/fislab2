@@ -15,6 +15,7 @@ type PropsType = {
 
 export default function EmailVerifyDialog ({email, children}: PropsType) {
     const [input, setInput] = useState("");
+    const [open,setOpen] = useState(false)
     const [loading, setLoading] = useState(false);
     const {toast} = useToast()
     const handleSubmit = async (e : FormEvent<HTMLFormElement>) =>{
@@ -28,6 +29,7 @@ export default function EmailVerifyDialog ({email, children}: PropsType) {
                 description : res.message,
                 variant : "success"
              })
+             setOpen(false)
             } catch (error:any) {
                 toast({
                    title : `The email is failed to verify`,
@@ -40,7 +42,7 @@ export default function EmailVerifyDialog ({email, children}: PropsType) {
         };
 
  return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
            {children}
         </DialogTrigger>
@@ -56,7 +58,7 @@ export default function EmailVerifyDialog ({email, children}: PropsType) {
                                 value={input}
                                 onChange={(val)=>setInput(val)}
                             >
-                                <InputOTPGroup>
+                                <InputOTPGroup className="gap-2">
                                     <InputOTPSlot index={0}/>
                                     <InputOTPSlot index={1}/>
                                     <InputOTPSlot index={2}/>

@@ -8,7 +8,8 @@ import InputCodeModal from "./inputcode-modal";
 import CheckAttendance from "./attendance-member";
 import {useState } from "react";
 import { Badge } from "../ui/badge";
-import { isTodayDate } from "@/utilts/isToday";
+import { isSameOrAfterDate, isTodayDate } from "@/utilts/isToday";
+import { getBackgroundColor } from "@/utilts/getBgStatus";
 
 export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedules[] }){
     const [selectedSchedule, setSelectedSchedule] = useState<getAssistantSchedules|null>(null)
@@ -51,7 +52,7 @@ export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedul
                 </div>
                 {
                     ['UNSCHEDULED', 'SCHEDULED'].includes(schedule.schedule.status) ?
-                    !!isTodayDate(schedule.schedule.date) ?
+                    !!isSameOrAfterDate(schedule.schedule.date) ?
                         <div className="flex flex-col gap-2">
                             <Button 
                                 size={"sm"} 
@@ -77,8 +78,20 @@ export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedul
                         <Badge variant={"secondary"}>Not on the schedule</Badge>           
                     </div>           
                 :
-                <div className="flex items-center">
-                    <Badge variant={"secondary"} className="bg-green-500">{schedule.schedule.status}</Badge>           
+                    <div className="flex flex-col gap-2">
+                            <Badge variant={"outline"} className={getBackgroundColor(schedule.schedule.status)}>{schedule.schedule.status}</Badge> 
+                            <Button 
+                                size={"sm"} 
+                                variant={'default'} 
+                                className="flex gap-2 px-2 flex-row"
+                                onClick={()=>{
+                                    setSelectedSchedule(schedule)
+                                    setOpenCheck(true)
+                                }}
+                                >
+                                    <UserSquare className="size-4"/>
+                                    <p className="text-xs">Check Attendance</p>
+                            </Button>          
                 </div>           
                 }
             </div>
@@ -149,11 +162,11 @@ export function PresenceCardPractican({schedules, stats} : PracticanProps){
                         :
 
                     <div className="flex items-center">
-                        <Badge variant={"destructive"}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
+                        <Badge variant={"outline"} className={getBackgroundColor(stats.find((a)=> a.scheduleId === schedule.id)?.status)}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
                     </div>
                      :
                 <div className="flex items-center">
-                    <Badge variant={"default"}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
+                    <Badge variant={"outline"} className={getBackgroundColor(stats.find((a)=> a.scheduleId === schedule.id)?.status)}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
                 </div>
                      
                 :

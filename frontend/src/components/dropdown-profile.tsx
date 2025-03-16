@@ -1,9 +1,9 @@
 'use client'
 
-import { BarChartBigIcon, ChevronDown, Loader2Icon, LogOut, UserRoundCog, UserRoundPen } from "lucide-react";
+import { BarChartBigIcon, ChevronDown, LogOut, UserRoundCog, UserRoundPen } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Avatar } from "@radix-ui/react-avatar";
-import { AvatarFallback, AvatarImage } from "./ui/avatar";
+import { AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { removeCookies } from "@/action/auth.action";
@@ -11,19 +11,23 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getProfilePic } from "@/action/profile.action";
-
-
-
+import { Skeleton } from "./ui/skeleton";
 
 export default function ProfileDropdown ({role , id} : {role : string, id : string}){
     const [pic , setPic] = useState(false)
+    const [loadingPic, setLoadingPic] = useState(false);
     const {toast} = useToast();
     const router = useRouter();
 
     useEffect(()=>{
         const getPic = async () =>{
-            const res = await getProfilePic(id)
-            setPic(res)
+            try{
+                setLoadingPic(true)
+                const res = await getProfilePic(id)
+                setPic(res)
+            } finally {
+                setLoadingPic(false);
+            }
         }
         getPic()
     }, [id])
@@ -51,15 +55,21 @@ export default function ProfileDropdown ({role , id} : {role : string, id : stri
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Avatar >
-                        <Button variant={'ghost'} className="flex px-2 md:px-2 ">
-                            <AvatarImage src={!pic ? `/avatar.png` : `/api/profile/picture/${id}?t=${new Date().getTime()}`} alt="profilePic" className="w-6 h-6 rounded-full"/>
-                            <ChevronDown className="size-4 hidden md:block"/>
-                        </Button>
-                        <AvatarFallback>
-                            <Loader2Icon className="animate-spin size-4"/>
-                        </AvatarFallback>
-                    </Avatar>
+                    { loadingPic ?
+                        <Avatar >
+                            <Button variant={'ghost'} className="flex px-2 md:px-2 ">
+                                <Skeleton className="w-6 h-6 rounded-full"/>
+                                <ChevronDown className="size-4 hidden md:block"/>
+                            </Button>
+                        </Avatar>
+                        :
+                        <Avatar >
+                            <Button variant={'ghost'} className="flex px-2 md:px-2 ">
+                                <AvatarImage src={!pic ? `/avatar.png` : `/api/profile/picture/${id}?t=${new Date().getTime()}`} alt="profilePic" className="w-6 h-6 rounded-full"/>
+                                <ChevronDown className="size-4 hidden md:block"/>
+                            </Button>
+                        </Avatar>
+                    }
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-auto -translate-x-2">
                     <DropdownMenuGroup >

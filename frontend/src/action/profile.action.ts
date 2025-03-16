@@ -18,7 +18,6 @@ export const getSelfProfile = async() : Promise<getSelfProfileReturn> => {
             },
             method : "GET"
         })
-        console.log();
         
         const data = await res.json();
        

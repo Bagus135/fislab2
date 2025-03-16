@@ -3,7 +3,6 @@
 import Link from "next/link";
 import ThemeButton from "./themeToogle";
 import { Button } from "./ui/button";
-
 import { MobileSidebar } from "./sidebar";
 import { Github } from "lucide-react";
 import ProfileDropdown from "./dropdown-profile";

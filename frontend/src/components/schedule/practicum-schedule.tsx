@@ -2,12 +2,14 @@
 
 import { useState } from "react"
 import ProfileModal from "../profile-modal"
-import { Avatar, AvatarImage } from "../ui/avatar"
 import { Card, CardContent } from "../ui/card"
 import { Separator } from "../ui/separator"
-import {Edit, Users2} from "lucide-react"
+import {Edit, Users} from "lucide-react"
 import InputScheduleAslab from "./assistant/schedule-input"
 import { addTwoHours } from "@/utilts/addtwohour"
+import ProfilePicture from "../profile-picture"
+import { Badge } from "../ui/badge"
+import { getBackgroundColor } from "@/utilts/getBgStatus"
 
 type Props = {
     schedules :  {
@@ -49,7 +51,7 @@ export default  function CardSchedule({schedules} : Props ) {
                                 <p className="font-light text-xs">{schedule.practicum.code}</p>
                             </div>
                             <div className="col-span-1 flex items-center justify-end">
-                                <p className="text-end text-xs md:text-sm capitalize">{schedule.schedule.status.toLowerCase()}</p>
+                                <Badge variant={"outline"} className={ getBackgroundColor(schedule.schedule.status) + `text-end text-xs md:text-sm capitalize`}>{schedule.schedule.status.toLowerCase()}</Badge>
                             </div>
                         </div>
                             <Separator orientation="horizontal"/>
@@ -57,9 +59,7 @@ export default  function CardSchedule({schedules} : Props ) {
                             <div className="col-span-2 flex ">
                                     <div className="flex flex-rows items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md" 
                                          onClick={()=>handleClickDialog(schedule.assistant.id)}>
-                                        <Avatar className=" w-10 h-10" asChild>
-                                            <AvatarImage src="/avatar.png"/>
-                                        </Avatar>
+                                        <ProfilePicture id={schedule.assistant.id} size="w-10 h-10"/>
                                         <p className="text-sm line-clamp-2  ">{schedule.assistant.name}</p>
                                     </div>
                             </div>
@@ -72,9 +72,9 @@ export default  function CardSchedule({schedules} : Props ) {
                     </CardContent>
                 </Card>
             ))
-                : 
-                !schedules.data ?
-                <div className="w-full flex justify-center">
+            : 
+            !schedules.data ?
+            <div className="w-full flex justify-center">
                     <p className="text-center"> No Practicum Assigned</p>
                 </div> 
                 :
@@ -87,21 +87,21 @@ export default  function CardSchedule({schedules} : Props ) {
                                     <p className="font-light text-xs">{schedule.practicum.code}</p>
                                 </div>
                                 <div className="col-span-1 flex items-center justify-end">
-                                    <p className="text-end text-xs md:text-sm capitalize">{schedule.schedule.status.toLowerCase()}</p>
+                                    <Badge variant={"outline"} className={getBackgroundColor(schedule.schedule.status) +  `text-end text-xs md:text-sm capitalize`}>{schedule.schedule.status.toLowerCase()}</Badge>
                                 </div>
                             </div>
                                 <Separator orientation="horizontal"/>
                             <div className=" grid grid-cols-3 space-x-2 w-full ">
                                 <div className="col-span-2 flex ">
                                         <div className="flex flex-rows items-center space-x-2 rounded-md">
-                                            <Users2 className="size-8"/>
+                                            <Users className="size-8"/>
                                             <p className="text-sm line-clamp-2  ">Group {schedule.group}</p>
                                         </div>
                                 </div>
                                 <div className="col-span-1 flex flex-col items-end justify-end">
                                     <p className="text-end text-xs">{`Week ${schedule.schedule.week}`}</p>
                                     <p className="text-end text-xs">{schedule.schedule.date === "1-01-01" ? "-" :schedule.schedule.date }</p>
-                                    <p className="text-end text-xs font-light">{schedule.schedule.time === "00:00" ?"-" : schedule.schedule.time}</p>
+                                    <p className="text-end text-xs font-light">{schedule.schedule.time === "00:00" ?"-" : `${schedule.schedule.time} - ${addTwoHours(schedule.schedule.time)}`}</p>
                                 </div>
                             </div>
                                 <div className="flex justify-end items-center w-full p-0 m-0">
@@ -116,3 +116,4 @@ export default  function CardSchedule({schedules} : Props ) {
         </div>
     )
 }
+

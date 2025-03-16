@@ -1,14 +1,16 @@
-import {  getToken } from "@/action/auth.action";
+import {  checkToken } from "@/action/auth.action";
 import { redirect } from "next/navigation";
 import React from "react";
 
-export default async function AdminLayout ({children} : Readonly<{children : React.ReactNode}>) {
-    const token = await getToken();
-    if(!!token.trim()) redirect("/dashboard")
-        
-    return (
-       <>
-       {children}
-       </>
-    )
-}
+export default async function LoginLayout ({children} : Readonly<{children : React.ReactNode}>) {
+      try {
+           await checkToken()
+        } catch (error:any) {
+            return (
+                <>
+                {children}
+                </>
+            )
+        }
+        redirect('/dashboard')
+    }

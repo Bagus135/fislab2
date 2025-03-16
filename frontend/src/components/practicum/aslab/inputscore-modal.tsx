@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2Icon } from "lucide-react";
@@ -45,7 +46,12 @@ type Props = {
 }
 
 export default function InputScoreModal({ open, setOpen, member, scheduleId}: Props) {
-    const {toast} = useToast()
+    const {toast} = useToast();
+    const [loading, setLoading] = useState({
+        score : false,
+        submit : false,
+    });
+    const [isValid, setIsValid] = useState(true);
     const [input, setInput] = useState<ScoreType>({
         punctuality: '',
         preExam: '',
@@ -63,6 +69,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
     useEffect(() => {
         const detailProfile = async () => {
             try {
+                setLoading({...loading, score : true})
                 if(!member)throw new Error ('Error in client side')
                 if(!member.gradeId) throw new Error ('user have beent grading yet')
                 const  score = await getDetailScore(member.gradeId) as GetDetailedScoreType
@@ -81,14 +88,13 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                         feedback: String(score.feedback),
                 })
             } catch (error: any) {
-                console.log(error.message);
+                return null
+            } finally {
+                setLoading({...loading, score : false})
             }
         }
         detailProfile();
     }, [member]);
-
-    const [loading, setLoading] = useState(false);
-    const [isValid, setIsValid] = useState(true);
 
     const patterns = {
         punctuality: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
@@ -124,7 +130,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
         e.preventDefault();
         try {
             if(!member || !scheduleId) throw new Error('Error in Client side')
-                setLoading(true);
+                setLoading({...loading, submit : true});
             const data: ScoreType = { ...input };
             
             for (const key in data) {
@@ -140,8 +146,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
             }
             
             const datainput = data as PayloadType
-            setLoading(true)
-            
+
             if (!member.gradeId) {
                 const res = await postInputGrade({...datainput, userId : member.id, scheduleId : scheduleId})
                 toast({
@@ -165,7 +170,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                 variant : "destructive" 
             })
         } finally {
-            setLoading(false);
+            setLoading({...loading, submit : false});
 
         }
     };
@@ -185,7 +190,10 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                                     <div className="flex flex-col space-y-2" key={key}>
                                         <Label htmlFor={key} className="font-medium capitalize">{key}</Label>
                                         <div>
-                                            <Input
+                                            { loading.score ?
+                                                <Skeleton className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors"/>
+                                                :
+                                                <Input
                                                 id={key}
                                                 type="text"
                                                 placeholder="Enter score"
@@ -193,25 +201,30 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                                                 pattern={patterns[key as keyof typeof patterns].source}
                                                 value={input[key as keyof ScoreType]}
                                                 onChange={(e) => setInput({ ...input, [key]: e.target.value })}
-                                            />
+                                                />
+                                            }
                                             <span className="text-xs invisible peer-invalid:visible peer-invalid:text-red-400">Invalid input</span>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col space-y-2" key={key}>
                                         <Label htmlFor={key} className="font-medium capitalize">Feedback</Label>
-                                        <Textarea
-                                            id={key}
-                                            placeholder="Enter feedback"
-                                            className="peer invalid:border-red-500"
-                                            value={input[key as keyof ScoreType]}
-                                            onChange={(e) => setInput({ ...input, [key]: e.target.value })}
-                                        />
+                                        {loading.score ?
+                                                <Skeleton className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors"/>
+                                                :
+                                                <Textarea
+                                                    id={key}
+                                                    placeholder="Enter feedback"
+                                                    className="peer invalid:border-red-500"
+                                                    value={input[key as keyof ScoreType]}
+                                                    onChange={(e) => setInput({ ...input, [key]: e.target.value })}
+                                                />
+                                        }
                                     </div>
                                 )
                             ))}
                             <Button
-                                disabled={loading || !isValid}
+                                disabled={loading.submit || !isValid}
                                 className="w-full text-lg font-bold mt-2">
                                 {loading ?
                                     <Loader2Icon className="size-4 animate-spin" />

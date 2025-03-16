@@ -31,13 +31,16 @@ type ChangeAttendanceType = {
 
 export default function CheckAttendance({ open, setOpen, schedule} : Props){
     const [attendance, setAttendance] = useState<GetPracticanAttendanceType[]|[]>([])
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState({
+        getList : false,
+        markFinish : false,
+    })
     const {toast} = useToast()
     useEffect(()=>{
         const GetPracticanAttendance = async () =>{
             if(!schedule) return
             try {
-                setLoading(true)
+                setLoading({...loading, getList : true})
                 const token = await getToken()
                 const res = await fetch(`api/assistant/attendance/status/${schedule.id}`,{
                     headers : {
@@ -53,7 +56,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
             } catch (error:any) {
                setAttendance([])
             } finally {
-                setLoading(false)
+                setLoading({...loading, getList : false})
             }
         }
         GetPracticanAttendance()
@@ -79,7 +82,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
 
     const handleMarkFinished = async () =>{
         try {
-            setLoading(true)
+            setLoading({...loading, markFinish:true})
             if(!schedule) return
             const res = await markfinished(schedule.id)
             toast({
@@ -95,7 +98,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                 variant : "destructive"
             })
         } finally {
-            setLoading(false)
+            setLoading({...loading, markFinish : false})
         }
     }
 
@@ -107,7 +110,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                     <DialogTitle>Attendance Check</DialogTitle>
                     <DialogDescription>Group {schedule.group}</DialogDescription>
                 </DialogHeader>
-                    {loading ?
+                    {loading.getList ?
                         <div className="flex justify-center w-full items-center">
                             <Loader2Icon className="size-4 animate-spin text-center"/>    
                         </div>
@@ -122,7 +125,6 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                     </TableHeader>
                     <TableBody>
                         {
-                            
                             attendance.length >0 &&
                             attendance.map((member,idx) =>(
                                 <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
@@ -189,9 +191,10 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                <Button variant={"outline"} className="flex flex-row gap-2" onClick={()=>setOpen(false)}>
                     <X className="size-4"/>
                     Close 
-               </Button> 
-               <Button variant={"default"} className="flex hover:bg-green-600 bg-green-500 flex-row gap-2" onClick={handleMarkFinished}>
-                    { loading?
+               </Button>
+                {   ['UNSCHEDULED', 'SCHEDULED'].includes(schedule.schedule.status) &&
+                   <Button variant={"default"} className="flex hover:bg-green-600 bg-green-500 flex-row gap-2" onClick={handleMarkFinished}>
+                    { loading.markFinish?
                         <Loader2Icon className="animate-spin size-4"/>
                         :
                         <>
@@ -200,6 +203,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                         </>
                     }
                </Button> 
+                    } 
             </div>
             </DialogContent>
         </Dialog>

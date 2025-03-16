@@ -1,12 +1,14 @@
 'use client'
 
-import { ChevronDown, Pencil, Users2 } from "lucide-react"
+import { ChevronDown, Pencil, Users } from "lucide-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Separator } from "../ui/separator"
 import { useState } from "react"
 import InputScoreModal from "./aslab/inputscore-modal"
 import DetailGradeModal from "./detailgrade-modal"
+import ProfilePicture from "../profile-picture"
+import ProfileModal from "../profile-modal"
 
 type member = {
     gradedAt : string | null;
@@ -37,7 +39,13 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
     const [selectedGrade, setSelectedGrade] = useState<userGrade | null>(null);
     const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
     const [openDetail, setOpenDetail] = useState(false);
+    const [openProfile, setOpenProfile] = useState(false);
+    const [selectedId , setSelectedId] = useState<string>('')
 
+    const handleOpenProfile = (id : string) => {
+        setOpenProfile(true);
+        setSelectedId(id)
+    }
     return (
         <>
             {!grades ? (
@@ -46,6 +54,7 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
                 </div>
             ) : (
                 <>
+                    <ProfileModal id={selectedId} open={openProfile} setOpen={setOpenProfile}/>
                     <InputScoreModal member={selectedMember} open={openInput} setOpen={setOpenInput} scheduleId={selectedScheduleId} />
                     <DetailGradeModal open={openDetail} setOpen={setOpenDetail} userGrade={selectedGrade} />
                     {grades.map((grade, idx) => (
@@ -58,8 +67,8 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
                                 <Separator />
                                 <div className="grid grid-cols-10 items-center gap-4">
                                     <div className="col-span-8 flex flex-row items-center">
-                                        <div className="flex flex-row space-x-2 items-center">
-                                            <Users2 className="size-4" />
+                                        <div className="flex flex-row space-x-2 items-center py-2">
+                                            <Users className="size-6" />
                                             <p className="text-sm line-clamp-2">Group {grade.group}</p>
                                         </div>
                                     </div>
@@ -79,9 +88,12 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
                                 <div className="p-4 pr-1 pt-0 hidden peer-checked:flex w-full flex-col transition ease-out duration-1000 border-t">
                                     {grade.members.map((member, i) => (
                                         <div key={i} className="flex flex-row justify-between gap-2 items-center w-full py-2 border-b">
-                                            <div className="flex flex-col gap-2">
-                                                <p className="text-sm">{member.name}</p>
-                                                <p className="text-sm">{member.nrp}</p>
+                                            <div className="flex flex-rows items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md py-2" onClick={()=> handleOpenProfile(member.id)} >
+                                                <ProfilePicture id={member.id} size="w-10 h-10"/>
+                                                <div className="flex flex-col">
+                                                    <p className="text-sm">{member.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{member.nrp}</p>
+                                                </div>
                                             </div>
                                             <div className="flex items-center justify-end gap-2">
                                                 <div
@@ -135,8 +147,8 @@ export  function GradeCardPractican ({grades} : {grades : AllGradePractican[]|nu
                 <Separator/>
                 <div className="grid grid-cols-10 items-center gap-4">
                     <div className="col-span-8  flex flex-row items-center">
-                            <div className="  flex flex-row space-x-2 items-center">
-                                <Users2 className="size-4"/>
+                            <div className="  flex flex-row space-x-2 items-center py-2">
+                                <Users className="size-6"/>
                                 <p className="text-sm line-clamp-2">{grade.assistant.name} </p>
                             </div>
                     </div>
@@ -165,4 +177,6 @@ export  function GradeCardPractican ({grades} : {grades : AllGradePractican[]|nu
         
     </>
     )
-}
+};
+
+

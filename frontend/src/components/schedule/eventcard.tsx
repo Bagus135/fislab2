@@ -109,11 +109,11 @@ export default function EventCard({ schedules }: Props) {
                 {filteredSchedules.length !== 0 ? (
                     filteredSchedules.map((data, idx) => (
                         <Card key={idx} className="border-none shadow-none my-4">
-                            <CardContent className="p-0 rounded-sm bg-blue-100 pr-2">
+                            <CardContent className="p-0 rounded-sm bg-accent pr-2">
                                 <div className="grid grid-cols-10">
                                     <div className="col-span-7">
                                         <div className="flex flex-row">
-                                            <div className="flex flex-col h-auto justify-center bg-blue-400 px-2 mr-2 items-center">
+                                            <div className="flex flex-col h-auto justify-center  bg-accent-foreground text-primary-foreground px-2 mr-2 items-center">
                                                 <p className="font-normal">{data.practicum.code}</p>
                                             </div>
                                             <div className="flex flex-col gap-1 justify-center py-2 pr-2">

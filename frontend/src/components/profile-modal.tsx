@@ -22,6 +22,7 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
     useEffect( () =>{
         const getDetailProfile = async(id : string) =>{
             try {
+                if(!id)  return
                 setLoading(true)
                 const token = await getToken();
                 const [res, profilePic] =  await Promise.all([fetch(`/api/profile/${id}`,{
