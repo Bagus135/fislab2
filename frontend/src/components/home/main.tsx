@@ -24,11 +24,14 @@ export default function MainHome (){
                 <p className="text-gray-500">~Diving deeper into fislab~</p>
             </CardContent>
         </Card>
-        <Button variant={"ghost"} size={"sm"} className="absolute left-1/2 translate-x-0.5 bottom-1 rounded-full" asChild>
+        <Button variant={"ghost"} size={"sm"} className="absolute left-1/2 bottom-1 rounded-full" asChild>
             <Link href={"#overview"}>
                 <ChevronDownCircle className="size-4 text-muted-foreground"/>
             </Link>
         </Button>
+        <div className="hidden">
+            <p className="bg-gray-400 bg-red-500 bg-cyan-500 bg-blue-500 bg-green-500">test</p>
+        </div>
       </div>
     )
 }

@@ -65,7 +65,7 @@ export default function MadyaIntro() {
           </div>
         </div>
       </div>
-      <Button variant={"ghost"} size={"sm"} className="absolute left-1/2 translate-x-0.5 bottom-1 rounded-full" asChild>
+      <Button variant={"ghost"} size={"sm"} className="absolute left-1/2 bottom-1 rounded-full" asChild>
             <Link href={"#teams"}>
                 <ChevronDownCircle className="size-4 text-muted-foreground"/>
             </Link>
