@@ -97,17 +97,33 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
     }, [member]);
 
     const patterns = {
-        punctuality: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
-        preExam: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
-        oralTest: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
-        skillsAndAttitude: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
-        abstract: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
-        introduction: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
-        methodology: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
-        discussion: /^(?:[0-2]?[0-9](?:\.\d{1,2})?|30(?:\.0{1,2})?)$/, // 0-30 with optional decimal
-        dataProcessing: /^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/, // 0-10 with optional decimal
-        conclusion: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
-        formatting: /^(?:[0-4](?:\.\d{1,2})?|5(?:\.0{1,2})?)$/, // 0-5 with optional decimal
+        // (?:\.\d{1,2})? | (?:\.0{1,2})? kasih ini kalau mau 2 angka di belakang koma
+        punctuality: /^(?:[0-4]|5)$/, // 0-5 
+        preExam: /^(?:[0-9]|10)$/, // 0-10 
+        oralTest: /^(?:[0-9]|10)$/, // 0-10 
+        skillsAndAttitude: /^(?:[0-4]|5)$/, // 0-5 
+        abstract: /^(?:[0-4]|5)$/, // 0-5 
+        introduction: /^(?:[0-9]|10)$/, // 0-10 
+        methodology: /^(?:[0-4]|5)$/, // 0-5 
+        discussion: /^(?:[0-2]?[0-9]|30)$/, // 0-30 
+        dataProcessing: /^(?:[0-9]|10)$/, // 0-10 
+        conclusion: /^(?:[0-4]|5)$/, // 0-5 
+        formatting: /^(?:[0-4]|5)$/, // 0-5 
+    };
+
+    const placeholder = {
+        // (?:\.0{1,2})? kasih ini kalau mau 2 angka di belakang koma
+        punctuality: '0-5',
+        preExam: '0-10',
+        oralTest:'0-10',
+        skillsAndAttitude: '0-5', 
+        abstract: '0-5' , 
+        introduction: '0-10',  
+        methodology: '0-5', 
+        discussion:  '0-30', 
+        dataProcessing: '0-10', 
+        conclusion: '0-5', 
+        formatting: '0-5',
     };
 
     const validateInputs = () => {
@@ -181,7 +197,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
             <ScrollArea className="h-[calc(100vh-8rem)] px-2">
                 <DialogHeader>
                     <DialogTitle>Input Score</DialogTitle>
-                    <DialogDescription>Input score for practican</DialogDescription>
+                    <DialogDescription>{member?.name} - {member?.nrp}</DialogDescription>
                 </DialogHeader>
                     <form noValidate onSubmit={handleSubmit}>
                         <div className="grid w-full items-center gap-4 mt-8 px-1">
@@ -196,7 +212,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                                                 <Input
                                                 id={key}
                                                 type="text"
-                                                placeholder="Enter score"
+                                                placeholder={placeholder[key as keyof typeof placeholder]}
                                                 className="peer invalid:border-red-500"
                                                 pattern={patterns[key as keyof typeof patterns].source}
                                                 value={input[key as keyof ScoreType]}
@@ -210,7 +226,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                                     <div className="flex flex-col space-y-2" key={key}>
                                         <Label htmlFor={key} className="font-medium capitalize">Feedback</Label>
                                         {loading.score ?
-                                                <Skeleton className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors"/>
+                                                <Skeleton className="flex h-16 w-full rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors"/>
                                                 :
                                                 <Textarea
                                                     id={key}
@@ -226,7 +242,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                             <Button
                                 disabled={loading.submit || !isValid}
                                 className="w-full text-lg font-bold mt-2">
-                                {loading ?
+                                {loading.submit ?
                                     <Loader2Icon className="size-4 animate-spin" />
                                     :
                                     "Submit"

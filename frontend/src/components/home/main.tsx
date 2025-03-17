@@ -30,7 +30,7 @@ export default function MainHome (){
             </Link>
         </Button>
         <div className="hidden">
-            <p className="bg-gray-400 bg-red-500 bg-cyan-500 bg-blue-500 bg-green-500">test</p>
+            <p className="bg-gray-400 bg-red-500 bg-lime-500 bg-blue-500 bg-green-500 bg-yellow-500 bg-orange-500">test</p>
         </div>
       </div>
     )

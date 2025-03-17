@@ -8,8 +8,6 @@ import ProfileImageDialog from "./cropimg-dialog";
 
 export default function ProfilePreview({profile} : {profile : GetSelfProfileType}){
     const ref = useRef<HTMLInputElement | null>(null);
-    console.log(profile.profile_picture);
-    
     const handleClickImg = ()=>{
         
         if(ref.current){

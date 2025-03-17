@@ -150,7 +150,11 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                                             value={profileInput.email}
                                             onChange={(e)=> setProfileInput({...profileInput, email : e.target.value})}
                                     />
-                                        <Button type="button" className="flex flex-row gap-2" onClick={handleVerifyEmail}>
+                                        <Button 
+                                            type="button"
+                                            disabled={loading.verifyemail || profileInput.email !== profile.email || !profile.email.trim()}
+                                            className="flex flex-row gap-2" 
+                                            onClick={handleVerifyEmail}>
                                             {loading.verifyemail ?
                                                 <Loader2Icon className="size-4 animate-spin"/>
                                                 :
@@ -164,7 +168,8 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
                                         <Button className="hidden" ref={btnRef}/>
                                     </EmailVerifyDialog>
                                 </div>
-                                <p className={ profile.email_verified? `hidden`: `text-xs text-red-500 block`}>Email not verified</p>
+                                    <span className={profile.email_verified ? `hidden`: `text-xs text-red-500 block`}>Email not verified</span>
+                                    <span className={profile.email === profileInput.email ? `hidden`: `text-xs text-red-500 block`}>Email does not match the profile.</span>
                             </div>
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="Whatsapp" className="font-bold tracking-wide text-sm ">Whatsapp</Label>

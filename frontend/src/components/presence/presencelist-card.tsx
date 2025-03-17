@@ -9,7 +9,7 @@ import CheckAttendance from "./attendance-member";
 import {useState } from "react";
 import { Badge } from "../ui/badge";
 import { isSameOrAfterDate, isTodayDate } from "@/utilts/isToday";
-import { getBackgroundColor } from "@/utilts/getBgStatus";
+import { getBackgroundColor, getBgColorAttd } from "@/utilts/getBgStatus";
 
 export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedules[] }){
     const [selectedSchedule, setSelectedSchedule] = useState<getAssistantSchedules|null>(null)
@@ -21,15 +21,24 @@ export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedul
     { schedules.map((schedule, idx)=>(
         <Card key={idx} className="border-none shadow-none p-0">
         <CardContent className="flex flex-col gap-2 py-4 p-0">
-            <div className="flex-row gap-2  flex justify-start">
-                <div className="flex bg-blue-500 rounded-md items-center">
-                    <p className="text-sm px-2 font-semibold text-accent uppercase text-center whitespace-nowrap">{schedule.practicum.code}</p>
+            <div className="flex-row gap-2  flex justify-between">
+                <div className="flex flex-row gap-2 justify-start">
+                    <div className="flex bg-blue-500 rounded-md items-center">
+                        <p className="text-sm px-2 font-semibold text-accent uppercase text-center whitespace-nowrap">{schedule.practicum.code}</p>
+                    </div>
+                    <div className="flex">
+                        <p className="font-semibold tracking-wider text-blue-400">
+                           {schedule.practicum.title}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex">
-                    <p className="font-semibold tracking-wider text-blue-400">
-                        {schedule.practicum.title}
-                    </p>
-                </div>
+                {
+                    !['UNSCHEDULED', 'SCHEDULED'].includes(schedule.schedule.status) &&
+                    <div className="flex items-center">
+                        <Badge variant={"outline"} className={getBackgroundColor(schedule.schedule.status) + 'justify-center'}>{schedule.schedule.status}</Badge> 
+                    </div>
+
+                }
             </div>
             <div className="flex flex-row gap-4 justify-between mt-2">
                 <div className="flex flex-col gap-1">
@@ -78,8 +87,7 @@ export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedul
                         <Badge variant={"secondary"}>Not on the schedule</Badge>           
                     </div>           
                 :
-                    <div className="flex flex-col gap-2">
-                            <Badge variant={"outline"} className={getBackgroundColor(schedule.schedule.status)}>{schedule.schedule.status}</Badge> 
+                    <div className="flex flex-col gap-2 justify-center">
                             <Button 
                                 size={"sm"} 
                                 variant={'default'} 
@@ -162,11 +170,11 @@ export function PresenceCardPractican({schedules, stats} : PracticanProps){
                         :
 
                     <div className="flex items-center">
-                        <Badge variant={"outline"} className={getBackgroundColor(stats.find((a)=> a.scheduleId === schedule.id)?.status)}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
+                        <Badge variant={"outline"} className={getBgColorAttd(stats.find((a)=> a.scheduleId === schedule.id)?.status)}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
                     </div>
                      :
                 <div className="flex items-center">
-                    <Badge variant={"outline"} className={getBackgroundColor(stats.find((a)=> a.scheduleId === schedule.id)?.status)}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
+                    <Badge variant={"outline"} className={getBgColorAttd(stats.find((a)=> a.scheduleId === schedule.id)?.status)}>{stats.find((a)=> a.scheduleId === schedule.id)?.status}</Badge>           
                 </div>
                      
                 :
