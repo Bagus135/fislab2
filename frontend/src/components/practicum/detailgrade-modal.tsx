@@ -28,6 +28,7 @@ export default function DetailGradeModal({ userGrade, open, setOpen }: Props) {
         const detailScore = async () => {
             try {
                 setLoading(true);
+                setError('');
                 if (!userGrade) return
                 const gradeId = userGrade.role === "ASISTEN" ? userGrade.gradeId : userGrade.data?.gradeId;
                 if (!gradeId) throw new Error('User  has not been graded yet');
@@ -53,14 +54,25 @@ export default function DetailGradeModal({ userGrade, open, setOpen }: Props) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent>
-                {loading && (
+                {loading ? (
                     <div className="h-[calc(30vh)] flex justify-center items-center w-full">
+                        <DialogHeader className="hidden">
+                            <DialogTitle/>
+                            <DialogDescription/>
+                        </DialogHeader>
                         <Loader2Icon className="animate-spin size-4" />
                     </div>
-                )}
-                {error ? (
-                    <p>{error}</p>
-                ) : (
+                    )
+                    :
+                    !!error.trim() ? (
+                        <>
+                        <DialogHeader className="hidden">
+                            <DialogTitle/>
+                            <DialogDescription/>
+                        </DialogHeader>
+                        <p>{error}</p>
+                        </>
+                    ) : (
                     <> 
                         <DialogHeader>
                             <DialogTitle>
@@ -71,28 +83,34 @@ export default function DetailGradeModal({ userGrade, open, setOpen }: Props) {
                             </DialogDescription>
                         </DialogHeader>
                         {score && (
-                            <ScrollArea className="w-full h-[calc(50vh)]">
+                            <ScrollArea className="w-full max-h-[calc(60vh)] pr-2">
                                 <div className="flex flex-col py-2">
                                     {renderScoreRow("Total Score", score.scores.totalScore)}
-                                    {renderScoreRow("Prelab", score.scores.prelab.total)}
+                                    {/* {renderScoreRow("Prelab", score.scores.prelab.total)} */}
                                     {renderScoreRow("Punctuality", score.scores.prelab.punctuality)}
                                     {renderScoreRow("Pre-Exam", score.scores.prelab.preExam)}
                                     {renderScoreRow("Oral Test", score.scores.prelab.oralTest)}
-                                    {renderScoreRow("Inlab", score.scores.inlab.total)}
+                                    {/* {renderScoreRow("Inlab", score.scores.inlab.total)} */}
                                     {renderScoreRow("Skills and Attitude", score.scores.inlab.skillsAndAttitude)}
-                                    {renderScoreRow("Postlab", score.scores.postlab.total)}
+                                    {/* {renderScoreRow("Postlab", score.scores.postlab.total)} */}
                                     {renderScoreRow("Abstract", score.scores.postlab.abstract)}
                                     {renderScoreRow("Introduction", score.scores.postlab.introduction)}
                                     {renderScoreRow("Methodology", score.scores.postlab.methodology)}
                                     {renderScoreRow("Discussion", score.scores.postlab.discussion)}
                                     {renderScoreRow("Data Processing", score.scores.postlab.dataProcessing)}
                                     {renderScoreRow("Format", score.scores.postlab.formatting)}
+                                    <div className=" flex flex-col gap-2 mt-4">
+                                        <p className="text-center font-semibold">Feedback</p>
+                                        <p className="border p-2 text-justify text-sm">
+                                            {score.feedback || '~ No Feedback Given ~'}
+                                        </p>
+                                    </div>
                                 </div>
                             </ScrollArea>
                         )}
                     </>
                 )}
-            </DialogContent>
-        </Dialog>
-    );
-}
+                </DialogContent>
+                </Dialog>
+            );
+        }

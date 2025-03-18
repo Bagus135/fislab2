@@ -46,13 +46,7 @@ type Props = {
 }
 
 export default function InputScoreModal({ open, setOpen, member, scheduleId}: Props) {
-    const {toast} = useToast();
-    const [loading, setLoading] = useState({
-        score : false,
-        submit : false,
-    });
-    const [isValid, setIsValid] = useState(true);
-    const [input, setInput] = useState<ScoreType>({
+    const initScoreInput = {
         punctuality: '',
         preExam: '',
         oralTest: '',
@@ -65,10 +59,19 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
         conclusion:'',
         formatting: '',
         feedback: '',
+    };
+
+    const {toast} = useToast();
+    const [loading, setLoading] = useState({
+        score : false,
+        submit : false,
     });
+    const [isValid, setIsValid] = useState(true);
+    const [input, setInput] = useState<ScoreType>(initScoreInput);
     useEffect(() => {
         const detailProfile = async () => {
             try {
+                setInput(initScoreInput);
                 setLoading({...loading, score : true})
                 if(!member)throw new Error ('Error in client side')
                 if(!member.gradeId) throw new Error ('user have beent grading yet')
