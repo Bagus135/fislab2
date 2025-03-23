@@ -1,6 +1,5 @@
 import {  checkToken } from "@/action/auth.action";
 import { redirect } from "next/navigation";
-import React from "react";
 
 export default async function LoginLayout ({children} : Readonly<{children : React.ReactNode}>) {
       try {
