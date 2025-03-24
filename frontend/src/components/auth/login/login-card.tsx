@@ -9,12 +9,10 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2Icon, LockIcon, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 
 export default function LoginCard (){
     const {toast} = useToast()
-    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [input, setInput] = useState({
         nrp : '',
@@ -26,7 +24,7 @@ export default function LoginCard (){
         try {
             setLoading(true);
             await loginAction(input);
-            router.push("/dashboard")
+            location.assign("/dashboard")
             toast({
                 title : "Login Successfully" ,
                 description : "Welcome to The Management System  of Fislab",

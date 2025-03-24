@@ -88,3 +88,16 @@ body {
   }
 }
 
+@keyframes sheen {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.animate-sheen {
+  background-size: 200% auto;
+  animation:  sheen 3s linear infinite;
+}
