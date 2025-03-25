@@ -1,6 +1,7 @@
-import { checkToken } from "@/action/auth.action";
+import { checkToken, getDecodeToken } from "@/action/auth.action";
 import SideBar from "@/components/sidebar";
 import NotFound from "./not-found";
+import AdminPage from "../admin/page";
 
 export default async function RootLayout({
     children,
@@ -8,7 +9,10 @@ export default async function RootLayout({
     children: React.ReactNode;
   }>) {
     try {
-       await checkToken()
+        await checkToken()
+        const res = await getDecodeToken()
+        if(!res.success) throw new Error("Unauthrized")
+        if(["ADMIN", "SUPER_ADMIN"].includes(res.data.role)) return <AdminPage/>
     } catch (error:any) {
       return <NotFound code="401" message="Unauthorized"/>
     }

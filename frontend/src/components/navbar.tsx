@@ -9,6 +9,7 @@ import ProfileDropdown from "./dropdown-profile";
 import { getDecodeToken } from "@/action/auth.action";
 import Image from "next/image";
 import ClientNavbar from "./navbar-client";
+import { AdminSidebarMobile } from "./admin/admin-sidebar";
 
 const Navbar = async () =>{
     const token = await getDecodeToken()
@@ -34,7 +35,10 @@ const Navbar = async () =>{
                             />
                         </div>
                         { token.success ?
-                            <MobileSidebar/>
+                            <>
+                                <MobileSidebar/>
+                                <AdminSidebarMobile/>
+                            </>
                             :
                             null
                         }

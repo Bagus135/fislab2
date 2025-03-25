@@ -9,7 +9,7 @@ import { useState } from "react";
 import { FilterMonitoringPractican } from "./dropdownmenu-filter";
 import PracticanMonitoringModal from "./detail-dialog";
 
-export default function AslabMonitoring (){
+export default function PracticanScoreMonitor (){
     const [search , setSearch] = useState("")
     return (
         <Card>

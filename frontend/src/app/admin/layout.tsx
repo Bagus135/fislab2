@@ -1,16 +1,15 @@
 'use server'
 
 import { checkToken, getDecodeToken } from "@/action/auth.action";
-import { AdminTabsListDesktop, AdminTabsListMobile } from "@/components/admin/admin-tabslist";
-import { Tabs } from "@/components/ui/tabs";
+import {  AdminSidebarDesktop } from "@/components/admin/admin-sidebar";
 import React from "react";
 import NotFound from "./not-found";
 
 export default async function AdminLayout ({children} : Readonly<{children : React.ReactNode}>) {
     try {
-        const token = await checkToken()
+        await checkToken()
         const res = await getDecodeToken()
-        if(!res.success) return NotFound({code : res.data.code, message:res.data.message })
+        if(!res.success) throw new Error("Unauthrized")
         if(!["ADMIN", "SUPER_ADMIN"].includes(res.data.role)) return NotFound({code : '401', message:"Only Admin is permitted" })
         
     } catch (error:any) {
@@ -18,14 +17,13 @@ export default async function AdminLayout ({children} : Readonly<{children : Rea
     } 
         
     return (
-         <Tabs defaultValue="grouping" className="w-full">
-            <AdminTabsListMobile/>
+         <div  className="w-full">
             <div className="border-r h-[calc(100vh-4rem)] md:flex md:w-16 lg:w-44 fixed hidden">
-                <AdminTabsListDesktop/>
+                <AdminSidebarDesktop/>
             </div>
             <div className="md:ml-16 p-2 lg:ml-44 lg:px-2">
                 {children}
             </div>
-         </Tabs>
+         </div>
     )
 }

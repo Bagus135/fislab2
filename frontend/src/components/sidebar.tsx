@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link";
 import { Button } from "./ui/button"; // shadcn
-import { Calendar, CheckSquare, FlaskConical, Gauge, GaugeCircle, Megaphone, Menu, } from "lucide-react";
+import { BarChartBigIcon, Calendar, CheckSquare, FlaskConical, Gauge, Megaphone, Menu, } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { useState } from "react";
 import { Separator } from "./ui/separator";
@@ -91,7 +91,7 @@ export function MobileSidebar () {
                 <div className=" flex flex-col space-y-4 mt-6">
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
                         <Link href={'/dashboard'}>
-                            <GaugeCircle className="size-6"/>
+                            <BarChartBigIcon className="size-6"/>
                             <Separator orientation="vertical"/>
                                 Dashboard
                         </Link>

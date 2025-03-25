@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Loader2Icon, LockIcon, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 
 export default function LoginCard (){
@@ -18,18 +19,19 @@ export default function LoginCard (){
         nrp : '',
         password : '',
     })
+    const router = useRouter()
     
     const handleLogin = async(e : FormEvent<HTMLFormElement>) =>{
         e.preventDefault();
         try {
             setLoading(true);
             await loginAction(input);
-            location.assign("/dashboard")
             toast({
                 title : "Login Successfully" ,
                 description : "Welcome to The Management System  of Fislab",
                 variant : "success"
             });
+            router.prefetch("/dashboard")
         } catch (error : any) {
             toast({
                 title : "Failed to Login" ,

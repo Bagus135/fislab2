@@ -80,14 +80,17 @@ export default function ProfileDropdown ({role , id} : {role : string, id : stri
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-auto -translate-x-2">
                     <DropdownMenuGroup >
-                        <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
-                            <Link href={`/dashboard`}>
-                                <BarChartBigIcon className="w-4 h-4"/>
-                                <span className="inline">
-                                    Dashboard
-                                </span>
-                            </Link>
-                        </DropdownMenuLabel>
+                        { ["PRAKTIKAN", "ASISTEN"].includes(role) &&
+                           <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
+                           <Link href={`/dashboard`}>
+                               <BarChartBigIcon className="w-4 h-4"/>
+                               <span className="inline">
+                                   Dashboard
+                               </span>
+                           </Link>
+                       </DropdownMenuLabel>
+                        }
+                        
                         <DropdownMenuLabel className="hover:bg-accent hover:text-accent-foreground flex items-center gap-5 " asChild>
                             <Link href={`/profile/me`}>
                                 <UserRoundPen className="w-4 h-4"/>

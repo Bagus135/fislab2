@@ -54,14 +54,16 @@ export  default function CheckScheduleCard ({schedules}:Props) {
             <Separator/>
             <div className="flex text-center flex-col">
                 <div className="flex flex-col gap-2">
-                    { schedules.success && 
+                    { schedules.success ? 
                     schedules.data.filter((schedule) => schedule.date.includes(input.date) && schedule.time.includes(input.time))
                     .map((schedule,idx)=>(
                         Object.values(input).includes("") ? idx < 3 &&
                         <CardListComponent key={idx} schedule={schedule}/>
                         :
                         <CardListComponent key={idx} schedule={schedule}/>
-                    )) 
+                    ))
+                    :
+                    <p> No upcoming Schedule</p> 
                     }
                 </div>
             </div>
