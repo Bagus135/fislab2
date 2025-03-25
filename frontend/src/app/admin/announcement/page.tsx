@@ -1,3 +1,5 @@
+'use server'
+
 import { getAnnouncment } from "@/action/announcement.action";
 import { getDecodeToken } from "@/action/auth.action";
 import AnnouncementCard from "@/components/announcement/announcementcard";

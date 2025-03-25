@@ -1,10 +1,14 @@
-import { getAllAssistant, getAllScheduleAdmin, getAllUsers, getModul, getPractican, getPracticanGroup } from "@/action/admin.action";
+'use server'
+
+import { getAllAssistant, getAllScheduleAdmin, getModul, getPractican, getPracticanGroup } from "@/action/admin.action";
+import { getToken } from "@/action/auth.action";
 import { getName } from "@/action/profile.action";
 import AslabModulGroup from "@/components/admin/grouping/aslab/modul/aslab-modul";
 import AslabPracticanGroup from "@/components/admin/grouping/aslab/practican/aslab-practican";
 import PracticanGroup from "@/components/admin/grouping/practican/practican-group";
 
-export default async function Page(){
+export default async function AdminPage(){
+        await getToken()
         const [
             {name},
             moduls, 

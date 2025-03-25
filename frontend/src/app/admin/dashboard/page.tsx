@@ -1,10 +1,14 @@
+'use server'
+
+import { getToken } from "@/action/auth.action";
 import { getName } from "@/action/profile.action";
 import { getCheckSchedule } from "@/action/schedule.action";
 import TimeCard from "@/components/dashboard/timecard";
 import ModulPracticumCard from "@/components/practicum/modulcard";
 import CheckScheduleCard from "@/components/schedule/check-schedule";
 
-export default async function Page (){
+export default async function AdminPage (){
+    await getToken()
     const [{name}, allSchedule] = await Promise.all([getName(), getCheckSchedule()])
     return (
           <div className="flex flex-1 flex-col md:grid md:grid-flow-row gap-4 p-2 pt-0">

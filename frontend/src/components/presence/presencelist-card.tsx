@@ -9,7 +9,7 @@ import CheckAttendance from "./attendance-member";
 import {useState } from "react";
 import { Badge } from "../ui/badge";
 import { isSameOrAfterDate, isTodayDate } from "@/utilts/isToday";
-import { getBackgroundColor, getBgColorAttd } from "@/utilts/getBgStatus";
+import { getBgColorAttd } from "@/utilts/getBgStatus";
 
 export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedules[] }){
     const [selectedSchedule, setSelectedSchedule] = useState<getAssistantSchedules|null>(null)
@@ -32,13 +32,6 @@ export function PresenceCardAslab({schedules} : {schedules : getAssistantSchedul
                         </p>
                     </div>
                 </div>
-                {
-                    !['UNSCHEDULED', 'SCHEDULED'].includes(schedule.schedule.status) &&
-                    <div className="flex items-center">
-                        <Badge variant={"outline"} className={getBackgroundColor(schedule.schedule.status) + 'justify-center'}>{schedule.schedule.status}</Badge> 
-                    </div>
-
-                }
             </div>
             <div className="flex flex-row gap-4 justify-between mt-2">
                 <div className="flex flex-col gap-1">

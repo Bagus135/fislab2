@@ -3,7 +3,6 @@
 import { cookies } from "next/headers";
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 
 export const setCookies= async (token : string) =>{

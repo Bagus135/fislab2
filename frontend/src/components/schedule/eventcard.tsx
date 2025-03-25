@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'; // Import chevron icon
 import { Button } from '../ui/button';
 import { Separator } from '../ui/separator';
 import { addTwoHours } from '@/utilts/addtwohour';
+import { getDayName } from '@/utilts/getDayName';
 
 type getPracticanSchedules = {
     assistant: {
@@ -118,16 +119,19 @@ export default function EventCard({ schedules }: Props) {
                                             </div>
                                             <div className="flex flex-col gap-1 justify-center py-2 pr-2">
                                                 <p className="font-bold tracking-wider text-sm">{data.practicum.title}</p>
-                                        <span className="font-normal text-xs">{data.schedule.date}</span>
+                                                <p className="font-normal text-xs">
+                                                    <span className='mr-2 font-semibold'> {getDayName(data.schedule.date)},</span> 
+                                                    {data.schedule.date}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-span-3 flex items-center justify-end">
+                                        <span className="text-xs text-end">{data.schedule.time}-{addTwoHours(data.schedule.time)}</span>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="col-span-3 flex items-center justify-end">
-                                <span className="text-xs text-end">{data.schedule.time}-{addTwoHours(data.schedule.time)}</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                            </CardContent>
+                        </Card>
             ))
                 )
                 :

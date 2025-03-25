@@ -1,7 +1,9 @@
+'use server'
+
 import { getModul } from "@/action/admin.action";
 import ModulList from "@/components/admin/modul/modullist-card";
 
-export default async function Page(){
+export default async function AdminPage(){
     const moduls = await  getModul()
 
     return (
