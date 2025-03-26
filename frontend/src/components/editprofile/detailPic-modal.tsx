@@ -42,16 +42,15 @@ export default function DetailPicModal({children, profile} : {children : React.R
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
-            <DialogContent className="bg-transparent border-none w-auto h-auto  p-0 ">
+            <DialogContent className="bg-slate-400 border-none h-auto max-w-sm p-0 ">
                 <DialogHeader className="hidden">
                     <DialogTitle/>
                     <DialogDescription/>
                 </DialogHeader>
                 <div className="flex flex-col w-auto items-center">
-                    <Image 
-                        width={600}
-                        height={600}
+                    <img 
                         alt="profile image"
+                        className="w-full aspect-square"
                         src={!profile.profile_picture.trim()? "/avatar.png" : `/api/profile/picture/${profile.id}?t=${new Date().getTime()}`}/>
                     <div className="flex flex-row gap-2 bg-primary-foreground p-2 w-full ">
                         <Button variant={'ghost'} 
