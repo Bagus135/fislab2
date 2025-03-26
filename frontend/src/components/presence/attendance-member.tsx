@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { Button } from "../ui/button"
 import { changeAttendance, markfinished } from "@/action/presense.action"
 import { useToast } from "@/hooks/use-toast"
+import { getBackgroundColor, getTextColorScheduleStatus } from "@/utilts/getBgStatus"
 
 type Props = {
     open : boolean
@@ -109,6 +110,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                 <DialogHeader>
                     <DialogTitle>Attendance Check</DialogTitle>
                     <DialogDescription>Group {schedule.group}</DialogDescription>
+                    <DialogDescription className={getTextColorScheduleStatus(schedule.schedule.status)} >{schedule.schedule.status}</DialogDescription>
                 </DialogHeader>
                     {loading.getList ?
                         <div className="flex justify-center w-full items-center">

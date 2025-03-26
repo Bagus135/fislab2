@@ -61,7 +61,6 @@ export default function UserListCard({ users }: { users: UsersPropsType }) {
                             <TableHead className="text-center">Name</TableHead>
                             <TableHead className="text-center">NRP</TableHead>
                             <TableHead className="text-center">Role</TableHead>
-                            <TableHead className="text-center hidden md:align-middle md:table-cell">Last Update</TableHead>
                             <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -75,7 +74,6 @@ export default function UserListCard({ users }: { users: UsersPropsType }) {
                                     <TableCell>{user.name}</TableCell>
                                     <TableCell>{user.nrp}</TableCell>
                                     <TableCell>{user.role}</TableCell>
-                                    <TableCell className="hidden md:table-cell md:align-middle">1 year ago</TableCell>
                                     <TableCell onClick={(e)=>{
                                         e.stopPropagation()
                                         setSelectedUser(user)

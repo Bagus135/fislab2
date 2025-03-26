@@ -120,14 +120,14 @@ export default function EventCard({ schedules }: Props) {
                                             <div className="flex flex-col gap-1 justify-center py-2 pr-2">
                                                 <p className="font-bold tracking-wider text-sm">{data.practicum.title}</p>
                                                 <p className="font-normal text-xs">
-                                                    <span className='mr-2 font-semibold'> {getDayName(data.schedule.date)},</span> 
                                                     {data.schedule.date}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="col-span-3 flex items-center justify-end">
-                                        <span className="text-xs text-end">{data.schedule.time}-{addTwoHours(data.schedule.time)}</span>
+                                    <div className="col-span-3 flex flex-col items-end justify-center">
+                                        <p className='font-semibold text-xs'> {getDayName(data.schedule.date)}</p> 
+                                        <p className="text-xs text-end">{data.schedule.time}-{addTwoHours(data.schedule.time)}</p>
                                     </div>
                                 </div>
                             </CardContent>

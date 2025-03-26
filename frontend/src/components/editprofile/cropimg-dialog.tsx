@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { deleteProfilePicture, uploadProfilePicture } from '@/action/profile.action';
+import { uploadProfilePicture } from '@/action/profile.action';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2Icon, Save, Trash,  } from 'lucide-react';
 
@@ -30,7 +30,6 @@ export default function ProfileImageDialog({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState({
     save : false,
-    delete : false
   })
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>({
@@ -90,7 +89,6 @@ export default function ProfileImageDialog({
             const formData = new FormData();
             formData.append('profilePicture', blob, 'profile-picture.png');
             const res = await uploadProfilePicture(formData);
-            console.log(res)
             toast({
               title : "Image Uploaded sucessfully",
               variant : 'success',
@@ -116,30 +114,6 @@ export default function ProfileImageDialog({
 
   };
 
-  const handleDeletePic = async()=>{
-    try {
-      setLoading({
-        ...loading, delete : true
-      })
-      const res = await deleteProfilePicture()
-      toast({
-         title : "Profile Picture Deleted",
-         description : res.message,
-         variant : 'success'
-      })
-      setOpen(false)
-    } catch (error:any) {
-      toast({
-         title : "Failed to deleted Profile Picture",
-         description : 'Something Went Wrong',
-         variant : 'destructive'
-      })
-    } finally {
-      setLoading({
-        ...loading, delete : false
-      })
-    }
-  }
 
 
   return (
@@ -187,21 +161,9 @@ export default function ProfileImageDialog({
             </div>
 
             <DialogFooter className='gap-4'>
+           
               <Button 
-                variant="outline" 
-                className='bg-red-500 hover:bg-red-600'
-                onClick={handleDeletePic}>
-                  {loading.delete ? 
-                    <Loader2Icon className='animate-spin size-4'/>
-                    :
-                      <>
-                      <Trash className='size-4'/>
-                      Delete
-                      </>
-                  }
-              </Button>
-              <Button 
-                disabled={!completedCrop || !originalImage||  loading.delete || loading.save}
+                disabled={!completedCrop || !originalImage|| loading.save}
                 onClick={handleSaveChanges}
               >{ loading.save ?
                 <Loader2Icon className='size-4 animate-spin'/>

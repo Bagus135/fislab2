@@ -18,4 +18,4 @@ export const getDayName = (date: string) => {
         default:
             return 'Invalid date';
     }
-}
+}    

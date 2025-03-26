@@ -18,7 +18,7 @@ export default function UpcomingCard({schedule, role} : {schedule : getNearestSc
                     <div className="flex flex-col gap-1 text-center mt-2">
                         <p className="font-bold tracking-wider">{schedule.practicum}</p>
                         <p>{schedule.code}</p>
-                        <p>{ role === "ASISTEN" ? schedule.group : schedule.assistantName}</p>
+                        <p>{ role === "ASISTEN" ? `Group  ${schedule.group}` : schedule.assistantName}</p>
                         <p>{format(parseISO(schedule.date), "dd MMMM yyyy")}</p>
                         <p>{schedule.time} - {addTwoHours(schedule.time)}</p>
                     </div>

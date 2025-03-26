@@ -31,6 +31,7 @@ export default function MainHome (){
         </Button>
         <div className="hidden">
             <p className="bg-gray-400 bg-red-500 bg-lime-500 bg-blue-500 bg-green-500 bg-yellow-500 bg-orange-500">test</p>
+            <p className="text-gray-400 text-red-500 text-lime-500 text-blue-500 text-green-500 text-yellow-500 text-orange-500">test</p>
         </div>
       </div>
     )
