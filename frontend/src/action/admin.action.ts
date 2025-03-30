@@ -40,28 +40,6 @@ type AddUserType = {
     role: string;
     password: string;
 }
-export const addUser = async(input:AddUserType)=>{
-    try {
-        const token = await getToken();
-        const res = await fetch(`${process.env.URL_BE}/admin/register`, {
-            method : "POST",
-            headers : {
-                "Content-Type" : "application/json",
-                "Authorization" : token,
-            },
-            body : JSON.stringify(input)
-        })
-        const data = await res.json();
-        
-        if(!res.ok) throw new Error(data.error)
-        
-        revalidatePath('/')
-        return data
-              
-        } catch (error : any) {
-           throw new Error(error.message)
-        }
-    }
 
 export const deleteUser = async(id :string)=>{
     try {

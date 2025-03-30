@@ -206,3 +206,7 @@ export const checkToken = async () => {
         throw new Error ('error')
     }
 };
+
+export const  refreshCache = async () =>{
+    revalidatePath("/")
+}

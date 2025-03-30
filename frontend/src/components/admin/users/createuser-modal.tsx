@@ -1,16 +1,17 @@
-import { addUser } from "@/action/admin.action";
+'use client'
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X } from "lucide-react";
+import { Loader2Icon, Plus, X } from "lucide-react";
 import { FormEvent, ReactNode, useState } from "react";
 
 export default function CreateUserModal({children}: {children : ReactNode}){
     const {toast} = useToast()
-
+    const [loading,setLoading] = useState(false);
     const [input, setInput] = useState({
         nrp : "",
         name : "",
@@ -21,23 +22,37 @@ export default function CreateUserModal({children}: {children : ReactNode}){
     
     const handleSubmit = async(e : FormEvent<HTMLFormElement>)=>{
         e.preventDefault();
-        try {
-            const res = await addUser(input)
-            toast({
+         try {
+            setLoading(true)
+               const token = await getToken();
+               const res = await fetch(`/api/admin/register`, {
+                   method : "POST",
+                   headers : {
+                       "Content-Type" : "application/json",
+                       "Authorization" : token,
+                   },
+                   body : JSON.stringify(input)
+               })
+               const data = await res.json();
+               console.log(data);
+               
+               if(!res.ok) throw new Error(data.error)
+               refreshCache()
+               toast({
                 title : "Success Creating User",
                 variant : "success",
-                description : res.message 
+                description : data.token 
             })
-            
         } catch (error:any) {
             toast({
                 title : "Error Creating User",
                 variant : "destructive",
                 description : error.message 
             })
+        } finally {
+            setLoading(false)
         }
     }
-    
 
     return (
         <Dialog>
@@ -107,8 +122,15 @@ export default function CreateUserModal({children}: {children : ReactNode}){
                                 </Button>
                             </DialogClose>
                             <Button type="submit" className="flex flex-row gap-2" disabled={Object.values(input).includes("")}>
-                                <Plus className="size-4"/>
-                                Create
+                                {
+                                    loading ?
+                                        <Loader2Icon className="size-4 animate-spin"/> 
+                                        :
+                                        <>
+                                            <Plus className="size-4"/>
+                                            Create
+                                        </>
+                                }
                             </Button>
                         </DialogFooter>
 

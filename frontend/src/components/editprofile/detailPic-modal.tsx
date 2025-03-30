@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { useRef, useState } from "react";
 import ProfileImageDialog from "./cropimg-dialog";
