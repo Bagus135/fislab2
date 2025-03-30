@@ -78,18 +78,13 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scheduleTime := time.Date(
-		date.Year(),
-		date.Month(),
-		date.Day(),
-		hour,
-		minute,
-		0,
-		0,
-		time.UTC,
-	)
+	// Set zona waktu Asia/Jakarta
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	scheduleTime := time.Date(date.Year(), date.Month(), date.Day(), hour, minute, 0, 0, loc)
 
-	now := time.Now().UTC()
+	log.Printf("Schedule Time (Jakarta): %v", scheduleTime)
+
+	now := time.Now().In(loc)
 	if scheduleTime.Before(now) {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "cannot schedule for past time"})
@@ -119,7 +114,28 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hapus semua record AttendanceCode dan Attendance yang terkait dengan jadwal lama
+	// Periksa jadwal bentrok
+	schedulesAtSameTime, err := h.client.Schedule.FindMany(
+		db.Schedule.StartTime.Equals(scheduleTime),
+		db.Schedule.ID.Not(existingSchedule.ID),
+		db.Schedule.Status.Equals(db.StatusScheduled),
+	).Exec(r.Context())
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
+		return
+	}
+
+	if len(schedulesAtSameTime) >= 3 {
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error": "Maximum schedule for this time is reached, change into another session!",
+		})
+		return
+	}
+
+	// Hapus attendance records
 	attendanceCodes, err := h.client.AttendanceCode.FindMany(
 		db.AttendanceCode.ScheduleID.Equals(existingSchedule.ID),
 	).Exec(r.Context())
@@ -130,13 +146,11 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, code := range attendanceCodes {
-		// Hapus semua Attendance yang terkait dengan AttendanceCode ini
 		_, err := h.client.Attendance.FindMany(db.Attendance.CodeID.Equals(code.ID)).Delete().Exec(r.Context())
 		if err != nil {
 			log.Printf("Failed to delete attendance records for code %d: %v\n", code.ID, err)
 		}
 
-		// Hapus AttendanceCode
 		_, err = h.client.AttendanceCode.FindUnique(
 			db.AttendanceCode.ID.Equals(code.ID),
 		).Delete().Exec(r.Context())
@@ -145,7 +159,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Cek jadwal bentrok untuk group
+	// Periksa jadwal bentrok untuk group dan asisten dengan timezone Asia/Jakarta
 	conflictGroupSchedule, err := h.client.Schedule.FindFirst(
 		db.Schedule.GroupID.Equals(group.ID),
 		db.Schedule.StartTime.Equals(scheduleTime),
@@ -155,13 +169,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		db.Schedule.Practicum.Fetch(),
 	).Exec(r.Context())
 
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
-		return
-	}
-
-	if conflictGroupSchedule != nil {
+	if err == nil {
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "group already has a schedule at this time",
@@ -173,37 +181,7 @@ func (h *ScheduleHandler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cek jadwal bentrok untuk asisten
-	conflictAssistantSchedule, err := h.client.Schedule.FindFirst(
-		db.Schedule.AssistantID.Equals(assistantId),
-		db.Schedule.StartTime.Equals(scheduleTime),
-		db.Schedule.ID.Not(existingSchedule.ID),
-		db.Schedule.Status.Equals(db.StatusScheduled),
-	).With(
-		db.Schedule.Practicum.Fetch(),
-		db.Schedule.Group.Fetch(),
-	).Exec(r.Context())
-
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check schedule conflicts"})
-		return
-	}
-
-	if conflictAssistantSchedule != nil {
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "you already have a schedule at this time",
-			"conflict": map[string]interface{}{
-				"practicum": conflictAssistantSchedule.Practicum().Title,
-				"group":     conflictAssistantSchedule.Group().Name,
-				"time":      scheduleTime.Format("2006-01-02 15:04"),
-			},
-		})
-		return
-	}
-
-	// Update jadwal
+	// Update jadwal dengan waktu yang telah diperbaiki ke Asia/Jakarta
 	_, err = h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(existingSchedule.ID),
 	).Update(
@@ -252,6 +230,7 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 			db.Schedule.Practicum.Fetch(),
 			db.Schedule.Group.Fetch(),
 		).OrderBy(
+			db.Schedule.Week.Order(db.SortOrderAsc),
 			db.Schedule.Date.Order(db.SortOrderAsc),
 			db.Schedule.StartTime.Order(db.SortOrderAsc),
 		).Exec(r.Context())
@@ -268,6 +247,7 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 			db.Schedule.Group.Fetch(),
 			db.Schedule.Assistant.Fetch(),
 		).OrderBy(
+			db.Schedule.Week.Order(db.SortOrderAsc),
 			db.Schedule.Date.Order(db.SortOrderAsc),
 			db.Schedule.StartTime.Order(db.SortOrderAsc),
 		).Exec(r.Context())
@@ -328,14 +308,16 @@ func (h *ScheduleHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	userRole := r.Context().Value("role").(string)
-	assistantID := r.Context().Value("userID").(string)
-
-	if userRole != "ASISTEN" {
-		w.WriteHeader(http.StatusForbidden)
+	// Load location Asia/Jakarta
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		log.Println("Failed to load location:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "server time zone error"})
 		return
 	}
 
+	// Decode request body
 	var req struct {
 		ScheduleID int `json:"scheduleId"`
 	}
@@ -353,6 +335,7 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Retrieve schedule
 	schedule, err := h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).With(
@@ -367,26 +350,27 @@ func (h *ScheduleHandler) SetFinished(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if schedule.Assistant().ID != assistantID {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-
-	// Validasi bahwa waktu jadwal sudah dilewati
+	// Enhanced time handling
+	currentTime := time.Now().In(loc)
 	startTime, hasStartTime := schedule.StartTime()
+
 	if !hasStartTime {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule time not set"})
 		return
 	}
 
-	if time.Now().Before(startTime) {
+	// Convert startTime to Asia/Jakarta time zone
+	startTimeInLoc := startTime.In(loc)
+
+	// More robust time comparison
+	if currentTime.Before(startTimeInLoc) {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule has not yet passed"})
 		return
 	}
 
-	// Ubah status praktikum menjadi COMPLETED
+	// Update status to FINISHED
 	_, err = h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).Update(
