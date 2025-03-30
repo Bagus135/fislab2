@@ -1,4 +1,5 @@
-import { createGroupPractican, getPractican } from "@/action/admin.action";
+import { getPractican } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,11 +49,23 @@ export default function CreateGroupPractican ({children, practicans}:{children :
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await createGroupPractican({ group : Number(input.kelompok),member_ids : input.member_ids });
+            const token = await getToken();
+            const res = await fetch(`/api/admin/groups`, {
+                method : "POST",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({ group : Number(input.kelompok),member_ids : input.member_ids })
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Practican group created",
                 variant : "success",
-                description : res.message
+                description : data.message
             })
             setInput({
                 kelompok : '',
@@ -74,7 +87,7 @@ export default function CreateGroupPractican ({children, practicans}:{children :
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[calc(99vh)] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Grouping Practican</DialogTitle>
                     <DialogDescription>Create group for Practican</DialogDescription>
@@ -121,7 +134,7 @@ export default function CreateGroupPractican ({children, practicans}:{children :
                                     />
                             </div>
                        
-                            <ScrollArea className="max-h-[calc(35vh)] overflow-y-auto [&::-webkit-scrollbar]:w-2
+                            <ScrollArea className="max-h-[calc(30vh)] overflow-y-auto [&::-webkit-scrollbar]:w-2
                                         [&::-webkit-scrollbar-track]:bg-gray-100
                                         [&::-webkit-scrollbar-thumb]:bg-gray-300
                                         dark:[&::-webkit-scrollbar-track]:bg-neutral-700
@@ -133,7 +146,6 @@ export default function CreateGroupPractican ({children, practicans}:{children :
                                             <TableHead></TableHead>
                                             <TableHead className="text-center">NRP</TableHead>
                                             <TableHead className="text-center">Name</TableHead>
-                                            <TableHead className="text-center">Group</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>{
@@ -148,7 +160,6 @@ export default function CreateGroupPractican ({children, practicans}:{children :
                                                 </TableCell>
                                                 <TableCell className="font-medium">{practican.nrp}</TableCell>
                                                 <TableCell>{practican.name}</TableCell>
-                                                <TableCell>7</TableCell>
                                             </TableRow>
                                         ))
                                         }

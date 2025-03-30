@@ -1,6 +1,7 @@
 "use client"
 
-import { getDetailScore, postInputGrade, updateInputGrade } from "@/action/grade.action";
+import { getToken, refreshCache } from "@/action/auth.action";
+import { getDetailScore } from "@/action/grade.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -167,17 +168,44 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
             const datainput = data as PayloadType
 
             if (!member.gradeId) {
-                const res = await postInputGrade({...datainput, userId : member.id, scheduleId : scheduleId})
+                // generate gradeId /POST
+                const token = await getToken()
+                const res =  await fetch(`/api/assistant/grade`,{
+                    headers : {
+                        "Content-Type" : "application/json",
+                        "Authorization" : token,
+                    },
+                    method : "POST",
+                    body : JSON.stringify({...datainput, userId : member.id, scheduleId : scheduleId})
+                })
+                const data = await res.json();
+
+                if(!res.ok) throw new Error(data.error);
+
+                refreshCache('/')
                 toast({
                     title : "Grade practican has been input",
-                    description : res.message,
+                    description : data.message,
                     variant : "success" 
                 })
             } else {
-                const res = await updateInputGrade({...datainput} , member.gradeId)
+                const token = await getToken()
+                const res =  await fetch(`/api/assistant/grade/update/${member.gradeId}`,{
+                    headers : {
+                        "Content-Type" : "application/json",
+                        "Authorization" : token,
+                    },
+                    method : "PUT",
+                    body : JSON.stringify(datainput)
+                })
+                const data = await res.json();
+
+                if(!res.ok) throw new Error(data.error);
+                
+                refreshCache('/')
                 toast({
                     title : "Grade practican has been updated",
-                    description : res.message,
+                    description : data.message,
                     variant : "success" 
                 })
             }

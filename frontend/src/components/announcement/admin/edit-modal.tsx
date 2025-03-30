@@ -1,6 +1,6 @@
 'use client'
 
-import { editAnnouncement } from "@/action/announcement.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,21 @@ export default function EditAnnouncementModal ({announcement, open , setOpen}: {
         e.preventDefault();
         try {
             setLoading(true)
-            const res = await editAnnouncement({ id, ...input});
+            const token = await getToken();
+            const res =  await fetch(`/api/announcement`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "PUT",
+                body : JSON.stringify({ id, ...input})
+            })
+            
+            if(!res.ok) throw new Error('Error When Updating Announcement')
+            refreshCache('/')
             toast({
                 title : "Success Create a New Announcement",
-                description : res.message,
+                description : 'Announcement Created',
                 variant : 'success'
             })
             

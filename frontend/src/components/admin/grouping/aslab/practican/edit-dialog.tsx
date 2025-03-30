@@ -1,5 +1,5 @@
 'use client'
-import { editAslabtoGroup } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -27,11 +27,23 @@ export default function EditSessionModal ({schedule, children}: Props){
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await editAslabtoGroup({...input, week : Number(input.week)});
+            const token = await getToken();
+            const res = await fetch(`/api/admin/assistant/group/update`, {
+                method : "PUT",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({...input, week : Number(input.week)})
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Updated Success",
                 variant : "success",
-                description : res.message
+                description : data.message
             })
         } catch (error:any) {
             toast({

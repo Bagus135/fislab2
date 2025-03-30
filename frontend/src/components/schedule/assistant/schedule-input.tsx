@@ -1,4 +1,4 @@
-import { editScheduleAslab } from "@/action/schedule.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -25,15 +25,28 @@ export default function InputScheduleAslab ({ children, schedule}:Props){
         e.preventDefault();
         try {
             setLoading(true)
-           const res = await editScheduleAslab({
-                ...input,
-                group : schedule.group,
-                week : schedule.schedule.week,
-                practicumCode : schedule.practicum.code,
+            const token = await getToken();
+            const res =  await fetch(`/api/assistant/set-schedule`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "PUT",
+                body : JSON.stringify({
+                    ...input,
+                    group : schedule.group,
+                    week : schedule.schedule.week,
+                    practicumCode : schedule.practicum.code,
+                })
             })
+            
+            const data = await res.json()
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Schedule Updated",
-                description : res.message,
+                description : data.message,
                 variant : "success"
             })
         } catch (error:any) {

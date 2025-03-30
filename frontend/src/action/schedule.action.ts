@@ -1,5 +1,4 @@
 'use server';
-import { revalidatePath } from "next/cache";
 import { getDecodeToken, getToken } from "./auth.action";
 
 
@@ -72,29 +71,6 @@ type editScheduleAslabType = {
     week: number
   }
 
-export const editScheduleAslab = async (payload : editScheduleAslabType) =>{
-    try {
-            const token = await getToken();
-            const res =  await fetch(`${process.env.URL_BE}/assistant/set-schedule`,{
-                headers : {
-                    "Content-Type" : "application/json",
-                    "Authorization" : token,
-                },
-                method : "PUT",
-                body : JSON.stringify(payload)
-            })
-            
-            const data = await res.json()
-            
-            if(!res.ok) throw new Error(data.error)
-            
-            revalidatePath("/")
-            return data
-    
-        } catch (error:any) {
-            throw new Error(error.message)
-        }
-}
 
 type getCheckScheduleReturn =
     | { success: true; data: CheckScheduleType[] } // Successful response

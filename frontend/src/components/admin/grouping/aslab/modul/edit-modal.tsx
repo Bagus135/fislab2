@@ -1,4 +1,4 @@
-import { editAslabtoModul } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -15,9 +15,7 @@ type PropsType = {
 }
 
 export default function EditModulAslab({children, assistant, moduls}: PropsType){
-    
     const [newPracticumCode, setNewPracticumCode] = useState("");
-
     const [loading, setLoading] = useState(false);
     const {toast} = useToast()
     
@@ -26,11 +24,23 @@ export default function EditModulAslab({children, assistant, moduls}: PropsType)
         try {
             if(!assistant.code) throw new Error("Assistant has been not assign modul")
             setLoading(true);
-           await editAslabtoModul({
-                                newPracticumCode , 
-                                assistantId : assistant.id,
-                                oldPracticumCode : assistant.code
-                            });
+            const token = await getToken();
+            const res = await fetch(`/api/admin/assistant/practicum/update`, {
+                method : "PUT",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({
+                    newPracticumCode , 
+                    assistantId : assistant.id,
+                    oldPracticumCode : assistant.code
+                })
+            })
+            const data = await res.json();
+    
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/');
             toast({
                 title : "Success change assistant modul",
                 variant : "success",

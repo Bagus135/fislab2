@@ -1,4 +1,4 @@
-import { connectAslabtoModul } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -25,11 +25,23 @@ export default function ConnectModulAslabModal({children, assistant, moduls}: Pr
         e.preventDefault()
         try {
             setLoading(true)
-            const res = await connectAslabtoModul(input)
+            const token = await getToken();
+            const res = await fetch(`/api/admin/assistant/practicum`, {
+                method : "POST",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify(input)
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Success Connect Aslab to Modul",
                 variant : "success",
-                description : res.message
+                description : data.message
             })
         } catch (error:any) {
             toast({

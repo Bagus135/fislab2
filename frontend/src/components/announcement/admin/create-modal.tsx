@@ -1,6 +1,6 @@
 'use client'
 
-import { createAnnouncement } from "@/action/announcement.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,7 +15,7 @@ export default function CreateAnnouncementModal ({children}: {children : ReactNo
     const {toast} = useToast();
     const [input, setInput] = useState({
         title : "",
-        content : ""
+        content : "",
     });
     const [loading, setLoading] = useState(false);
 
@@ -23,10 +23,22 @@ export default function CreateAnnouncementModal ({children}: {children : ReactNo
         e.preventDefault();
         try {
             setLoading(true)
-            const res = await createAnnouncement(input);
+            const token = await getToken();
+            const res =  await fetch(`/api/announcement`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify(input)
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Success Create a New Announcement",
-                description : res.message,
+                description : data.message,
                 variant : 'success'
             })
             

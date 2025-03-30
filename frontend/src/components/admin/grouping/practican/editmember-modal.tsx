@@ -1,5 +1,5 @@
 'use client'
-import { editGroupPractican } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,16 +49,29 @@ export default function EditMemberPracticanModal ({group, children,practicans}: 
         e.preventDefault();
         try {
             setLoading(true);
-            if(!group) throw new Error('Group is not defined') 
-            const res = await editGroupPractican({ 
+            if(!group) throw new Error('Group is not defined')
+            const token = await getToken();
+            
+            const res = await fetch(`/api/admin/groups`, {
+                method : "PUT",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({ 
                     group : group.kelompok,
                     member_ids : input.member_ids, 
                     id :group.id 
-                });
+                })
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error);
+            refreshCache('/');
             toast({
                 title : "Updated Success",
                 variant : "success",
-                description : res.message
+                description : data.message
             })
         } catch (error:any) {
             toast({
@@ -118,7 +131,6 @@ export default function EditMemberPracticanModal ({group, children,practicans}: 
                                             <TableHead></TableHead>
                                             <TableHead className="text-center">NRP</TableHead>
                                             <TableHead className="text-center">Name</TableHead>
-                                            <TableHead className="text-center">Group</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>{
@@ -133,7 +145,6 @@ export default function EditMemberPracticanModal ({group, children,practicans}: 
                                                 </TableCell>
                                                 <TableCell className="font-medium">{practican.nrp}</TableCell>
                                                 <TableCell>{practican.name}</TableCell>
-                                                <TableCell>7</TableCell>
                                             </TableRow>
                                         ))
                                         }

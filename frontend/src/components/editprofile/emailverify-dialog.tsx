@@ -5,8 +5,8 @@ import { CardContent, CardFooter } from "../ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { FormEvent, ReactNode, useState } from "react";
-import { verifyEmailCode } from "@/action/profile.action";
 import { useToast } from "@/hooks/use-toast";
+import { getToken, refreshCache } from "@/action/auth.action";
 
 type PropsType = {
     email:string,
@@ -23,10 +23,23 @@ export default function EmailVerifyDialog ({email, children}: PropsType) {
         e.stopPropagation();
         try {
             setLoading(true)
-            const res = await verifyEmailCode({email , code : input});
-             toast({
+            const token = await getToken()
+            const res =  await fetch(`/api/verify-email`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify({email , code : input})
+            })
+            
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
+            toast({
                 title : `The Email is successfully verified`,
-                description : res.message,
+                description : data.message,
                 variant : "success"
              })
              setOpen(false)

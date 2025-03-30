@@ -1,10 +1,10 @@
-import { connectAslabtoGroup} from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X } from "lucide-react";
+import { Loader2Icon, Plus, X } from "lucide-react";
 import { FormEvent, ReactNode, useState } from "react";
 
 type Props = {
@@ -20,17 +20,30 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
         assistantId : "",
         practicumCode : "",
     });
-
+    const [loading, setLoading] = useState(false);
     const {toast} = useToast();
 
     const handleSubmit = async (e : FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         try {
-            const res = await connectAslabtoGroup({...input, week : Number(input.week)});
+            setLoading(true);
+            const token = await getToken();
+            const res = await fetch(`/api/admin/assistant/group`, {
+                method : "POST",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({...input, week : Number(input.week)})
+            })
+            
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Success to connect aslab to group",
                 variant : "success",
-                description: res.message
+                description: data.message
             })
         } catch (error:any) {
             toast({
@@ -38,6 +51,8 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                 variant : "destructive",
                 description : error.message
             })
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -124,8 +139,15 @@ export default function CreateSesionPracticum({children ,assistants, groups}: Pr
                                 </Button>
                             </DialogClose>
                             <Button type="submit" className="flex flex-row gap-2" disabled={Object.values(input).includes("")}>
-                                <Plus className="size-4"/>
-                                Create
+                                {
+                                    loading ? 
+                                    <Loader2Icon className="size-4 animate-spin"/>
+                                    :
+                                    <>
+                                        <Plus className="size-4"/>
+                                        Create
+                                    </>
+                                }
                             </Button>
                         </DialogFooter>
                     </div>

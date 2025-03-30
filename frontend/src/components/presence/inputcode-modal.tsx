@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp"
 import { REGEXP_ONLY_DIGITS } from "input-otp"
 import { Button } from "../ui/button"
-import { submitAttendance } from "@/action/presense.action"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2Icon } from "lucide-react"
+import { getToken, refreshCache } from "@/action/auth.action"
 
 export default function InputCodeModal ({children , schedule}:{children : ReactNode, schedule : getPracticanSchedules}) {
     const [input, setInput] = useState("")
@@ -20,13 +20,24 @@ export default function InputCodeModal ({children , schedule}:{children : ReactN
         e.preventDefault()
         try {
             setLoading(true)
-            const res = await submitAttendance(input,schedule.id )
-            setOpen(false)
+            const token = await getToken();
+            const res =  await fetch(`/api/attendance/${schedule.id}`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify({input})
+            })
+            const data = await res.json()
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Code Submitted",
                 variant : "success",
-                description : res.message
+                description : data.message
             })
+            setOpen(false)
         } catch (error:any) {
             toast({
                 title : "Failed to submit code",

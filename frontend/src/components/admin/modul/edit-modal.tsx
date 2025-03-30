@@ -1,6 +1,6 @@
 'use client'
 
-import { editModul } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -38,10 +38,23 @@ export default function EditModulModal ({modul,  open , setOpen}: EditModulProps
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await editModul(input)
+            const token = await getToken();
+            const res = await fetch(`/api/admin/practicum`, {
+                method : "PUT",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify(input)
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            
+            refreshCache('/');
             toast({
                 title : "Edit Modul Success",
-                description: res.message,
+                description: data.message,
                 variant : "success"
             })
         } catch (error:any) {

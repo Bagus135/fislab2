@@ -1,4 +1,4 @@
-import { removeAslabtoModul } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -18,12 +18,25 @@ export default function DeleteModal ({ children, assistant}:PropsType){
 
     const handleDelete = async() => {
         try {
+            if(!id || !assistant) throw new Error('Error in client side')
             setLoading(false);
-            const res = await removeAslabtoModul({assistantId : id, practicumCode:code! })
+            const token = await getToken();
+            const res = await fetch(`/api/admin/assistant/practicum/remove`, {
+                method : "DELETE",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({assistantId : id, practicumCode:code })
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 variant :"success",
                 title : "Success to remove",
-                description : res.message
+                description : data.message
             })
             setOpen(false)       
         } catch (error:any) {

@@ -15,9 +15,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { uploadProfilePicture } from '@/action/profile.action';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2Icon, Save, Trash,  } from 'lucide-react';
+import { getToken, refreshCache } from '@/action/auth.action';
 
 interface ProfileImageDialogProps {
   inputRef: RefObject<HTMLInputElement | null>
@@ -88,12 +88,17 @@ export default function ProfileImageDialog({
             })
             const formData = new FormData();
             formData.append('profilePicture', blob, 'profile-picture.png');
-            const res = await uploadProfilePicture(formData);
-            toast({
-              title : "Image Uploaded sucessfully",
-              variant : 'success',
-              description : res.message
-            })
+            const token = await getToken()
+            const res = await fetch(`/api/profile/picture`, {
+                    method: 'POST',
+                    headers: {
+                    'Authorization': token, 
+                    },
+                    body: formData,
+                });
+            const data = await res.json()
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             setOpen(false);
             setOriginalImage(null);
             setCompletedCrop(null)
@@ -101,7 +106,7 @@ export default function ProfileImageDialog({
             toast({
               title : "Error to uploading image",
               variant : 'destructive',
-              description : 'Something went wrong :('
+              description : error.message
             })
           } finally {
             setLoading({

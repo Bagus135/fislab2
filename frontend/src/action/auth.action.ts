@@ -207,6 +207,6 @@ export const checkToken = async () => {
     }
 };
 
-export const  refreshCache = async () =>{
-    revalidatePath("/")
+export const  refreshCache = async (path : string) =>{
+    revalidatePath(path)
 }

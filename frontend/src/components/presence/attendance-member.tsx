@@ -1,13 +1,12 @@
 'use client'
-import { getToken } from "@/action/auth.action"
+import { getToken, refreshCache } from "@/action/auth.action"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CheckIcon, Loader2Icon, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "../ui/button"
-import { changeAttendance, markfinished } from "@/action/presense.action"
 import { useToast } from "@/hooks/use-toast"
-import { getBackgroundColor, getTextColorScheduleStatus } from "@/utilts/getBgStatus"
+import { getTextColorScheduleStatus } from "@/utilts/getBgStatus"
 
 type Props = {
     open : boolean
@@ -65,8 +64,22 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
 
     const handleChangeAttencance = async (payload : ChangeAttendanceType) => {
         try {
-            if(!attendance) return
-            const res = await changeAttendance(payload)
+            if(!attendance) throw new Error("Error in client side")
+            const token = await getToken();
+            const res =  await fetch(`/api/assistant/attendance/update`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "PUT",
+                body : JSON.stringify(payload)
+            })
+            
+            
+            const data = await res.json()
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             setAttendance((prevAttendance) =>
                 prevAttendance.map((member) =>
                     member.userId === payload.userId ? { ...member, status: payload.status } : member
@@ -75,7 +88,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
         } catch (error : any) {
             toast({
                 title : "Cannot Change Attendance",
-                description : "Someting went wrong",
+                description : error.message,
                 variant : "destructive"
             })
         }
@@ -84,18 +97,29 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
     const handleMarkFinished = async () =>{
         try {
             setLoading({...loading, markFinish:true})
-            if(!schedule) return
-            const res = await markfinished(schedule.id)
+            if(!schedule) throw new Error("Error in Client Side")
+            const token = await getToken();
+            const res =  await fetch(`/api/assistant/schedule/mark-finished`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify({scheduleId : schedule.id})
+            })
+            const data = await res.json()
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : "Practicum Finished",
-                description : res.message,
+                description : data.message,
                 variant : "success"
             })
             setOpen(false)
         } catch (error:any) {
             toast({
                 title : "Failed to finished practicum",
-                description : "Someting went wrong",
+                description : error.message,
                 variant : "destructive"
             })
         } finally {

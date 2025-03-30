@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import ProfileImageDialog from "./cropimg-dialog";
 import { Button } from "../ui/button";
 import { Loader2Icon, PencilIcon, Trash2 } from "lucide-react";
-import { deleteProfilePicture } from "@/action/profile.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 
 export default function DetailPicModal({children, profile} : {children : React.ReactNode, profile:GetSelfProfileType}){
     const ref = useRef<HTMLInputElement | null>(null);
@@ -21,10 +21,19 @@ export default function DetailPicModal({children, profile} : {children : React.R
 
     const handleDeletePic = async()=>{
         try {
-          setLoading({
-            ...loading, delete : true
-          })
-          await deleteProfilePicture()
+            setLoading({
+                ...loading, delete : true
+            })
+            const token = await getToken()
+            const res = await fetch(`/api/profile/picture/delete`, {
+                    method: 'DELETE',
+                    headers: {
+                    'Authorization': token, 
+                    },
+                });
+            const data = await res.json()
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
         } catch (error:any) {
           return null
         } finally {

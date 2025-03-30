@@ -1,4 +1,4 @@
-import { deleteModul } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -15,11 +15,24 @@ export default function DeleteModulModal ({modul, open, setOpen }: DeleteModulPr
 
     const handleDelete = async() =>{
         try {
-            if(!modul) throw new Error("Modul nod defined")
-            const res = await deleteModul(modul.code);
+            if(!modul) throw new Error("Modul not defined")
+            const token = await getToken();
+            const res = await fetch(`/api/admin/practicum`, {
+                method : "DELETE",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({code : modul.code})
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+
+            refreshCache('/')
             toast({
                 title : "Success Delete the Modul",
-                description : res.message,
+                description : data.message,
                 variant : 'success'
             })
             

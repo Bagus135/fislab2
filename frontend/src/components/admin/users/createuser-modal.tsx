@@ -1,4 +1,3 @@
-'use client'
 import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -34,10 +33,9 @@ export default function CreateUserModal({children}: {children : ReactNode}){
                    body : JSON.stringify(input)
                })
                const data = await res.json();
-               console.log(data);
                
                if(!res.ok) throw new Error(data.error)
-               refreshCache()
+               refreshCache('/')
                toast({
                 title : "Success Creating User",
                 variant : "success",

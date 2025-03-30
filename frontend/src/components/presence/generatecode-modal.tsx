@@ -4,8 +4,8 @@ import { Fragment, ReactNode, useState } from "react";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerOverlay, DrawerTitle, DrawerTrigger } from "../ui/drawer";
 import { Button } from "../ui/button";
 import { Clipboard, ClipboardCheck, Loader2Icon, QrCode } from "lucide-react";
-import { generateCode } from "@/action/presense.action";
 import { useToast } from "@/hooks/use-toast";
+import { getToken } from "@/action/auth.action";
 
 export default function GenerateCodeModal ({children, schedule}:{children : ReactNode, schedule : getAssistantSchedules}){
     const [code, setCode] = useState("------")
@@ -24,13 +24,19 @@ export default function GenerateCodeModal ({children, schedule}:{children : Reac
     const handleGenerate = async () =>{
         try {
             setLoading(true)
-            const res =await generateCode(schedule.id);
-            setCode(res.code)
-            toast({
-                title : "Presence Code Generated",
-                description : res.message,
-                variant : "success"
+            const token = await getToken();
+            const res =  await fetch(`/api/assistant/attendance/generate`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify({scheduleId : schedule.id})
             })
+            const data = await res.json()
+            if(!res.ok) throw new Error(data.error)
+            setCode(data.code)
+        
         } catch (error:any) {
             toast({
                 title : "Error in generating schedule",

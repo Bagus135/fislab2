@@ -1,4 +1,4 @@
-import { deleteAslabtoGroup } from "@/action/admin.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -19,17 +19,29 @@ export default function DeleteModal ({schedule,open, setOpen}: Props){
         try {
             setLoading(true)
             if(!schedule) throw new Error(" variable is not defined")
-            const res = await deleteAslabtoGroup({
+            const token = await getToken();
+            const res = await fetch(`/api/admin/assistant/group/remove`, {
+                method : "DELETE",
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                body : JSON.stringify({
                     assistantId : schedule.assistant.id,
                     groupId : schedule.group.id
-                });
-            setOpen(false);
+                })
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+
+            refreshCache('/')
             toast({
                 title : "Success Delete the Practican Group",
-                description : res.message,
+                description : data.message,
                 variant : 'success'
             })
-            
+            setOpen(false);
         } catch (error : any) {
             toast({
                 title : "Failed to Delete the Practican Group",

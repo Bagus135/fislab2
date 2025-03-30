@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle, ContactRound, Loader2Icon, Lock, User } from "lucide-react";
+import { CheckCircle, Loader2Icon, Lock, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
@@ -8,9 +8,8 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UpdateSelfProfile, verifyEmail } from "@/action/profile.action";
 import { FormEvent, useRef, useState } from "react";
-import { updatePass } from "@/action/auth.action";
+import { getToken, refreshCache, updatePass } from "@/action/auth.action";
 import EmailVerifyDialog from "./emailverify-dialog";
 import { formatPhoneNumber } from "@/utilts/formatphone";
 
@@ -39,11 +38,25 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
     const handleUpdateProfile = async(e : FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         try {
-            setLoading({...loading, profile : true}) 
-            const res = await UpdateSelfProfile({...profileInput, phone : formatPhoneNumber(profileInput.phone) })
+            setLoading({...loading, profile : true})
+            const token = await getToken()
+            const res =  await fetch(`/api/profile`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "PUT",
+                body : JSON.stringify({...profileInput, phone : formatPhoneNumber(profileInput.phone) })
+            })
+            
+            if(!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error);
+            } 
+            refreshCache('/')
             toast({
                 title : "Success Update Profile",
-                description : res.message,
+                description : 'Profile updated',
                 variant : "success"
             })
         } catch (error:any) {
@@ -82,10 +95,23 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
     const handleVerifyEmail = async () =>{
         try {
             setLoading({...loading, verifyemail : true})
-            const res = await verifyEmail(profileInput.email)
+            const token = await getToken()
+            const res =  await fetch(`/api/send-verification-code`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify({email : profileInput.email})
+            })
+            
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error)
+            refreshCache('/')
             toast({
                 title : ` Verify code is send to ${profileInput.email} `,
-                description : res.message,
+                description : data.message,
                 variant : "success"
             })
             if(btnRef.current){
