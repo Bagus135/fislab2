@@ -1,8 +1,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DialogDescription } from "@radix-ui/react-dialog";
 import { ReactNode } from "react";
+import { getAverageScore } from "./monitoring-practican";
 
-export default function PracticanMonitoringModal({children}:{children : ReactNode}){
+type Props = {
+    children : ReactNode,
+    data : AllPracticanGrade[number]
+}
+export default function PracticanMonitoringModal({children, data}: Props){
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -10,18 +15,18 @@ export default function PracticanMonitoringModal({children}:{children : ReactNod
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Alief Hisyam Al Hasany Nur Rahmat</DialogTitle>
-                    <DialogDescription>5001221060</DialogDescription>
+                    <DialogTitle>{data.nama}</DialogTitle>
+                    <DialogDescription>{data.nrp}</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col gap-1">
                         <div  className="flex flex-row justify-between">
                             <p className="font-bold">Average</p>
-                            <p className="font-bold">80</p>
+                            <p className="font-bold">{getAverageScore(data.nilai)}</p>
                         </div>
-                    {[...Array(10)].map((_,idx)=>(
+                    {Object.entries(data.nilai).map(([key, val],idx)=>(
                         <div key={idx} className="flex flex-row justify-between">
-                            <p>Practicum {idx}</p>
-                            <p>8{idx}</p>
+                            <p>{key}</p>
+                            <p>{val}</p>
                         </div>
                     ))
                     }

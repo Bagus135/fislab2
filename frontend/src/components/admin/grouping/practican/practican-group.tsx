@@ -57,7 +57,8 @@ export default function PracticanGroup ({practicans , groups } : {practicans : G
                     </TableHeader>
                     <TableBody>{
                         groups.success && practicans.success && groups.data &&
-                        groups.data.map((group,idx) =>(
+                        groups.data.filter(a => a.kelompok.toString().includes(search))
+                       .map((group,idx) =>(
                             <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{group.kelompok}</TableCell>
                                 <TableCell>{group.members.length}</TableCell>

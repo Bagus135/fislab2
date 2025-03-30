@@ -212,3 +212,50 @@ export const getAllScheduleAdmin = async () : Promise<getAllScheduleReturn> =>{
         }
     }
 
+export const getAssistantStatus = async () : Promise<AssistantStatus[]> =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/assistant/status`, {
+            method : "GET",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+        })
+        const data = await res.json();
+        if(!res.ok) throw data.error
+        return data
+            
+        } catch (error:any) {
+            console.log(error);
+            
+            return []
+        }
+    }
+
+type AllPracticanGradeType = {
+    data : AllPracticanGrade
+}
+
+export const getAllPracticanGrade = async () : Promise<AllPracticanGradeType> =>{
+    try {
+        const token = await getToken();
+        const res = await fetch(`${process.env.URL_BE}/admin/grade/all`, {
+            method : "GET",
+            headers : {
+                "Content-Type" : "application/json",
+                "Authorization" : token,
+            },
+        })
+        const data = await res.json();
+        if(!res.ok) throw data.error
+        return data
+
+        } catch (error:any) {
+            console.log(error);
+            return {
+                data : []
+            }
+        }
+    }
+

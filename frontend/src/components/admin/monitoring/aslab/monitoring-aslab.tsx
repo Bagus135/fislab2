@@ -9,7 +9,7 @@ import { useState } from "react";
 import { FilterMonitoringAslab } from "./dropdownmenu-filter";
 import AslabMonitoringModal from "./detail-dialog";
 
-export default function AslabMonitoring (){
+export default function AslabMonitoring({data}:{data:AssistantStatus[]}){
     const [search , setSearch] = useState("")
     return (
         <Card>
@@ -18,13 +18,20 @@ export default function AslabMonitoring (){
                 <CardDescription>See asistant laboratorium who havent submit the practican score</CardDescription>
             </CardHeader>
             <CardContent>
+                {
+                    data.length === 0 ?
+                    <div className="text-center">
+                        ~ No data to show
+                    </div>
+                :
+                <>
                 <div className="flex flex-row gap-4 justify-between mb-4">
                     <div className="relative ">
                         <span className="absolute p-1 pl-3 inset-y-0 left-0 flex items-center">
                             <Search className="size-4"/>
                         </span>
                         <Input
-                            placeholder="Search Code or Name..." 
+                            placeholder="Search Assistant Name..." 
                             className="pl-12"
                             value={search}
                             onChange={(e)=>setSearch(e.target.value)}
@@ -47,19 +54,23 @@ export default function AslabMonitoring (){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        [...Array(20)].map((_,i) =>(
+                        data.filter((a)=> a.name.toLowerCase().includes(search.toLowerCase()))
+                        .sort((a,b) =>  a.code > b.code ? 1 : -1)
+                        .map((a,i) =>(
                         <AslabMonitoringModal key={i}>
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
-                                <TableCell className="font-medium">{i}</TableCell>
-                                <TableCell>MP-{i}</TableCell>
-                                <TableCell>Alief Hisyam Al Hasany Nur Rahmat</TableCell>
-                                <TableCell>1/10</TableCell>
+                                <TableCell className="font-medium">{i+1}</TableCell>
+                                <TableCell>{a.code}</TableCell>
+                                <TableCell>{a.name}</TableCell>
+                                <TableCell>{a.progress}</TableCell>
                             </TableRow>
                         </AslabMonitoringModal>
                         ))
-                        }
+                    }
                     </TableBody>
                 </Table>
+                </>
+                }
             </CardContent>
         </Card>
     )

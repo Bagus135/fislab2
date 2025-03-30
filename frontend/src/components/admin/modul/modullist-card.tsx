@@ -36,7 +36,7 @@ export default function ModulList({moduls} :{ moduls : ModulListProps}){
                             <Search className="size-4"/>
                         </span>
                         <Input
-                            placeholder="Search group number..." 
+                            placeholder="Search Code or Title Modul..." 
                             className="pl-12"
                             value={search}
                             onChange={(e)=>setSearch(e.target.value)}
@@ -58,7 +58,9 @@ export default function ModulList({moduls} :{ moduls : ModulListProps}){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                         moduls.success && moduls.data && moduls.data.map((modul,idx) =>(
+                         moduls.success && moduls.data && 
+                         moduls.data.filter(a => a.code.toLowerCase().includes(search.toLowerCase()) || a.title.toLowerCase().includes(search.toLowerCase()))
+                         .map((modul,idx) =>(
                         <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                             <TableCell className="font-medium">{idx + 1}</TableCell>
                             <TableCell>{modul.code}</TableCell>

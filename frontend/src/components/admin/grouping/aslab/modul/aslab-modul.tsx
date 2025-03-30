@@ -29,7 +29,7 @@ export default function AslabModulGroup ({assistants, moduls}: PropsType){
                             <Search className="size-4"/>
                         </span>
                         <Input
-                            placeholder="Search group number..." 
+                            placeholder="Search Name or NRP Assistant..." 
                             className="pl-12"
                             value={search}
                             onChange={(e)=>setSearch(e.target.value)}
@@ -48,7 +48,9 @@ export default function AslabModulGroup ({assistants, moduls}: PropsType){
                     </TableHeader>
                     <TableBody>{
                         assistants.data && moduls.success &&
-                        assistants.data.map((assistant,i) =>(
+                        assistants.data.filter((a) => a.nrp.includes(search)|| a.name.toLowerCase().includes(search.toLowerCase()))
+                        .sort((a, b) =>  a.code! > b.code! ? 1 : -1)
+                        .map((assistant,i) =>(
                             <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell className="font-medium">{i+1}</TableCell>
                                 <TableCell>{assistant.code||"-"}</TableCell>

@@ -256,3 +256,19 @@ enum AttendanceStatus {
 		"TIDAK_HADIR": number
 	}
   }
+
+type AssistantStatus = {
+    "code": string,
+    "name": string,
+    "progress": string,
+    "title": string,
+}
+
+type AllPracticanGrade = {
+    "id": string,
+    "nama": string,
+    "nrp": string,
+    "nilai": {
+        [k : string] : number
+    }
+}[]

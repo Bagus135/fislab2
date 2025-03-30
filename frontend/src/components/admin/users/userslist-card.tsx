@@ -42,7 +42,7 @@ export default function UserListCard({ users }: { users: UsersPropsType }) {
                             <Search className="size-4" />
                         </span>
                         <Input
-                            placeholder="Search name..."
+                            placeholder="Search name or NRP user..."
                             className="pl-12"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -65,7 +65,7 @@ export default function UserListCard({ users }: { users: UsersPropsType }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.data.filter(user => user.name.toLowerCase().includes(search.toLowerCase()))
+                        {users.data.filter(user => user.name.toLowerCase().includes(search.toLowerCase())|| user.nrp.includes(search)) 
                             .map((user, idx) => (
                                 <TableRow key={user.id} 
                                             className="odd:bg-white even:bg-gray-200 cursor-pointer dark:odd:bg-gray-900/50 dark:even:bg-gray-950"

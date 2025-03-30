@@ -10,7 +10,12 @@ export default function AslabMonitoringModal({children}:{children : ReactNode}){
                 {children}
             </DialogTrigger>
             <DialogContent>
-                <DialogHeader>
+            <DialogHeader className="hidden">
+                    <DialogTitle>Alief Hisyam Al Hasany Nur Rahmat</DialogTitle>
+                    <DialogDescription>5001221060</DialogDescription>
+                </DialogHeader>
+                On progress
+                {/* <DialogHeader>
                     <DialogTitle>Alief Hisyam Al Hasany Nur Rahmat</DialogTitle>
                     <DialogDescription>5001221060</DialogDescription>
                 </DialogHeader>
@@ -26,7 +31,7 @@ export default function AslabMonitoringModal({children}:{children : ReactNode}){
                         </div>
                     ))
                     }
-                </div>
+                </div> */}
             </DialogContent>
         </Dialog>
     )
