@@ -79,9 +79,13 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if currentTime.Format("2006-01-02") != scheduleDate.Format("2006-01-02") {
+	// Modified time check to allow code generation from the scheduled date onwards
+	currentDate := currentTime.Format("2006-01-02")
+	scheduleDateStr := scheduleDate.Format("2006-01-02")
+
+	if currentDate < scheduleDateStr {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated on the same date as the practicum"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code can only be generated on or after the schedule date"})
 		return
 	}
 
@@ -107,6 +111,31 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 	code := helper.GenerateRandomCode()
 	expired := time.Now().Add(30 * time.Minute)
 
+	// Get all existing attendance codes for this schedule
+	attendanceCodes, err := h.client.AttendanceCode.FindMany(
+		db.AttendanceCode.ScheduleID.Equals(req.ScheduleID),
+	).Exec(r.Context())
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to check existing attendance codes"})
+		return
+	}
+
+	// Get all existing attendance statuses for this schedule
+	existingAttendances := make(map[string]string) // map[userID]status
+	for _, existingAttCode := range attendanceCodes {
+		attendances, err := h.client.Attendance.FindMany(
+			db.Attendance.CodeID.Equals(existingAttCode.ID),
+		).Exec(r.Context())
+		if err == nil {
+			for _, att := range attendances {
+				// If a user has multiple attendance records, use the latest status
+				// We're assuming the last attendance record in the loop is the latest one
+				existingAttendances[att.UserID] = string(att.Status)
+			}
+		}
+	}
+
 	// Simpan kode baru ke database
 	attendanceCode, err := h.client.AttendanceCode.CreateOne(
 		db.AttendanceCode.Code.Set(code),
@@ -128,10 +157,16 @@ func (h *AttendanceHandler) GenerateCode(w http.ResponseWriter, r *http.Request)
 
 	// Buat default attendance untuk setiap anggota kelompok
 	for _, member := range schedule.Group().Members() {
+		// Use existing status if available, otherwise default to "TIDAK_HADIR"
+		status := db.AttendanceStatusTidakHadir
+		if existingStatus, ok := existingAttendances[member.ID]; ok {
+			status = db.AttendanceStatus(existingStatus)
+		}
+
 		_, err = h.client.Attendance.CreateOne(
 			db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCode.ID)),
 			db.Attendance.User.Link(db.User.ID.Equals(member.ID)),
-			db.Attendance.Status.Set("TIDAK_HADIR"),
+			db.Attendance.Status.Set(status),
 		).Exec(r.Context())
 		if err != nil {
 			log.Printf("Failed to create default attendance for user %s: %v\n", member.ID, err)
@@ -294,14 +329,14 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Validasi input
+	// Validate input
 	if req.ScheduleID == 0 || req.UserID == "" || req.Status == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "scheduleId, userId, and status are required"})
 		return
 	}
 
-	// Validasi status absensi
+	// Validate attendance status
 	validStatus := map[db.AttendanceStatus]bool{
 		db.AttendanceStatusHadir:      true,
 		db.AttendanceStatusIzin:       true,
@@ -314,12 +349,14 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Cek apakah jadwal terkait dengan asisten ini
+	// Check if schedule belongs to this assistant
 	schedule, err := h.client.Schedule.FindUnique(
 		db.Schedule.ID.Equals(req.ScheduleID),
 	).With(
 		db.Schedule.Assistant.Fetch(),
-		db.Schedule.AttendanceCodes.Fetch(),
+		db.Schedule.Group.Fetch().With(
+			db.Group.Members.Fetch(),
+		),
 	).Exec(r.Context())
 
 	if err != nil || schedule.Assistant().ID != assistantID {
@@ -328,22 +365,27 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Cek apakah praktikan adalah anggota kelompok yang terkait dengan jadwal ini
-	group, err := h.client.Group.FindUnique(
-		db.Group.ID.Equals(schedule.GroupID),
-	).With(
-		db.Group.Members.Fetch(),
-	).Exec(r.Context())
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch group"})
+	// Validate date - allow manual attendance on or after schedule date
+	currentTime := time.Now()
+	scheduleDate, hasScheduleDate := schedule.Date()
+	if !hasScheduleDate {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "schedule date is not set"})
 		return
 	}
 
-	// Cek apakah praktikan adalah anggota kelompok
+	currentDate := currentTime.Format("2006-01-02")
+	scheduleDateStr := scheduleDate.Format("2006-01-02")
+
+	if currentDate < scheduleDateStr {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance can only be updated on or after the schedule date"})
+		return
+	}
+
+	// Check if user is a member of the group
 	isMember := false
-	for _, member := range group.Members() {
+	for _, member := range schedule.Group().Members() {
 		if member.ID == req.UserID {
 			isMember = true
 			break
@@ -356,7 +398,7 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Cari semua AttendanceCode untuk schedule ini
+	// Find all attendance codes for this schedule
 	attendanceCodes, err := h.client.AttendanceCode.FindMany(
 		db.AttendanceCode.ScheduleID.Equals(req.ScheduleID),
 	).Exec(r.Context())
@@ -367,13 +409,25 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// If no attendance code exists, create one automatically for manual attendance
 	if len(attendanceCodes) == 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "attendance code not found"})
-		return
+		// Create a manual attendance code
+		attendanceCode, err := h.client.AttendanceCode.CreateOne(
+			db.AttendanceCode.Code.Set("MANUAL-"+helper.GenerateRandomCode()),
+			db.AttendanceCode.ExpiredAt.Set(time.Now().Add(24*time.Hour)), // Expires in 24 hours
+			db.AttendanceCode.Schedule.Link(db.Schedule.ID.Equals(req.ScheduleID)),
+		).Exec(r.Context())
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to create manual attendance code"})
+			return
+		}
+
+		attendanceCodes = []db.AttendanceCodeModel{*attendanceCode}
 	}
 
-	// Cari Attendance yang sudah ada untuk scheduleId dan userId ini
+	// Find existing attendance record for this user and schedule
 	var existingAttendance *db.AttendanceModel
 	for _, code := range attendanceCodes {
 		attendance, err := h.client.Attendance.FindFirst(
@@ -387,8 +441,9 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Jika record sudah ada, update statusnya
+	// Update or create attendance record
 	if existingAttendance != nil {
+		// Update existing record
 		_, err = h.client.Attendance.FindUnique(
 			db.Attendance.ID.Equals(existingAttendance.ID),
 		).Update(
@@ -401,7 +456,7 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 			return
 		}
 	} else {
-		// Jika record belum ada, buat record baru menggunakan AttendanceCode pertama
+		// Create new record using the first attendance code
 		_, err = h.client.Attendance.CreateOne(
 			db.Attendance.Code.Link(db.AttendanceCode.ID.Equals(attendanceCodes[0].ID)),
 			db.Attendance.User.Link(db.User.ID.Equals(req.UserID)),
@@ -415,10 +470,11 @@ func (h *AttendanceHandler) UpdateAttendance(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Kirim response
+	// Send success response
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "attendance updated",
+		"message":   "attendance updated successfully",
+		"updatedAt": time.Now().Format(time.RFC3339),
 	})
 }
 

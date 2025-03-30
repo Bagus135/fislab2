@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"time"
 )
 
 type GradeHandler struct {
@@ -305,6 +304,7 @@ func (h *GradeHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 				"code":    schedule.Practicum().ID,
 				"title":   schedule.Practicum().Title,
 				"assistant": map[string]interface{}{
+					"id":   schedule.Assistant().ID,
 					"name": schedule.Assistant().Name,
 					"nrp":  schedule.Assistant().Nrp,
 				},
@@ -665,14 +665,14 @@ func (h *GradeHandler) UpdateGrade(w http.ResponseWriter, r *http.Request) {
 func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 	userRole := r.Context().Value("role").(string)
 
-	// Hanya SUPER_ADMIN dan ADMIN yang bisa melihat semua nilai
+	// Only SUPER_ADMIN and ADMIN can view all grades
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized access"})
 		return
 	}
 
-	// Ambil semua praktikum
+	// Get all practicums
 	practicums, err := h.client.Practicum.FindMany().Exec(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -680,7 +680,7 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Helper untuk mendapatkan nilai dengan aman
+	// Helper to safely get grade values
 	getGradeValue := func(valueFunc func() (int, bool)) int {
 		if value, ok := valueFunc(); ok {
 			return value
@@ -688,38 +688,42 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 		return 0
 	}
 
-	// Untuk menyimpan respons
-	var response []map[string]interface{}
+	// For storing the final response
+	type StudentData struct {
+		ID    string         `json:"id"`
+		Nama  string         `json:"nama"`
+		NRP   string         `json:"nrp"`
+		Nilai map[string]int `json:"nilai"`
+	}
 
-	// Untuk setiap praktikum
+	type Response struct {
+		Data []StudentData `json:"data"`
+	}
+
+	var finalResponse Response
+	studentMap := make(map[string]*StudentData) // studentID -> student data
+
+	// For each practicum
 	for _, practicum := range practicums {
-		// Ambil semua schedule untuk praktikum ini
+		practicumCode := practicum.ID // This is string (MP1, MP2, etc.)
+
+		// Get all schedules for this practicum
 		schedules, err := h.client.Schedule.FindMany(
 			db.Schedule.PracticumID.Equals(practicum.ID),
 		).Exec(r.Context())
 
 		if err != nil {
-			continue // Skip jika error
+			continue // Skip if error
 		}
 
-		// Collect semua ID schedule
-		scheduleIDs := make([]int, len(schedules))
-		for i, schedule := range schedules {
-			scheduleIDs[i] = schedule.ID
-		}
-
-		// Tentukan week untuk praktikum ini
-		// (ambil dari schedule pertama, asumsikan semua schedule untuk satu praktikum memiliki week yang sama)
-		var weekNumber int
-		if len(schedules) > 0 {
-			if week, ok := schedules[0].Week(); ok {
-				weekNumber = week
-			}
-		}
-
-		// Ambil semua grade untuk schedule-schedule tersebut
+		// Get all grades for these schedules
 		var grades []db.GradeModel
-		if len(scheduleIDs) > 0 {
+		if len(schedules) > 0 {
+			scheduleIDs := make([]int, len(schedules))
+			for i, s := range schedules {
+				scheduleIDs[i] = s.ID // Schedule ID is int
+			}
+
 			grades, err = h.client.Grade.FindMany(
 				db.Grade.ScheduleID.In(scheduleIDs),
 			).With(
@@ -727,84 +731,54 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 			).Exec(r.Context())
 
 			if err != nil {
-				continue // Skip jika error
+				continue // Skip if error
 			}
 		}
 
-		// Kelompokkan nilai berdasarkan praktikan
-		studentGrades := make(map[string][]db.GradeModel)
+		// Process grades for this practicum
 		for _, grade := range grades {
-			studentGrades[grade.UserID] = append(studentGrades[grade.UserID], grade)
-		}
+			studentID := grade.UserID
 
-		// Data mahasiswa yang telah mengikuti praktikum ini
-		var studentsData []map[string]interface{}
-
-		// Untuk setiap praktikan yang memiliki nilai di praktikum ini
-		for studentID, gradesForStudent := range studentGrades {
-			// Ambil data praktikan
-			student := gradesForStudent[0].User()
-
-			// Cari nilai tertinggi jika ada beberapa nilai (misal mengulang)
-			var highestScore int
-			var latestGradeDate time.Time
-			var latestGrade db.GradeModel
-
-			for _, grade := range gradesForStudent {
-				currentScore := getGradeValue(grade.Punctuality) +
-					getGradeValue(grade.PreExam) +
-					getGradeValue(grade.OralTest) +
-					getGradeValue(grade.SkillsAndAttitude) +
-					getGradeValue(grade.Abstract) +
-					getGradeValue(grade.Introduction) +
-					getGradeValue(grade.Methodology) +
-					getGradeValue(grade.Discussion) +
-					getGradeValue(grade.DataProcessing) +
-					getGradeValue(grade.Conclusion) +
-					getGradeValue(grade.Formatting)
-
-				// Update nilai tertinggi
-				if currentScore > highestScore {
-					highestScore = currentScore
-					latestGrade = grade
-					latestGradeDate = grade.CreatedAt
+			// Initialize student data if not exists
+			if _, exists := studentMap[studentID]; !exists {
+				student := grade.User()
+				studentMap[studentID] = &StudentData{
+					ID:    studentID,
+					Nama:  student.Name,
+					NRP:   student.Nrp,
+					Nilai: make(map[string]int),
 				}
 			}
 
-			// Tambahkan data praktikan
-			studentsData = append(studentsData, map[string]interface{}{
-				"id":          studentID,
-				"name":        student.Name,
-				"nrp":         student.Nrp,
-				"score":       highestScore,
-				"completedAt": latestGradeDate.Format("2006-01-02 15:04"),
-				"gradeId":     latestGrade.ID,
-			})
+			// Calculate total score for this practicum
+			totalScore := getGradeValue(grade.Punctuality) +
+				getGradeValue(grade.PreExam) +
+				getGradeValue(grade.OralTest) +
+				getGradeValue(grade.SkillsAndAttitude) +
+				getGradeValue(grade.Abstract) +
+				getGradeValue(grade.Introduction) +
+				getGradeValue(grade.Methodology) +
+				getGradeValue(grade.Discussion) +
+				getGradeValue(grade.DataProcessing) +
+				getGradeValue(grade.Conclusion) +
+				getGradeValue(grade.Formatting)
+
+			// Add score for this practicum
+			studentMap[studentID].Nilai[practicumCode] = totalScore
 		}
-
-		// Urutkan praktikan berdasarkan score (descending)
-		sort.Slice(studentsData, func(i, j int) bool {
-			return studentsData[i]["score"].(int) > studentsData[j]["score"].(int)
-		})
-
-		// Tambahkan data praktikum ke response
-		practicumData := map[string]interface{}{
-			"code":              practicum.ID,
-			"title":             practicum.Title,
-			"week":              weekNumber,
-			"students":          studentsData,
-			"totalParticipants": len(studentsData),
-		}
-
-		response = append(response, practicumData)
 	}
 
-	// Urutkan praktikum berdasarkan week
-	sort.Slice(response, func(i, j int) bool {
-		return response[i]["week"].(int) < response[j]["week"].(int)
+	// Convert map to slice
+	for _, student := range studentMap {
+		finalResponse.Data = append(finalResponse.Data, *student)
+	}
+
+	// Sort students by name
+	sort.Slice(finalResponse.Data, func(i, j int) bool {
+		return finalResponse.Data[i].Nama < finalResponse.Data[j].Nama
 	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(finalResponse)
 }
