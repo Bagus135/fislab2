@@ -1,6 +1,6 @@
 'use client'
 
-import { getTokenResetPass } from "@/action/auth.action"
+import { getToken } from "@/action/auth.action"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,10 +20,20 @@ export default function EmailVerifyForm() {
         e.preventDefault();
         try {
             setLoading(true)
-            const res = await getTokenResetPass(input)
+            const token = await getToken();
+            const res =  await fetch(`/api/forgot-password`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify(input)
+            })
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.error)
             toast({
                 title: "Token send to your email",
-                description: res.message,
+                description: data.token,
                 variant: "success"
             })
 

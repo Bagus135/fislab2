@@ -1,6 +1,5 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mail } from "lucide-react";
 
 export default function LoadingPage(){
     return (
@@ -19,7 +18,7 @@ export default function LoadingPage(){
                         <Skeleton className="w-12 h-4"/>
                             <div className=" relative">
                                 <span className="absolute p-1 pl-3 mt-1 left-0 flex items-center">
-                                    <Mail className="size-4"/>
+                                    <Skeleton className="size-4"/>
                                 </span>
                                 <Skeleton className="pl-12 h-8 w-full"/>
                             </div>

@@ -11,7 +11,7 @@ export default async function ResetPasswordPage({ params }: Props) {
  
   return (
     <div className="w-full flex justify-center items-center  h-[calc(100vh-4.5rem)]">
-      <PasswordResetForm token={token}/>
+      <PasswordResetForm emailToken={token}/>
     </div>
   );
 }

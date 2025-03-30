@@ -1,6 +1,6 @@
 'use client'
 
-import { resetPass } from "@/action/auth.action" // Assuming you still need this for setting cookies
+import { getToken } from "@/action/auth.action"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Loader2Icon, LockIcon } from "lucide-react" // Import LockIcon for pass
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 
-export default function PasswordResetForm({token} : {token :string}) {
+export default function PasswordResetForm({emailToken} : {emailToken :string}) {
     const { toast } = useToast()
     const router = useRouter()
     const [loading, setLoading] = useState(false)
@@ -23,7 +23,17 @@ export default function PasswordResetForm({token} : {token :string}) {
         e.preventDefault();
         try {
             setLoading(true);
-            await resetPass({...input, token})
+            const token = await getToken();
+            const res =  await fetch(`/api/reset-password`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "POST",
+                body : JSON.stringify({...input, token : emailToken})
+            })
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.error)
             toast({
                 title: "Password Reset Successful",
                 description: "Your password has been reset successfully.",

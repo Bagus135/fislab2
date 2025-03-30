@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { FormEvent, useRef, useState } from "react";
-import { getToken, refreshCache, updatePass } from "@/action/auth.action";
+import { getToken, refreshCache } from "@/action/auth.action";
 import EmailVerifyDialog from "./emailverify-dialog";
 import { formatPhoneNumber } from "@/utilts/formatphone";
 
@@ -74,11 +74,23 @@ export default function EditProfileTabs({profile} : {profile : GetSelfProfileTyp
     const handleUpdatePass = async(e : FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         try {
-            setLoading({...loading, pass : true}) 
-            const res = await updatePass(passInput)
+            setLoading({...loading, pass : true})
+            const token = await getToken();
+            const res =  await fetch(`/api/change-password`,{
+                headers : {
+                    "Content-Type" : "application/json",
+                    "Authorization" : token,
+                },
+                method : "PUT",
+                body : JSON.stringify(passInput)
+            })
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error) 
+            refreshCache('/')
             toast({
                 title : "Success Update Password",
-                description : res.message,
+                description : data.message,
                 variant : "success"
             })
         } catch (error:any) {

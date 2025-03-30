@@ -130,7 +130,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
     return (
         schedule &&
         <Dialog onOpenChange={setOpen} open={open}>
-            <DialogContent>
+            <DialogContent className="max-h-[calc(95vh)] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Attendance Check</DialogTitle>
                     <DialogDescription>Group {schedule.group}</DialogDescription>
@@ -146,7 +146,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                         <TableRow >
                             <TableHead className="text-center">NRP</TableHead>
                             <TableHead className="text-center">Name</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
+                            <TableHead className="text-center min-w-24">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -156,7 +156,7 @@ export default function CheckAttendance({ open, setOpen, schedule} : Props){
                                 <TableRow key={idx} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                 <TableCell>{member.nrp}</TableCell>
                                 <TableCell>{member.name}</TableCell>
-                                <TableCell className="space-x-1">
+                                <TableCell className="space-x-1 min-w-24">
                                     <Button 
                                         variant={'outline'} 
                                         size={"sm"} 
