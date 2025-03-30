@@ -136,17 +136,17 @@ model Grade {
   id                Int      @id @default(autoincrement())
   scheduleId        Int
   userId            String
-  punctuality       Float?
-  preExam           Float?
-  oralTest          Float?
-  skillsAndAttitude Float?
-  abstract          Float?
-  introduction      Float?
-  methodology       Float?
-  discussion        Float?
-  dataProcessing    Float?
-  conclusion        Float?
-  formatting        Float?
+  punctuality       Int?     @db.SmallInt
+  preExam           Int?     @db.SmallInt
+  oralTest          Int?     @db.SmallInt
+  skillsAndAttitude Int?     @db.SmallInt
+  abstract          Int?     @db.SmallInt
+  introduction      Int?     @db.SmallInt
+  methodology       Int?     @db.SmallInt
+  discussion        Int?     @db.SmallInt
+  dataProcessing    Int?     @db.SmallInt
+  conclusion        Int?     @db.SmallInt
+  formatting        Int?     @db.SmallInt
   feedback          String?
   gradedBy          String
   createdAt         DateTime @default(now())
