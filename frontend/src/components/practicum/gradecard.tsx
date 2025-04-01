@@ -95,14 +95,7 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
                                     </div>
                                 </div>
                             </CardContent>
-                            <CardFooter className="w-full p-0 flex flex-col">
-                                <input type="checkbox" id={`trigger-${idx}`} className="hidden peer" />
-                                <label
-                                    htmlFor={`trigger-${idx}`}
-                                    className="peer-checked:rotate-180 order-last w-full p-2 flex justify-center border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer focus:outline-none focus:ring-2"
-                                >
-                                    <ChevronDown className="size-4" />
-                                </label>
+                            
                                 <MemberGroup
                                     grade={grade}
                                     handleOpenProfile={handleOpenProfile}
@@ -110,7 +103,6 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
                                     handleOpenDetailGrade={handleOpenDetailGrade}
                                     key={idx}
                                 />
-                            </CardFooter>
                         </Card>
                     ))}
                 </>
@@ -129,10 +121,12 @@ type MemberGroupProps = {
  const MemberGroup = memo(function MemberGroup({ grade, handleInputGrade, handleOpenDetailGrade, handleOpenProfile} : MemberGroupProps) {
     const [pics, setPics ] = useState<PicResType>({})
     const [loadingPic, setLoadingPic] = useState(false);
+    const [count, setCount] = useState(0)
     
     useEffect(()=>{
         const getPic = async () =>{
             try{
+                if(count !== 1) return
                 setLoadingPic(true)
                 const ids = grade.members.map(member => member.id)
                 const picPromises = ids.map(id => getProfilePic(id) )
@@ -149,9 +143,21 @@ type MemberGroupProps = {
             }
               }
               getPic()
-          }, [])
+          }, [count])
 
     return (
+    <CardFooter className="w-full p-0 flex flex-col">
+        <input type="checkbox" id={`trigger-${grade.group}`} className="hidden peer" />
+        <label
+            onClick={()=> {
+                if(count > 0) return
+                setCount(count +1)
+            }}
+            htmlFor={`trigger-${grade.group}`}
+            className="peer-checked:rotate-180 order-last w-full p-2 flex justify-center border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer focus:outline-none focus:ring-2"
+        >
+            <ChevronDown className="size-4" />
+        </label>
         <div className="p-4 pr-1 pt-0 hidden peer-checked:flex w-full flex-col transition ease-out duration-1000 border-t">
             {grade.members.map((member, i) => (
                 <div key={i} className="flex flex-row justify-between gap-2 items-center w-full py-2 border-b">
@@ -191,6 +197,7 @@ type MemberGroupProps = {
                 </div>
             ))}
         </div>
+    </CardFooter>
     )
 })
 

@@ -17,7 +17,7 @@ export default function ErrorPage (){
                             Home
                         </Link>
                     </Button>
-                    <Button variant={'default'} >
+                    <Button variant={'default'} onClick={()=> location.reload()}>
                         Refresh
                     </Button>
                   </div>

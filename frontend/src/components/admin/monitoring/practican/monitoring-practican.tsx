@@ -53,14 +53,15 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
                 }
             });
 
-            data.forEach((item, idx) => {
-                const rowData = {
-                    no: idx +1 ,
-                    nama: item.nama,
-                    nrp: item.nrp,
-                    average : getAverageScore(item.nilai),
-                    ...item.nilai 
-                };
+            data.sort((a,b) => a.nrp > b.nrp ? 1 : -1)
+                .forEach((item, idx) => {
+                    const rowData = {
+                        no: idx +1 ,
+                        nama: item.nama,
+                        nrp: item.nrp,
+                        average : getAverageScore(item.nilai),
+                        ...item.nilai 
+                    };
                 
                 const row = sheetNilai.addRow(rowData);
                 row.getCell('average').font = { bold: true };
