@@ -45,6 +45,12 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
                     pattern: 'solid',
                     fgColor: { argb: 'FF00FF00' }
                 };
+                cell.font = {
+                    bold : true,
+                    color : {
+                        argb : "00000000"
+                    }
+                }
             });
 
             data.forEach((item, idx) => {

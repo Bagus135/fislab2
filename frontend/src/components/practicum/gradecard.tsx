@@ -4,11 +4,13 @@ import { ChevronDown, Pencil } from "lucide-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Separator } from "../ui/separator"
-import { useState } from "react"
+import { memo, useCallback, useEffect, useState } from "react"
 import InputScoreModal from "./aslab/inputscore-modal"
 import DetailGradeModal from "./detailgrade-modal"
-import ProfilePicture from "../profile-picture"
 import ProfileModal from "../profile-modal"
+import { getProfilePic } from "@/action/profile.action"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { Skeleton } from "../ui/skeleton"
 
 type member = {
     gradedAt : string | null;
@@ -33,6 +35,10 @@ type userGrade =
     data : AllGradePractican
 };
 
+type PicResType = {
+    [k : string] : boolean
+}
+
 export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }) {
     const [openInput, setOpenInput] = useState(false);
     const [selectedMember, setSelectedMember] = useState<member | null>(null);
@@ -42,10 +48,22 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
     const [openProfile, setOpenProfile] = useState(false);
     const [selectedId , setSelectedId] = useState<string>('')
 
-    const handleOpenProfile = (id : string) => {
+    const handleOpenProfile = useCallback ( (id : string) => {
         setOpenProfile(true);
         setSelectedId(id)
-    }
+    }, [])
+
+    const handleOpenDetailGrade = useCallback((member : member) => {
+        setSelectedGrade({ ...member, role: "ASISTEN" });
+        setOpenDetail(true);
+    } , [])
+
+    const handleInputGrade = useCallback((member : member,grade : AllGradeAslab) => {
+        setSelectedMember(member);
+        setOpenInput(true);
+        setSelectedScheduleId(grade.scheduleId);
+    },[])
+
     return (
         <>
             {!grades ? (
@@ -85,42 +103,13 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
                                 >
                                     <ChevronDown className="size-4" />
                                 </label>
-                                <div className="p-4 pr-1 pt-0 hidden peer-checked:flex w-full flex-col transition ease-out duration-1000 border-t">
-                                    {grade.members.map((member, i) => (
-                                        <div key={i} className="flex flex-row justify-between gap-2 items-center w-full py-2 border-b">
-                                            <div className="flex flex-rows items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md py-2" onClick={()=> handleOpenProfile(member.id)} >
-                                                <ProfilePicture id={member.id} size="w-10 h-10"/>
-                                                <div className="flex flex-col">
-                                                    <p className="text-sm">{member.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{member.nrp}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center justify-end gap-2">
-                                                <div
-                                                    className="text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                                                    onClick={() => {
-                                                        setSelectedGrade({ ...member, role: "ASISTEN" });
-                                                        setOpenDetail(true);
-                                                    }}
-                                                >
-                                                    {member.totalScore || "-"}
-                                                </div>
-                                                <Button
-                                                    variant={"ghost"}
-                                                    size={"sm"}
-                                                    className="px-1"
-                                                    onClick={() => {
-                                                        setSelectedMember(member);
-                                                        setOpenInput(true);
-                                                        setSelectedScheduleId(grade.scheduleId);
-                                                    }}
-                                                >
-                                                    <Pencil className="hover:bg-accent hover:text-accent-foreground size-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <MemberGroup
+                                    grade={grade}
+                                    handleOpenProfile={handleOpenProfile}
+                                    handleInputGrade={handleInputGrade}
+                                    handleOpenDetailGrade={handleOpenDetailGrade}
+                                    key={idx}
+                                />
                             </CardFooter>
                         </Card>
                     ))}
@@ -129,6 +118,82 @@ export function GradeCardAsistant({ grades }: { grades: AllGradeAslab[] | null }
         </>
     );
 }
+
+type MemberGroupProps = {
+    grade : AllGradeAslab,
+    handleOpenProfile : (id : string) => void,
+    handleOpenDetailGrade: (member: member) => void,
+    handleInputGrade: (member: member, grade: AllGradeAslab) => void
+}
+
+ const MemberGroup = memo(function MemberGroup({ grade, handleInputGrade, handleOpenDetailGrade, handleOpenProfile} : MemberGroupProps) {
+    const [pics, setPics ] = useState<PicResType>({})
+    const [loadingPic, setLoadingPic] = useState(false);
+    
+    useEffect(()=>{
+        const getPic = async () =>{
+            try{
+                setLoadingPic(true)
+                const ids = grade.members.map(member => member.id)
+                const picPromises = ids.map(id => getProfilePic(id) )
+                const responses = await Promise.all(picPromises)
+                const picRes : PicResType = {}
+
+                ids.map((id, idx) =>{
+                picRes[id] = responses[idx]
+                }) 
+
+                setPics(picRes)
+            } finally {
+                setLoadingPic(false);
+            }
+              }
+              getPic()
+          }, [])
+
+    return (
+        <div className="p-4 pr-1 pt-0 hidden peer-checked:flex w-full flex-col transition ease-out duration-1000 border-t">
+            {grade.members.map((member, i) => (
+                <div key={i} className="flex flex-row justify-between gap-2 items-center w-full py-2 border-b">
+                    <div className="flex flex-rows items-center space-x-2 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-md py-2" onClick={()=> handleOpenProfile(member.id)} >
+                        {
+                        loadingPic ?
+                        <Skeleton className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full"/>
+                        :
+                        <Avatar >
+                            <AvatarImage className={`size-10`} src={!pics[member.id] ? `/avatar.png` : `/api/profile/picture/${member.id}?t=${new Date().getTime()}`}/>
+                            <AvatarFallback>
+                                <Skeleton className={`size-10 relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full`}/>
+                            </AvatarFallback>
+                        </Avatar>
+                        }
+                        <div className="flex flex-col">
+                            <p className="text-sm">{member.name}</p>
+                            <p className="text-xs text-muted-foreground">{member.nrp}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                        <div
+                            className="text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                            onClick={()=> handleOpenDetailGrade(member)}
+                        >
+                            {member.totalScore || "-"}
+                        </div>
+                        <Button
+                            variant={"ghost"}
+                            size={"sm"}
+                            className="px-1"
+                            onClick={()=> handleInputGrade(member, grade)}
+                        >
+                            <Pencil className="hover:bg-accent hover:text-accent-foreground size-4" />
+                        </Button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+})
+
 
 export  function GradeCardPractican ({grades} : {grades : AllGradePractican[]|null}) {
     const  [openDetail, setOpenDetail] = useState(false)

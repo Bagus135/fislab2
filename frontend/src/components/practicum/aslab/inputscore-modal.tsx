@@ -222,6 +222,9 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
         }
     };
 
+    const sumScores = Object.keys(input) 
+                            .filter(key => key !== 'feedback')
+                            .reduce((total, key) => total + Number(input[key as  keyof typeof input]) || 0, 0);
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent>
@@ -270,6 +273,7 @@ export default function InputScoreModal({ open, setOpen, member, scheduleId}: Pr
                                     </div>
                                 )
                             ))}
+                            <p className="text-right text-sm">Total : {sumScores}</p>
                             <Button
                                 disabled={loading.submit || !isValid}
                                 className="w-full text-lg font-bold mt-2">
