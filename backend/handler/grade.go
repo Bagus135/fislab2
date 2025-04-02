@@ -788,15 +788,13 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-
-	// Validasi role admin
 	userRole := r.Context().Value("role").(string)
 	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
 		respondWithError(w, http.StatusForbidden, "only admins can access this endpoint")
 		return
 	}
 
-	// Ambil assistantId dari path parameter
+	// Get assistantId from path
 	vars := mux.Vars(r)
 	assistantId := vars["id"]
 
@@ -804,86 +802,83 @@ func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *htt
 	assistant, err := h.client.User.FindUnique(
 		db.User.ID.Equals(assistantId),
 	).Exec(ctx)
-
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			respondWithError(w, http.StatusNotFound, "assistant not found")
-			return
-		}
-		log.Printf("Failed to fetch assistant: %v", err)
-		respondWithError(w, http.StatusInternalServerError, "failed to fetch assistant information")
+		handleAssistantError(w, err)
 		return
 	}
 
+	// Verify assistant role
 	if assistant.Role != "ASISTEN" {
 		respondWithError(w, http.StatusBadRequest, "user is not an assistant")
 		return
 	}
 
-	// Get schedules dengan status FINISHED atau COMPLETED
+	// Get ALL assigned groups
 	schedules, err := h.client.Schedule.FindMany(
 		db.Schedule.AssistantID.Equals(assistantId),
-		db.Schedule.Status.In([]db.Status{db.StatusFinished, db.StatusCompleted}),
 	).With(
 		db.Schedule.Group.Fetch().With(
 			db.Group.Members.Fetch(),
 		),
 		db.Schedule.Grades.Fetch(),
 	).Exec(ctx)
-
 	if err != nil {
 		log.Printf("Failed to fetch schedules: %v", err)
 		respondWithError(w, http.StatusInternalServerError, "failed to fetch schedules")
 		return
 	}
 
-	// Gunakan map dengan key int (group name) dan value bool
+	// Prepare response
 	groupStatus := make(map[int]bool)
 	completedGroups := 0
-	totalGroups := len(schedules)
 
-	// Proses setiap schedule
+	// Process each group
 	for _, schedule := range schedules {
 		group := schedule.Group()
 		grades := schedule.Grades()
-		groupMembers := group.Members()
-		groupName := group.Name
+		members := group.Members()
 
-		// Hitung apakah semua anggota sudah dinilai
-		allGraded := true
-		memberMap := make(map[string]bool)
-
-		for _, member := range groupMembers {
-			memberMap[member.ID] = true
+		// Check if all members are graded
+		gradedCount := 0
+		for _, member := range members {
+			for _, grade := range grades {
+				if grade.UserID == member.ID {
+					gradedCount++
+					break
+				}
+			}
 		}
 
-		for _, grade := range grades {
-			delete(memberMap, grade.UserID)
-		}
-
-		if len(memberMap) > 0 {
-			allGraded = false
-		}
-
-		groupStatus[groupName] = allGraded
-		if allGraded {
+		isComplete := len(members) > 0 && gradedCount == len(members)
+		groupStatus[group.Name] = isComplete
+		if isComplete {
 			completedGroups++
 		}
 	}
 
-	// Build response dengan group name (int) sebagai key
+	// Build response
 	response := map[string]interface{}{
 		"assistant": map[string]interface{}{
 			"id":   assistant.ID,
 			"name": assistant.Name,
 			"nrp":  assistant.Nrp,
 		},
-		"progress": fmt.Sprintf("%d/%d", completedGroups, totalGroups),
-		"groups":   groupStatus, // Menggunakan "groups" sebagai key untuk lebih jelas
+		"progress": fmt.Sprintf("%d/%d", completedGroups, len(schedules)),
+		"groups":   groupStatus,
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode response: %v", err)
+	}
+}
+
+func handleAssistantError(w http.ResponseWriter, err error) {
+	if errors.Is(err, db.ErrNotFound) {
+		respondWithError(w, http.StatusNotFound, "assistant not found")
+	} else {
+		log.Printf("Failed to fetch assistant: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "failed to fetch assistant information")
 	}
 }
