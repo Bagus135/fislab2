@@ -915,6 +915,7 @@ func (h *AssistantHandler) processAssistant(assistant db.UserModel) (map[string]
 	totalAssignedGroups := len(checkedGroups) // Total groups assigned to this assistant
 
 	return map[string]interface{}{
+		"id":       assistant.ID,
 		"code":     practicumID,
 		"name":     assistant.Name,
 		"progress": fmt.Sprintf("%d/%d", completedGroups, totalAssignedGroups),

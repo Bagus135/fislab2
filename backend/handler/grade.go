@@ -786,7 +786,6 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *http.Request) {
-	// Tambahkan context dengan timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
@@ -801,7 +800,7 @@ func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *htt
 	vars := mux.Vars(r)
 	assistantId := vars["id"]
 
-	// Get assistant info dengan error handling lebih baik
+	// Get assistant info
 	assistant, err := h.client.User.FindUnique(
 		db.User.ID.Equals(assistantId),
 	).Exec(ctx)
@@ -816,7 +815,6 @@ func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Verifikasi role asisten
 	if assistant.Role != "ASISTEN" {
 		respondWithError(w, http.StatusBadRequest, "user is not an assistant")
 		return
@@ -839,8 +837,8 @@ func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Gunakan map dengan key string karena Group.ID adalah string
-	groupStatus := make(map[string]bool)
+	// Gunakan map dengan key int (group name) dan value bool
+	groupStatus := make(map[int]bool)
 	completedGroups := 0
 	totalGroups := len(schedules)
 
@@ -849,36 +847,31 @@ func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *htt
 		group := schedule.Group()
 		grades := schedule.Grades()
 		groupMembers := group.Members()
-
-		// Group.ID adalah string sesuai schema
-		groupId := group.ID
+		groupName := group.Name
 
 		// Hitung apakah semua anggota sudah dinilai
 		allGraded := true
 		memberMap := make(map[string]bool)
 
-		// Buat map anggota grup
 		for _, member := range groupMembers {
 			memberMap[member.ID] = true
 		}
 
-		// Periksa setiap nilai
 		for _, grade := range grades {
 			delete(memberMap, grade.UserID)
 		}
 
-		// Jika masih ada anggota yang belum dinilai
 		if len(memberMap) > 0 {
 			allGraded = false
 		}
 
-		groupStatus[groupId] = allGraded
+		groupStatus[groupName] = allGraded
 		if allGraded {
 			completedGroups++
 		}
 	}
 
-	// Build response
+	// Build response dengan group name (int) sebagai key
 	response := map[string]interface{}{
 		"assistant": map[string]interface{}{
 			"id":   assistant.ID,
@@ -886,11 +879,9 @@ func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *htt
 			"nrp":  assistant.Nrp,
 		},
 		"progress": fmt.Sprintf("%d/%d", completedGroups, totalGroups),
-		"detail":   groupStatus,
+		"groups":   groupStatus, // Menggunakan "groups" sebagai key untuk lebih jelas
 	}
 
-	// 10. Kirim response
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode response: %v", err)
