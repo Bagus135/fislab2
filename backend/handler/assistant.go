@@ -776,23 +776,20 @@ func (h *AssistantHandler) GetAssistants(w http.ResponseWriter, r *http.Request)
 func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// 1. Context dengan timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// 2. Validasi role
 	if !isAuthorized(r) {
 		respondWithError(w, http.StatusForbidden, "only ADMIN can view assistant status")
 		return
 	}
 
-	// 3. Gunakan worker pool pattern untuk proses konkuren
 	type result struct {
 		data map[string]interface{}
 		err  error
 	}
 
-	// 4. Ambil semua asisten dengan pagination
+	// Get all assistants
 	assistants, err := h.client.User.FindMany(
 		db.User.Role.Equals(db.RoleAsisten),
 	).With(
@@ -811,11 +808,7 @@ func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// 5. Hitung grup per praktikum secara parallel
-	practicumGroupCounts := h.countPracticumGroupsConcurrently(ctx)
-
-	// 6. Buat worker pool untuk proses data asisten
-	numWorkers := 5 // Sesuaikan dengan CPU cores
+	numWorkers := 4
 	assistantChan := make(chan db.UserModel, len(assistants))
 	resultChan := make(chan result, len(assistants))
 
@@ -826,25 +819,24 @@ func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Req
 		go func() {
 			defer wg.Done()
 			for assistant := range assistantChan {
-				res, err := h.processAssistant(assistant, practicumGroupCounts)
+				res, err := h.processAssistant(assistant) // Removed the extra parameter
 				resultChan <- result{data: res, err: err}
 			}
 		}()
 	}
 
-	// Feed data ke channel
+	// Feed assistants to workers
 	for _, assistant := range assistants {
 		assistantChan <- assistant
 	}
 	close(assistantChan)
 
-	// Tunggu semua worker selesai
 	go func() {
 		wg.Wait()
 		close(resultChan)
 	}()
 
-	// 7. Stream hasil ke client
+	// Stream results to client
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
 	_, _ = w.Write([]byte("["))
@@ -870,7 +862,7 @@ func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Req
 			continue
 		}
 
-		// Flush buffer secara periodic
+		// Flush periodically
 		if flusher, ok := w.(http.Flusher); ok {
 			flusher.Flush()
 		}
@@ -879,90 +871,53 @@ func (h *AssistantHandler) GetAssistantStatus(w http.ResponseWriter, r *http.Req
 	_, _ = w.Write([]byte("]"))
 }
 
-func (h *AssistantHandler) countPracticumGroupsConcurrently(ctx context.Context) map[string]int {
-	// Gunakan map sync untuk thread safety
-	var mu sync.Mutex
-	counts := make(map[string]int)
-
-	// Ambil semua grup dengan schedules
-	groups, err := h.client.Group.FindMany().With(
-		db.Group.Schedules.Fetch().With(
-			db.Schedule.Practicum.Fetch(),
-		),
-	).Exec(ctx)
-
-	if err != nil {
-		log.Printf("Error fetching groups: %v", err)
-		return counts
-	}
-
-	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, 10) // Batasi konkurensi
-
-	for _, group := range groups {
-		wg.Add(1)
-		go func(g db.GroupModel) {
-			defer wg.Done()
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			for _, schedule := range g.Schedules() {
-				mu.Lock()
-				counts[schedule.PracticumID]++
-				mu.Unlock()
-			}
-		}(group)
-	}
-
-	wg.Wait()
-	return counts
-}
-
-func (h *AssistantHandler) processAssistant(assistant db.UserModel, practicumGroupCounts map[string]int, ) (map[string]interface{}, error) {
+// Updated processAssistant function (no longer needs practicumGroupCounts)
+func (h *AssistantHandler) processAssistant(assistant db.UserModel) (map[string]interface{}, error) {
 	schedules := assistant.AssistantSchedules()
 	if len(schedules) == 0 {
 		return nil, nil
 	}
 
-	// Gunakan sync.Map untuk thread-safe access jika diperlukan
+	// Get practicum info from first schedule
+	practicumID := schedules[0].PracticumID
+	practicumTitle := schedules[0].Practicum().Title
+
+	// Count completed groups
 	var completedGroups int
-	checkedGroups := make(map[string]bool)
-	var practicumID, practicumTitle string
+	checkedGroups := make(map[string]bool) // To track unique groups
 
 	for _, schedule := range schedules {
-		if practicumID == "" {
-			practicumID = schedule.PracticumID
-			practicumTitle = schedule.Practicum().Title
-		}
-
+		// Only count groups for this practicum
 		if schedule.PracticumID != practicumID {
 			continue
 		}
 
 		groupID := schedule.GroupID
+
+		// Skip if we've already checked this group
 		if checkedGroups[groupID] {
 			continue
 		}
 		checkedGroups[groupID] = true
 
+		// Check if group is completed
 		if schedule.Status == db.StatusCompleted {
 			groupMembers := schedule.Group().Members()
 			grades := schedule.Grades()
+
+			// Group is considered completed if all members have grades
 			if len(grades) >= len(groupMembers) && len(groupMembers) > 0 {
 				completedGroups++
 			}
 		}
 	}
 
-	totalGroups := practicumGroupCounts[practicumID]
-	if totalGroups == 0 {
-		totalGroups = 1
-	}
+	totalAssignedGroups := len(checkedGroups) // Total groups assigned to this assistant
 
 	return map[string]interface{}{
 		"code":     practicumID,
 		"name":     assistant.Name,
-		"progress": fmt.Sprintf("%d/%d", completedGroups, totalGroups),
+		"progress": fmt.Sprintf("%d/%d", completedGroups, totalAssignedGroups),
 		"title":    practicumTitle,
 	}, nil
 }
