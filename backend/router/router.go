@@ -96,6 +96,7 @@ func NewRouter(
 	adminAPI.HandleFunc("/practicum", practicumHandler.UpdatePracticum).Methods("PUT")
 	adminAPI.HandleFunc("/practicum", practicumHandler.DeletePracticum).Methods("DELETE")
 	adminAPI.HandleFunc("/grade/all", gradeHandler.GetAllGrades).Methods("GET")
+	adminAPI.HandleFunc("/grade/progress/{id}", gradeHandler.GetAssistantGradingProgress).Methods("GET")
 	adminAPI.HandleFunc("/schedules", scheduleHandler.GetAllSchedulesForAdmin).Methods("GET")
 	adminAPI.HandleFunc("/assistant/practicum", assistantHandler.SetAssistantToPracticum).Methods("POST")
 	adminAPI.HandleFunc("/assistant/practicum/update", assistantHandler.UpdateAssistantPracticum).Methods("PUT")

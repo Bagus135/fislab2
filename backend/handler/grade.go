@@ -3,6 +3,7 @@ package handler
 import (
 	"backend/prisma/db"
 	"backend/types"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 )
 
 type GradeHandler struct {
@@ -781,4 +783,116 @@ func (h *GradeHandler) GetAllGrades(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(finalResponse)
+}
+
+func (h *GradeHandler) GetAssistantGradingProgress(w http.ResponseWriter, r *http.Request) {
+	// Tambahkan context dengan timeout
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	// Validasi role admin
+	userRole := r.Context().Value("role").(string)
+	if userRole != "SUPER_ADMIN" && userRole != "ADMIN" {
+		respondWithError(w, http.StatusForbidden, "only admins can access this endpoint")
+		return
+	}
+
+	// Ambil assistantId dari path parameter
+	vars := mux.Vars(r)
+	assistantId := vars["id"]
+
+	// Get assistant info dengan error handling lebih baik
+	assistant, err := h.client.User.FindUnique(
+		db.User.ID.Equals(assistantId),
+	).Exec(ctx)
+
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			respondWithError(w, http.StatusNotFound, "assistant not found")
+			return
+		}
+		log.Printf("Failed to fetch assistant: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "failed to fetch assistant information")
+		return
+	}
+
+	// Verifikasi role asisten
+	if assistant.Role != "ASISTEN" {
+		respondWithError(w, http.StatusBadRequest, "user is not an assistant")
+		return
+	}
+
+	// Get schedules dengan status FINISHED atau COMPLETED
+	schedules, err := h.client.Schedule.FindMany(
+		db.Schedule.AssistantID.Equals(assistantId),
+		db.Schedule.Status.In([]db.Status{db.StatusFinished, db.StatusCompleted}),
+	).With(
+		db.Schedule.Group.Fetch().With(
+			db.Group.Members.Fetch(),
+		),
+		db.Schedule.Grades.Fetch(),
+	).Exec(ctx)
+
+	if err != nil {
+		log.Printf("Failed to fetch schedules: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "failed to fetch schedules")
+		return
+	}
+
+	// Gunakan map dengan key string karena Group.ID adalah string
+	groupStatus := make(map[string]bool)
+	completedGroups := 0
+	totalGroups := len(schedules)
+
+	// Proses setiap schedule
+	for _, schedule := range schedules {
+		group := schedule.Group()
+		grades := schedule.Grades()
+		groupMembers := group.Members()
+
+		// Group.ID adalah string sesuai schema
+		groupId := group.ID
+
+		// Hitung apakah semua anggota sudah dinilai
+		allGraded := true
+		memberMap := make(map[string]bool)
+
+		// Buat map anggota grup
+		for _, member := range groupMembers {
+			memberMap[member.ID] = true
+		}
+
+		// Periksa setiap nilai
+		for _, grade := range grades {
+			delete(memberMap, grade.UserID)
+		}
+
+		// Jika masih ada anggota yang belum dinilai
+		if len(memberMap) > 0 {
+			allGraded = false
+		}
+
+		groupStatus[groupId] = allGraded
+		if allGraded {
+			completedGroups++
+		}
+	}
+
+	// Build response
+	response := map[string]interface{}{
+		"assistant": map[string]interface{}{
+			"id":   assistant.ID,
+			"name": assistant.Name,
+			"nrp":  assistant.Nrp,
+		},
+		"progress": fmt.Sprintf("%d/%d", completedGroups, totalGroups),
+		"detail":   groupStatus,
+	}
+
+	// 10. Kirim response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
