@@ -11,6 +11,7 @@ import ProfileModal from "../profile-modal"
 import { getProfilePic } from "@/action/profile.action"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { Skeleton } from "../ui/skeleton"
+import ProfilePicture from "../profile-picture"
 
 type member = {
     gradedAt : string | null;
@@ -205,9 +206,13 @@ type MemberGroupProps = {
 export  function GradeCardPractican ({grades} : {grades : AllGradePractican[]|null}) {
     const  [openDetail, setOpenDetail] = useState(false)
     const  [selectedGrade, setSelectedGrade] = useState<userGrade|null>(null)
+    const [openProfile, setOpenProfile]= useState(false);
+    const [selectedId, setSelectedId] = useState<string>('')
+    
     return (
         <>
         <DetailGradeModal open={openDetail} setOpen={setOpenDetail} userGrade={selectedGrade}/>
+        <ProfileModal id={selectedId} open={openProfile} setOpen={setOpenProfile} />
         { !!grades ?  
         grades.map((grade, idx)=> (
             <Card key={idx}>
@@ -219,13 +224,13 @@ export  function GradeCardPractican ({grades} : {grades : AllGradePractican[]|nu
                 <Separator/>
                 <div className="grid grid-cols-10 items-center gap-4">
                     <div className="col-span-8  flex flex-row items-center">
-                            <div className="  flex flex-row space-x-2 items-center py-2">
-                            <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" className="size-6 dark:text-white">
-                                <rect fill="none" height="256" width="256"/>
-                                <circle cx="104" cy="144" fill="none" r="32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="12"/>
-                                <path d="M53.4,208a56,56,0,0,1,101.2,0H216a8,8,0,0,0,8-8V56a8,8,0,0,0-8-8H40a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="12"/>
-                                <polyline fill="none" points="176 176 192 176 192 80 64 80 64 96" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="12"/>
-                            </svg>
+                            <div className="flex flex-row space-x-2 p-1 cursor-pointer items-center py-2 hover:bg-accent hover:text-accent-foreground"
+                                 onClick={()=>{
+                                    setSelectedId(grade.assistant.id);
+                                    setOpenProfile(true)
+                                 }}    
+                                >
+                                <ProfilePicture id={grade.assistant.id} size="size-10"/>
                                 <p className="text-sm line-clamp-2">{grade.assistant.name} </p>
                             </div>
                     </div>

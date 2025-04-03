@@ -5,13 +5,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {  Filter, Search} from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FilterMonitoringAslab } from "./dropdownmenu-filter";
 import AslabMonitoringModal from "./detail-dialog";
 
 export default function AslabMonitoring({data}:{data:AssistantStatus[]}){
     const [search , setSearch] = useState("")
+    const [selectedAssistant , setSelectedAssistant] = useState<AssistantStatus|null>(null)
+    const ref = useRef<HTMLButtonElement | null>(null);
+    const [filter, setFilter] = useState({
+        order : "asc",
+        sort : "code"
+    });
+    
+    const handleClickDetail = (assistant : AssistantStatus) =>{
+        if(ref.current) {
+            setSelectedAssistant(assistant)
+            ref.current.click();
+        }
+    }
+
+    const filteredData = hanldleFilter(data, filter, search);
+
     return (
+    <>
+        <AslabMonitoringModal assistant={selectedAssistant} btnRef={ref}/>
         <Card>
             <CardHeader>
                 <CardTitle>Asistant Laboratorium Monitor</CardTitle>
@@ -37,7 +55,7 @@ export default function AslabMonitoring({data}:{data:AssistantStatus[]}){
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <FilterMonitoringAslab>
+                    <FilterMonitoringAslab filter={filter} setFilter={setFilter}>
                         <Button>
                             <Filter className="size-4"/>
                         </Button>
@@ -54,17 +72,16 @@ export default function AslabMonitoring({data}:{data:AssistantStatus[]}){
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                        data.filter((a)=> a.name.toLowerCase().includes(search.toLowerCase()))
-                        .sort((a,b) =>  a.code > b.code ? 1 : -1)
-                        .map((a,i) =>(
-                        <AslabMonitoringModal key={i}>
-                            <TableRow key={i} className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
+                        filteredData.map((a,i) =>(
+                            <TableRow   key={i} 
+                                        className="odd:bg-white even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950"
+                                        onClick={()=> handleClickDetail(a)}
+                                        >
                                 <TableCell className="font-medium">{i+1}</TableCell>
                                 <TableCell>{a.code}</TableCell>
                                 <TableCell>{a.name}</TableCell>
                                 <TableCell>{a.progress}</TableCell>
                             </TableRow>
-                        </AslabMonitoringModal>
                         ))
                     }
                     </TableBody>
@@ -73,5 +90,43 @@ export default function AslabMonitoring({data}:{data:AssistantStatus[]}){
                 }
             </CardContent>
         </Card>
+    </>
     )
+}
+
+const hanldleFilter = (
+    data : AssistantStatus[],
+    filter : {sort : string, order : string},
+    search : string,
+) => {
+
+    const filteredData =  data.filter((a)=> a.name.toLowerCase().includes(search.toLowerCase()))
+
+    filteredData.sort((a,b) =>{
+        let valA , valB
+        switch(filter.sort) {
+            case 'code' : 
+                valA = a.code;
+                valB = b.code;
+                break;
+            case "name" : 
+                valA = a.name;
+                valB = b.name;
+                break;
+            case 'progress' :
+                valA = a.progress;
+                valB = b.progress;
+                break;
+            default : 
+                valA = a.code;
+                valB = b.code;
+        }
+
+        if (filter.order === "asc") {
+            return valA > valB ? 1 : -1;
+        } else {
+            return valA < valB ? 1 : -1;
+        }
+    })   
+    return filteredData;
 }

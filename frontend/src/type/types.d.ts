@@ -178,6 +178,7 @@ type AllGradeAslab = {
 
 type AllGradePractican = {
     assistant: {
+        id : string,
         name: string,
         nrp: string
     },
@@ -258,6 +259,7 @@ enum AttendanceStatus {
   }
 
 type AssistantStatus = {
+    'id' : string,
     "code": string,
     "name": string,
     "progress": string,
@@ -271,4 +273,16 @@ type AllPracticanGrade = {
     "nilai": {
         [k : string] : number
     }
-}[]
+}[];
+
+type AssistantStatusDetail = {
+    assistant : {
+        id : string,
+        name  : string,
+        nrp : string,
+    },
+    groups : {
+        [k : number] : boolean
+    } | []
+    progress : string
+}

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2Icon, Save, Trash,  } from 'lucide-react';
+import { Loader2Icon, Save,  } from 'lucide-react';
 import { getToken, refreshCache } from '@/action/auth.action';
 
 interface ProfileImageDialogProps {

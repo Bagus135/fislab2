@@ -124,7 +124,7 @@ function FilterBtn({ children, filter, setFilter }: FilterBtnProps) {
             <DropdownMenuContent className="w-56">
                 <DropdownMenuLabel>Sort</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={filter.sort} onValueChange={(val) => setFilter({ ...filter, sort: val })}>
+                <DropdownMenuRadioGroup  value={filter.sort} onValueChange={(val) => setFilter({ ...filter, sort: val })}>
                     <DropdownMenuRadioItem value="group">Group</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="code">Code</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="week">Week</DropdownMenuRadioItem>

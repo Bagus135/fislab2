@@ -11,12 +11,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function  FilterMonitoringPractican({children}:{children: React.ReactNode}) {
-  const [filter, setFilter] = React.useState({
-    sort : "code",
-    order : "asc"
-  })
+type Props = {
+  children : React.ReactNode,
+  filter : {
+    sort : string,
+    order : string,
+  }
+  setFilter : (filter : Props['filter']) => void,
+}
 
+export function  FilterMonitoringPractican({children, filter, setFilter}:Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

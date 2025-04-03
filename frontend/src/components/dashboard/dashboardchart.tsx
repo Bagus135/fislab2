@@ -1,8 +1,8 @@
 'use client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { ArrowUpFromLine} from "lucide-react"
-import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart, XAxis } from "recharts"
+import { GraduationCap, Spline, TrendingDown, TrendingUp} from "lucide-react"
+import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart, XAxis, YAxis } from "recharts"
 
 interface ChartData {
   code: string;
@@ -11,7 +11,7 @@ interface ChartData {
 
  export function BarChartComponent({data}: {data : AllGradePractican[] | null}) {
   
-  const chartData: ChartData[] = transformToChartData(data);
+  const chartData: ChartData[] = data || [];
   const chartConfig = {
     views: {
       label: "Page Views",
@@ -27,27 +27,27 @@ interface ChartData {
   } satisfies ChartConfig
   
   return (
-   <Card>
+   <Card  className="w-full md:max-h-[350px]">
       <CardHeader>
         <CardTitle>Bar Chart</CardTitle>
         <CardDescription>Practicum Graph</CardDescription>
       </CardHeader>
-      <CardContent>
-          <ChartContainer config={chartConfig} className="aspect-auto  h-[250px] w-full">
-            <BarChart accessibilityLayer data={chartData}>
+      <CardContent className="w-full flex">
+          <ChartContainer config={chartConfig} className=" aspect-auto h-[250px] w-full overflow-x-auto">
+            <BarChart accessibilityLayer data={chartData}  layout="horizontal"   >
               <CartesianGrid vertical={true}/>
               <XAxis
                 dataKey={"code"}
                 tickLine={true}
                 tickMargin={3}
                 axisLine={false}
-                tickFormatter={(val)=> val.slice(0,3)}
+                tickFormatter={(val)=> val.slice(0,val.length)}
               />
               <ChartTooltip 
                 cursor={true}
                 content={<ChartTooltipContent hideLabel/>}
               />
-              <Bar dataKey={"totalScore"} fill="#00000" radius={5}/>
+              <Bar dataKey={"totalScore"} fill="#6EB4F1" radius={5} barSize={50} />
             </BarChart>
           </ChartContainer>
       </CardContent>
@@ -59,43 +59,96 @@ interface ChartData {
 
   interface GradeResult {
     grade: string;
-    color: string;
+    textColor: string;
+    barColor : string
 }
 
 export function RadialChart({data} : {data : AllGradePractican[] | null }) {
 
   const findMaxMinScores = (data: AllGradePractican[] | null): { max: number | null, min: number | null } => {
-    if (!data || data.length === 0) return { max: null, min: null }; // Return null if data is null or empty
+    if (!data || data.length === 0) return { max: null, min: null }
 
-    const scores = data.map(item => item.totalScore); // Extract totalScores
+    const scores = data.map(item => item.totalScore);
 
-    const maxScore = Math.max(...scores); // Find maximum score
-    const minScore = Math.min(...scores); // Find minimum score
+    const maxScore = Math.max(...scores); 
+    const minScore = Math.min(...scores); 
 
     return { max: maxScore, min: minScore };
   };
+
   const gradeRes = (data: AllGradePractican[] | null): { average: number, gradeResult: GradeResult } => {
-    if (!data || data.length === 0) return { average: 0, gradeResult:{ grade : "-" , color : "fill-gray-500"} }; // Return null if data is null or empty
+    let gradeResult: GradeResult ={ grade : "-" , textColor : "", barColor : "#00000"};
+
+    if (!data || data.length === 0) return { average: 0, gradeResult }; // Return null if data is null or empty
 
     const totalScore = data.reduce((acc, curr) => acc + curr.totalScore, 0);
     const averageScore = totalScore / data.length;
 
-    let gradeResult: GradeResult | null = null;
 
     // Determine grade and color based on average score
     switch (true) {
-        case averageScore < 55:
-            gradeResult = { grade: 'C', color: 'fill-red-500' };
-            break;
-        case averageScore < 60:
-            gradeResult = { grade: 'C', color: 'fill-orange-500' };
-            break;
-        case averageScore < 80:
-            gradeResult = { grade: 'A', color: 'fill-green-500' };
-            break;
-        default:
-            gradeResult = { grade: 'A', color: 'fill-green-500' }; // Assuming A for scores 80 and above
-            break;
+      case (averageScore >= 86 && averageScore <= 100):
+        gradeResult = { 
+          grade: 'A',
+          textColor: 'text-green-600', 
+          barColor: '#16a34a'
+        };
+        break;
+        
+      case (averageScore >= 76 && averageScore <= 85):
+        gradeResult = { 
+          grade: 'AB',
+          textColor: 'text-green-500', 
+          barColor: '#22c55e'
+        };
+        break;
+        
+      case (averageScore >= 66 && averageScore <= 75):
+        gradeResult = { 
+          grade: 'B',
+          textColor: 'text-lime-500', 
+          barColor: '#84cc16'
+        };
+        break;
+        
+      case (averageScore >= 61 && averageScore <= 65):
+        gradeResult = { 
+          grade: 'BC',
+          textColor: 'text-yellow-500', 
+          barColor: '#eab308'
+        };
+        break;
+        
+      case (averageScore >= 56 && averageScore <= 60):
+        gradeResult = { 
+          grade: 'C',
+          textColor: 'text-amber-500', 
+          barColor: '#f59e0b'
+        };
+        break;
+        
+      case (averageScore >= 41 && averageScore <= 55):
+        gradeResult = { 
+          grade: 'D',
+          textColor: 'text-orange-500', 
+          barColor: '#f97316'
+        };
+        break;
+        
+      case (averageScore >= 0 && averageScore <= 40):
+        gradeResult = { 
+          grade: 'E',
+          textColor: 'text-red-500', 
+          barColor: '#ef4444'
+        };
+        break;
+        
+      default:
+        gradeResult = { 
+          grade: 'N/A',
+          textColor: 'text-gray-500', 
+          barColor: '#6b7280'
+        };
     }
 
     return { average: averageScore, gradeResult };
@@ -120,19 +173,20 @@ const chartConfig = {
     const chartData = [{ 
       browser: "safari", 
       average: average, 
-      fill: "fill-blue-500" },
+      fill: gradeResult.barColor },
     ]
 
     return (
-      <Card className="flex flex-col md:max-h-[350px]">
-        <CardHeader className="items-center pb-4">
-          <CardTitle>Radial Chart - Text</CardTitle>
-          <CardDescription>January - June 2024</CardDescription>
+      <Card className="flex flex-col md:max-h-[350px] items-stretch w-full">
+        <CardHeader className=" pb-4">
+          <CardTitle>Radial Chart</CardTitle>
+          <CardDescription>Average Score</CardDescription>
         </CardHeader>
-        <CardContent className="flex md:p-4 lg:p-6 md:pt-0 lg:pt-0 flex-col md:grid md:grid-cols-2 gap-4 ">
+        <CardContent className="flex md:p-4 lg:p-6 md:pt-0 lg:pt-0 flex-col md:grid md:grid-cols-2 gap-4 items-center justify-center ">
           <ChartContainer
             config={chartConfig}
-            className="aspect-square min-h-[180px]"
+            className="aspect-square h-[200px] place-self-center"
+
           >
             <RadialBarChart
               data={chartData}
@@ -163,7 +217,7 @@ const chartConfig = {
                           <tspan
                             x={viewBox.cx}
                             y={viewBox.cy}
-                            className="fill-foreground text-4xl font-bold"
+                            className={`text-4xl font-bold ${gradeResult.textColor.replace('text', 'fill')}`}
                           >
                             {chartData[0].average.toLocaleString()}
                           </tspan>
@@ -184,31 +238,31 @@ const chartConfig = {
           <div className="grid grid-cols-2 gap-2 md:flex md:flex-col w-full xl:gap-4 justify-center  ">
                 <div className=" w-full flex flex-row p-2 rounded-lg shadow border justify-between items-center">
                     <div className="flex flex-col justify-center items-start xl:flex-row xl:items-center xl:justify-start xl:gap-2">
-                        <p className="text-lg md:text-base font-bold xl:w-10 text-center">{gradeResult.grade}</p>
+                        <p className={`text-lg md:text-base font-bold xl:w-10 text-center ${gradeResult.textColor}`}>{gradeResult.grade}</p>
                         <p className="text-xs font-light">Grade</p>
                     </div>
-                    <ArrowUpFromLine className="size-6 fill-gray-700"/>
+                    <GraduationCap className="size-6"/>
                 </div>
                 <div className=" flex shadow p-2 rounded-lg border flex-row justify-between items-center">
                     <div className="flex flex-col justify-center items-start xl:flex-row xl:items-center xl:justify-start xl:gap-2">
                         <p className="text-lg md:text-base font-bold xl:w-10 text-center">{!max? "-" : max}</p>
                         <p className="text-xs font-light">Max Score</p>
                     </div>
-                    <ArrowUpFromLine className="size-6 fill-gray-700"/>
+                    <TrendingUp className="size-6"/>
                 </div>
                 <div className=" shadow border p-2 rounded-lg flex flex-row justify-between items-center">
                     <div className="flex flex-col justify-center items-start xl:flex-row xl:items-center xl:justify-start xl:gap-2">
                         <p className="text-lg md:text-base font-bold xl:w-10 text-center">{!min ? "-" : min}</p>
                         <p className="text-xs font-light">Min score</p>
                     </div>
-                    <ArrowUpFromLine className="size-6 fill-gray-700"/>
+                    <TrendingDown className="size-6"/>
                 </div>
                 <div className=" shadow border p-2 rounded-lg flex flex-row justify-between items-center">
                     <div className="flex flex-col justify-center items-start xl:flex-row xl:items-center xl:justify-start xl:gap-2">
                         <p className="text-lg md:text-base font-bold xl:w-10 text-center">{!data ? 0 :  data.length }/10</p>
                         <p className="text-xs font-light">Progress</p>
                     </div>
-                    <ArrowUpFromLine className="size-6 fill-gray-700"/>
+                    <Spline className="size-6"/>
                 </div>
           </div>
         </CardContent>
@@ -216,19 +270,3 @@ const chartConfig = {
     )
   }
 
-const transformToChartData = (data: AllGradePractican[] | null): ChartData[] => {
-    if (!data) return []; // Return empty array if data is null
-
-    return data.reduce((acc: ChartData[], curr: AllGradePractican) => {
-        const month = curr.code; // Assuming 'code' is the month name
-        const existingMonth = acc.find(item => item.code === month);
-
-        if (existingMonth) {
-            existingMonth.totalScore += curr.totalScore; // Accumulate the score
-        } else {
-            acc.push({ code: month, totalScore: curr.totalScore }); // Add new month
-        }
-
-        return acc;
-    }, []);
-};

@@ -46,7 +46,11 @@ export default function SideBar () {
             <Button variant={'ghost'} className="w-full flex items-center justify-start" asChild>
                 <Link href={'/announcement'}>
                     <div className="w-8  flex justify-center">
-                        <Megaphone className="size-6"/>
+                    <svg className="size-6 transform -scale-x-100 dark:fill-white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                        <rect fill="none" height="256" width="256"/>
+                        <path d="M152,80V203.7a7.9,7.9,0,0,0,3.6,6.7l11,7.3a8,8,0,0,0,12.2-4.7L192,160" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/>
+                        <path d="M192,160a40,40,0,0,0,0-80H152S97.5,80,45.1,36.1A8,8,0,0,0,32,42.2V197.8a8,8,0,0,0,13.1,6.1C97.5,160,152,160,152,160Z" fill="none" stroke="currentColor " strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/>
+                    </svg>
                     </div>
                     <p className="hidden lg:flex ml-2">Announcement</p>
                 </Link>
@@ -59,7 +63,7 @@ export function MobileSidebar () {
     const [showMenu, setShowMenu] = useState(false);
     const pathname = usePathname()
     return (
-        !pathname.startsWith("/admin") &&
+        (!pathname.startsWith("/admin") && !pathname.startsWith("/profile"))&&
         <Sheet open={showMenu} onOpenChange={setShowMenu}>
             <SheetTrigger asChild>
                 <Button variant={'outline'} size={'lg'} className="h-8 px-2 mr-2 w-auto md:hidden">
@@ -119,7 +123,11 @@ export function MobileSidebar () {
                     </Button>
                     <Button variant={'ghost'} className="flex items-center gap-4 justify-start pl-0" asChild  onClick={()=>setShowMenu(!showMenu)}>
                         <Link href={'/announcement'}>
-                            <Megaphone className="size-6"/>
+                            <svg className="size-6 transform -scale-x-100 dark:fill-white" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                                <rect fill="none" height="256" width="256"/>
+                                <path d="M152,80V203.7a7.9,7.9,0,0,0,3.6,6.7l11,7.3a8,8,0,0,0,12.2-4.7L192,160" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/>
+                                <path d="M192,160a40,40,0,0,0,0-80H152S97.5,80,45.1,36.1A8,8,0,0,0,32,42.2V197.8a8,8,0,0,0,13.1,6.1C97.5,160,152,160,152,160Z" fill="none" stroke="currentColor " strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/>
+                            </svg>
                             <Separator orientation="vertical"/>
                                 Announcement
                         </Link>

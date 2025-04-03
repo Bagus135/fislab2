@@ -27,10 +27,6 @@ export default async function AdminPage(){
 
     return (
     <div  className="flex flex-col gap-4 " >
-         <div className="flex flex-col md:mx-4">
-            <p className="font-bold tracking-wider">WELCOME! {name}</p>
-            <p className="text-xs">How are you today? The weather seems nice today, right?</p>
-        </div>
         <div className="lg:grid lg:grid-cols-10 gap-4  w-full flex flex-col">
             <div className="col-span-5 flex flex-col gap-4">
                 <PracticanGroup practicans={practicans} groups={practicanGroups}/>

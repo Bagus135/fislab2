@@ -13,6 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade}){
     const [search , setSearch] = useState("");
+    const [filter , setFilter] = useState({
+        sort : "nrp",
+        order : "asc"
+    });
     const [loading, setLoading] = useState(false);
     const {toast} = useToast();
 
@@ -93,6 +97,7 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
         }
      }
 
+    const filteredData = handleFilter(data, filter, search)
     return (
         <Card>
             <CardHeader>
@@ -119,8 +124,8 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
                             onChange={(e)=>setSearch(e.target.value)}
                             />
                     </div>
-                    <div className="space-x-2">
-                        <FilterMonitoringPractican>
+                    <div className="flex flex-row gap-2">
+                        <FilterMonitoringPractican filter={filter} setFilter={setFilter}>
                             <Button>
                                 <Filter className="size-4"/>
                             </Button>
@@ -145,9 +150,7 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
                         </TableRow>
                     </TableHeader>
                     <TableBody>{
-                    data.filter((a)=>  a.nama.toLowerCase().includes(search.toLowerCase())||a.nrp.includes(search))
-                    .sort((a,b) => a.nrp > b.nrp ? 1 : -1)
-                    .map((a,i) =>(
+                    filteredData.map((a,i) =>(
                             <PracticanMonitoringModal data={a} key={i}>
                                 <TableRow className="odd:bg-white cursor-pointer even:bg-gray-200 dark:odd:bg-gray-900/50 dark:even:bg-gray-950">
                                     <TableCell className="font-medium">{a.nrp}</TableCell>
@@ -171,4 +174,48 @@ export const getAverageScore = (scores : AllPracticanGrade[number]['nilai']) => 
     const values = Object.values(scores)
     const totalScore =  values.reduce((acc , curr) => acc + curr , 0)
     return totalScore /  values.length
+}
+
+const handleFilter = (
+    data : AllPracticanGrade,
+    filter : {sort: string, order : string},
+    search : string,
+) => {
+    
+    const filteredData = data.filter((a)=>  a.nama.toLowerCase().includes(search.toLowerCase())||a.nrp.includes(search))
+
+    filteredData.sort((a,b)=> {
+        let valA , valB;
+
+        switch(filter.sort) {
+            case "nrp": 
+                valA = a.nrp;
+                valB = b.nrp;
+                break;
+            case "name": 
+                valA = a.nama;
+                valB = b.nama;
+                break;
+            case "progress": 
+                valA = Object.keys(a.nilai).length;
+                valB =  Object.keys(b.nilai).length;
+                break;
+            case "score": 
+                valA = getAverageScore(a.nilai);
+                valB = getAverageScore(b.nilai);
+                break;
+            default : 
+                valA = a.nrp;
+                valB = b.nrp;
+                break;
+        }
+
+        if (filter.order === "asc") {
+            return valA > valB ? 1 : -1;
+        } else {
+            return valA < valB ? 1 : -1;
+        }
+    })
+
+    return filteredData
 }

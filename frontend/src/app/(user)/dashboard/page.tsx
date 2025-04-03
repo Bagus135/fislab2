@@ -7,6 +7,8 @@ import PracticanDashboard from "./practicanpage"
 import { getName } from "@/action/profile.action"
 import { getAnnouncment } from "@/action/announcement.action"
 import { getNearestSchedule } from "@/action/schedule.action"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 
 export default async function DashboardPage (){
   const dcodeTkn = await getDecodeToken();
@@ -29,10 +31,22 @@ export default async function DashboardPage (){
                 <div className="">
                   <TimeCard/>
                 </div>
-                { nearestSchedule.success &&
+                { nearestSchedule.success ?
                   <div className="grid">
-                  <UpcomingCard schedule={nearestSchedule.data} role={role}/>
-                </div>
+                    <UpcomingCard schedule={nearestSchedule.data} role={role}/>
+                  </div>
+                  :
+                  <div className="grid">
+                    <Card>
+                      <CardHeader className="space-y-0 rounded-t-lg flex-row justify-between items-center p-4">
+                          <CardTitle>Upcoming Practicum</CardTitle>
+                      </CardHeader>
+                      <Separator orientation="horizontal"/>
+                      <CardContent>
+                        <div className="flex justify-center items-center py-2"> No upcoming schedule</div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 }
             </div>
          </div>

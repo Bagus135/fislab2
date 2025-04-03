@@ -11,12 +11,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function  FilterMonitoringAslab({children}:{children: React.ReactNode}) {
-  const [filter, setFilter] = React.useState({
-    sort : "code",
-    order : "asc"
-  })
+type Props = {
+  children : React.ReactNode
+  filter : {
+    sort : string,
+    order : string,
+  },
+  setFilter : (filter : Props['filter']) => void
+}
 
+export function  FilterMonitoringAslab({children, filter, setFilter}: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -26,7 +30,6 @@ export function  FilterMonitoringAslab({children}:{children: React.ReactNode}) {
         <DropdownMenuLabel>Sort</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={filter.sort} onValueChange={(val)=>setFilter({...filter, sort : val})}>
-          <DropdownMenuRadioItem value="no">No</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="code">Code</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="progress">Progress</DropdownMenuRadioItem>
@@ -35,7 +38,7 @@ export function  FilterMonitoringAslab({children}:{children: React.ReactNode}) {
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Order</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup value={filter.order} onValueChange={(val)=>setFilter({...filter, order : val})}>
+        <DropdownMenuRadioGroup value={filter.order}  onValueChange={(val)=>setFilter({...filter, order : val})}>
           <DropdownMenuRadioItem value="asc">Asc</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="desc">Desc</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
