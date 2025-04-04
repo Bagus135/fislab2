@@ -110,18 +110,16 @@ export const removeCookies = async () =>{
 export const checkToken = async () => {
     try {
         const token = await getToken()
-        const res = await fetch(`${process.env.URL_FE}/checktoken`, {
+        const res = await fetch(`${process.env.URL_BE}/profile/me/name`, {
             headers: {
                 "Content-Type": "application/json",
-                'Authorization' : token
+                "Authorization": token,
             },
             method: "GET",
         });
-
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error);
-        }
+        
+        if (!res.ok) throw new Error('error');
+        
         return true;
     } catch (error: any) {
         throw new Error ('error')

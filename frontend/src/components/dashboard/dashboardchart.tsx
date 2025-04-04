@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { GraduationCap, Spline, TrendingDown, TrendingUp} from "lucide-react"
-import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart, XAxis, } from "recharts"
 
 interface ChartData {
   code: string;
@@ -47,7 +47,13 @@ interface ChartData {
                 cursor={true}
                 content={<ChartTooltipContent hideLabel/>}
               />
-              <Bar dataKey={"totalScore"} fill="#6EB4F1" radius={5} barSize={50} />
+              <Bar 
+                dataKey={"totalScore"} 
+                fill="#6EB4F1" 
+                radius={5} 
+                barSize={50}  
+                label={{ position: 'insideTop', fill: 'black' }}
+                   />
             </BarChart>
           </ChartContainer>
       </CardContent>
@@ -176,6 +182,8 @@ const chartConfig = {
       fill: gradeResult.barColor },
     ]
 
+    const fillColor = gradeResult.textColor.replace("text-", "fill-")
+
     return (
       <Card className="flex flex-col md:max-h-[350px] items-stretch w-full">
         <CardHeader className=" pb-4">
@@ -214,10 +222,11 @@ const chartConfig = {
                           textAnchor="middle"
                           dominantBaseline="middle"
                         >
+                          <p className="hidden fill-gray-500 fill-green-600  fill-green-500 fill-lime-500 fill-yellow-500 fill-red-500 fill-amber-500 fill-orange-500 "/>
                           <tspan
                             x={viewBox.cx}
                             y={viewBox.cy}
-                            className={`text-4xl font-bold ${gradeResult.textColor.replace('text', 'fill')}`}
+                            className={`text-4xl font-bold ${fillColor}`}
                           >
                             {chartData[0].average.toLocaleString()}
                           </tspan>

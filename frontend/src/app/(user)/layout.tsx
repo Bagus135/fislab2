@@ -2,6 +2,13 @@ import { checkToken, getDecodeToken } from "@/action/auth.action";
 import SideBar from "@/components/sidebar";
 import NotFound from "./not-found";
 import AdminPage from "../admin/page";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Fislab | User",
+  description: "Physics Laboratory Web Users Page",
+};
+
 
 export default async function RootLayout({
     children,

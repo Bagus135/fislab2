@@ -1,9 +1,14 @@
-'use server'
-
 import { checkToken, getDecodeToken } from "@/action/auth.action";
 import {  AdminSidebarDesktop } from "@/components/admin/admin-sidebar";
 import React from "react";
 import NotFound from "./not-found";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Fislab | Admin",
+    description: "Physics Laboratory Web Admin Page",
+  };
+  
 
 export default async function AdminLayout ({children} : Readonly<{children : React.ReactNode}>) {
     try {

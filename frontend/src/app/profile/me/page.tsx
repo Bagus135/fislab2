@@ -3,10 +3,13 @@ import { getSelfProfile } from "@/action/profile.action";
 import NotFound from "@/app/(user)/not-found";
 import EditProfileTabs from "@/components/editprofile/editprofile-tabs";
 import ProfilePreview from "@/components/editprofile/profile-preview";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Fislab | Profile",
+    description: "Physics Laboratory Web Users Profile Page",
+  };
+  
 export default async function ProfilePage(){
     try {
           await checkToken()

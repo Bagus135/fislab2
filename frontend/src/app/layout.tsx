@@ -1,23 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import ThemeProvider from "@/context/theme-context";
 import Navbar from "@/components/navbar";
 import { Toaster } from "@/components/ui/toaster";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
-  title: "FIslab II | Home",
-  description: "Web Fisika Laboratory II",
+  title: "Fislab | Home",
+  description: "Physics Laboratory Web Introduction",
 };
 
 export default function RootLayout({
@@ -28,8 +18,11 @@ export default function RootLayout({
   return (
     
     <html lang="en" className="scroll-smooth">
+      <head> 
+      <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+      </head>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased `}
+          className={` antialiased `}
           >
           <ThemeProvider 
               attribute={'class'}
