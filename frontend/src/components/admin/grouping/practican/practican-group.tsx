@@ -64,8 +64,8 @@ export default function PracticanGroup ({practicans , groups } : {practicans : G
                                 <TableCell>{group.members.length}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-row gap-1 justify-center items-center">
-                                        <Circle className="size-3 fill-green-500 text-green-500"/>
-                                        Normal
+                                        <Circle className={`size-3 ${memberLength(group.members.length).textColor}`}/>
+                                        {memberLength(group.members.length).status}
                                     </div>
                                 </TableCell>
                                 <TableCell onClick={()=> setSelectedGroup(group)} >
@@ -84,3 +84,35 @@ export default function PracticanGroup ({practicans , groups } : {practicans : G
         </Card>
     )
 }
+
+const memberLength = (load: number) => {
+    let result;
+
+    switch (true) {
+        case (load < 6):
+            result = {
+                status: "Underload",
+                textColor: "fill-yellow-500 text-yellow-500"
+            };
+            break;
+        case (load >= 6 && load <= 8):
+            result = {
+                status: "Normal",
+                textColor: "fill-green-500 text-green-500"
+            };
+            break;
+        case (load > 8):
+            result = {
+                status: "Overload",
+                textColor: "fill-red-500 text-red-500"
+            };
+            break;
+        default:
+            result = {
+                status: "Unknown",
+                textColor: "fill-gray-500 text-gray-500"
+            };
+    }
+
+    return result;
+};

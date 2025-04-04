@@ -187,7 +187,7 @@ const chartConfig = {
     return (
       <Card className="flex flex-col md:max-h-[350px] items-stretch w-full">
         <CardHeader className=" pb-4">
-          <CardTitle>Radial Chart</CardTitle>
+          <CardTitle> Statistics</CardTitle>
           <CardDescription>Average Score</CardDescription>
         </CardHeader>
         <CardContent className="flex md:p-4 lg:p-6 md:pt-0 lg:pt-0 flex-col md:grid md:grid-cols-2 gap-4 items-center justify-center ">

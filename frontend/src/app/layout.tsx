@@ -19,7 +19,7 @@ export default function RootLayout({
     
     <html lang="en" className="scroll-smooth">
       <head> 
-      <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+      <link rel="icon" href="./favicon.ico"/>
       </head>
         <body
           className={` antialiased `}
