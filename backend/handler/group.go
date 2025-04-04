@@ -85,7 +85,7 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with name %s not found", memberName)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with ID %s not found", memberName)})
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
@@ -96,14 +96,14 @@ func (h *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		// Cek role user (harus PRAKTIKAN)
 		if user.Role != "PRAKTIKAN" {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberName)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with NRP %s is not a PRAKTIKAN", user.Nrp)})
 			return
 		}
 
 		// Cek apakah user sudah terdaftar di kelompok lain
 		if len(user.MemberGroups()) > 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberName)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with NRP %s is already in another group", user.Nrp)})
 			return
 		}
 
@@ -324,7 +324,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with name %s not found", memberName)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with ID %s not found", memberName)})
 				return
 			}
 			w.WriteHeader(http.StatusInternalServerError)
@@ -335,7 +335,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		// Cek role user (harus PRAKTIKAN)
 		if user.Role != "PRAKTIKAN" {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is not a PRAKTIKAN", memberName)})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with NRP %s is not a PRAKTIKAN", user.Nrp)})
 			return
 		}
 
@@ -344,7 +344,7 @@ func (h *GroupHandler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 			for _, group := range user.MemberGroups() {
 				if group.ID != req.Id {
 					w.WriteHeader(http.StatusBadRequest)
-					_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user %s is already in another group", memberName)})
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("user with NRP %s is already in another group", user.Nrp)})
 					return
 				}
 			}
