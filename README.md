@@ -1,9 +1,11 @@
 # Praktikum Management System
 
-A comprehensive system for managing laboratory practicals in educational institutions. Built with Go, PostgreSQL, Prisma, and Redis.
+A comprehensive system for managing laboratory practicals in educational institutions. Built with NextJs, Go, PostgreSQL, Prisma, and Redis.
 
 ## Tech Stack
 
+- **Frontend**: NodeJs (JavaScript Runtime V8 Engine)
+- **Frontend Framework**: NextJS
 - **Backend**: Go (Golang)
 - **Database**: PostgreSQL
 - **ORM**: Prisma Client Go
@@ -41,7 +43,7 @@ A comprehensive system for managing laboratory practicals in educational institu
   - Targeted announcements
 
 ## Prerequisites
-
+- NodeJS 18 or higher
 - Go 1.19 or higher
 - PostgreSQL 14 or higher
 - Redis 6 or higher
@@ -49,14 +51,45 @@ A comprehensive system for managing laboratory practicals in educational institu
 
 ## Installation and Setup
 
-### 1. Clone the Repository
+### Clone the Repository
 
 ```bash
 git clone https://github.com/yourusername/praktikum-system.git
 cd praktikum-system
 ```
 
-### 2. Set Up Environment Variables
+## Frontend 
+
+### 1. Set Up Environment Variables
+Create a `.env` frontend file in the root directory:
+
+```env
+# Backend URL
+URL_BE=http://localhost:8080/api
+# JWT_Secret
+JWT_SECRET= [secretkey]
+```
+
+### 2. Install Depedencies
+```bash
+ cd frontend
+ cd npm install
+```
+
+### 3. Run the Application
+```bash 
+cd npm run dev
+```
+
+### 4. Go to Development Mode
+
+``` 
+go to browser http://localhost:3000
+```
+
+## Backend 
+
+### 1. Set Up Environment Variables
 
 Create a `.env` file in the root directory:
 
@@ -82,14 +115,14 @@ SMTP_PASSWORD=your-app-password  # Use Gmail App Password
 FRONTEND_URL=http://localhost:3000
 ```
 
-### 3. Install Dependencies
+### 2. Install Dependencies
 
 ```bash
 go mod download
 go install github.com/steebchen/prisma-client-go
 ```
 
-### 4. Generate Prisma Client
+### 3. Generate Prisma Client
 
 ```bash
 go run github.com/steebchen/prisma-client-go generate
@@ -101,19 +134,19 @@ go run github.com/steebchen/prisma-client-go generate
 ./scripts/patch_gen.sh
 ```
 
-### 5. Set Up Database
+### 4. Set Up Database
 
 ```bash
 go run github.com/steebchen/prisma-client-go migrate dev
 ```
 
-### 6. Run the Application
+### 5. Run the Application
 
 ```bash
 go run main.go
 ```
 
-### 7. Initial Setup
+### 6. Initial Setup
 
 After running the application for the first time, create the first SUPER_ADMIN user:
 
@@ -263,4 +296,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contributors
 
-- [Your Name](https://github.com/yourusername)
+- [Bagus135](https://github.com/Bagus135)
+- [sweetnebulae](https://github.com/sweetnebulae)
