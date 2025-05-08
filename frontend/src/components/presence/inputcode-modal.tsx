@@ -27,7 +27,7 @@ export default function InputCodeModal ({children , schedule}:{children : ReactN
                     "Authorization" : token,
                 },
                 method : "POST",
-                body : JSON.stringify({input})
+                body : JSON.stringify({code  : input})
             })
             const data = await res.json()
             if(!res.ok) throw new Error(data.error)
