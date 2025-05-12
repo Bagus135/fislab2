@@ -85,7 +85,10 @@ export default function DetailGradeModal({ userGrade, open, setOpen }: Props) {
                         {score && (
                             <ScrollArea className="w-full max-h-[calc(60vh)] pr-2">
                                 <div className="flex flex-col py-2">
-                                    {renderScoreRow("Total Score", score.scores.totalScore)}
+                                      <div className="flex flex-row justify-between font-bold">
+                                            <p>Total Score</p>
+                                            <p>{score.scores.totalScore !== null ? score.scores.totalScore : 'N/A'}</p>
+                                        </div>
                                     {/* {renderScoreRow("Prelab", score.scores.prelab.total)} */}
                                     {renderScoreRow("Punctuality", score.scores.prelab.punctuality)}
                                     {renderScoreRow("Pre-Exam", score.scores.prelab.preExam)}
@@ -101,7 +104,7 @@ export default function DetailGradeModal({ userGrade, open, setOpen }: Props) {
                                     {renderScoreRow("Format", score.scores.postlab.formatting)}
                                     <div className=" flex flex-col gap-2 mt-4">
                                         <p className="text-center font-semibold">Feedback</p>
-                                        <p className="border p-2 text-justify text-sm">
+                                        <p className="border p-2 text-justify text-sm whitespace-pre-line">
                                             {score.feedback || '~ No Feedback Given ~'}
                                         </p>
                                     </div>

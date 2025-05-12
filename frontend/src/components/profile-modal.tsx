@@ -86,7 +86,7 @@ export default  function ProfileModal({id , open ,setOpen} : { id : string ,open
 
                                 <h1 className="mt-4 text-2xl font-bold text-center">{user.data.name}</h1>
                                 <p className="text-muted-foreground text-center">{user.data.nrp}</p>
-                                <p className="mt-2 text-sm text-center">{user.data.about }</p>
+                                <p className="mt-2 text-sm text-center whitespace-pre-line">{user.data.about }</p>
 
 
                                 <div className="w-full mt-6 space-y-2 text-sm ">
