@@ -101,7 +101,7 @@ const hanldleFilter = (
 ) => {
 
     const filteredData =  data.filter((a)=> a.name.toLowerCase().includes(search.toLowerCase()))
-
+    
     filteredData.sort((a,b) =>{
         let valA , valB
         switch(filter.sort) {
@@ -114,8 +114,8 @@ const hanldleFilter = (
                 valB = b.name;
                 break;
             case 'progress' :
-                valA = a.progress;
-                valB = b.progress;
+                valA = Number(a.progress.split('/')[0]);
+                valB = Number(b.progress.split('/')[0]);
                 break;
             default : 
                 valA = a.code;

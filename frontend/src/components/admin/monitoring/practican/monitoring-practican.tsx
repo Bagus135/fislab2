@@ -38,7 +38,7 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
                 {header : "W2", key : "W2", width : 5},
                 {header : "W3", key : "W3", width : 5},
                 {header : "W4", key : "W4", width : 5},
-                {header : "W5", key : "MP5", width : 5},
+                {header : "W5", key : "W5", width : 5},
                 {header : "Average", key : "average", width : 10},
             ]
 
@@ -170,10 +170,11 @@ export default function PracticanScoreMonitor ({data}: {data : AllPracticanGrade
     )
 }
 
-export const getAverageScore = (scores : AllPracticanGrade[number]['nilai']) => {
+export const getAverageScore = (scores : AllPracticanGrade[number]['nilai']) : number => {
     const values = Object.values(scores)
     const totalScore =  values.reduce((acc , curr) => acc + curr , 0)
-    return totalScore /  values.length
+    const average = (totalScore /  values.length).toFixed(3)
+    return Number(average)
 }
 
 const handleFilter = (
@@ -185,7 +186,7 @@ const handleFilter = (
     const filteredData = data.filter((a)=>  a.nama.toLowerCase().includes(search.toLowerCase())||a.nrp.includes(search))
 
     filteredData.sort((a,b)=> {
-        let valA , valB;
+        let valA, valB;
 
         switch(filter.sort) {
             case "nrp": 

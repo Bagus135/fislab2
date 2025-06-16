@@ -35,10 +35,11 @@ export const loginAction = async (payload : loginActiontype) => {
     const data = await res.json();
     
     if(!res.ok) throw new Error(data.error)
-    
-    await setCookies(data.token);
-    revalidatePath('/')
+        
+        await setCookies(data.token);
+        revalidatePath('/')
     } catch (error : any) {
+        console.log(error.message);
         throw new Error(error.message)
     }
 }
