@@ -184,7 +184,7 @@ type MemberGroupProps = {
                             className="text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
                             onClick={()=> handleOpenDetailGrade(member)}
                         >
-                            {member.totalScore || "-"}
+                            {member.totalScore === null ?  "-" : member.totalScore }
                         </div>
                         <Button
                             variant={"ghost"}
@@ -241,7 +241,7 @@ export  function GradeCardPractican ({grades} : {grades : AllGradePractican[]|nu
                                         setOpenDetail(true)
                                     }}
                                     >
-                                {grade.totalScore || "-"}
+                                {grade.totalScore}
                         </div>
                     </div>
                 </div>
