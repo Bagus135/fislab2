@@ -35,7 +35,7 @@ export default function LoginCard (){
         } catch (error : any) {
             toast({
                 title : "Failed to Login" ,
-                description : error.message === 'fetch failed' ? "Backend Server is Down" : "NRP or Password Wrong",
+                description : error.message === 'fetch failed' || error.message === 'Unexpected end of JSON input' ? "Backend Server is Unreachable" : "NRP or Password Wrong",
                 variant : "destructive"
             })
         } finally {
