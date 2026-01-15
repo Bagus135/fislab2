@@ -1,11 +1,12 @@
 # Praktikum Management System
 
-A comprehensive system for managing laboratory practicals in educational institutions. Built with NextJs, Go, PostgreSQL, Prisma, and Redis.
+A comprehensive system for managing laboratory practicals in educational institutions. Built with NextJs, TailwindCSS, Go, PostgreSQL, Prisma, and Redis.
 
 ## Tech Stack
 
 - **Frontend**: NodeJs (JavaScript Runtime V8 Engine)
 - **Frontend Framework**: NextJS
+- **Framework CSS**: TailwindCSS
 - **Backend**: Go (Golang)
 - **Database**: PostgreSQL
 - **ORM**: Prisma Client Go
@@ -43,7 +44,9 @@ A comprehensive system for managing laboratory practicals in educational institu
   - Targeted announcements
 
 ## Prerequisites
-- NodeJS 18 or higher
+- NodeJS 20 or higher
+- Next 15 or higher
+- TailwindCSS 3.4 or higher
 - Go 1.19 or higher
 - PostgreSQL 14 or higher
 - Redis 6 or higher
@@ -54,38 +57,41 @@ A comprehensive system for managing laboratory practicals in educational institu
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/praktikum-system.git
-cd praktikum-system
+git clone https://github.com/Bagus135/fislab2.git
 ```
 
 ## Frontend 
 
-### 1. Set Up Environment Variables
-Create a `.env` frontend file in the root directory:
 
-```env
-# Backend URL
-URL_BE=http://localhost:8080/api
-# JWT_Secret
-JWT_SECRET= [secretkey]
-```
+  ### 1. Go to Frontend Directory
+  ```bash
+  cd frontend
+  ```
 
-### 2. Install Depedencies
-```bash
- cd frontend
- cd npm install
-```
+  ### 2. Install Depedencies
+  ```bash
+  npm install
+  ```
 
-### 3. Run the Application
-```bash 
-cd npm run dev
-```
+  ### 3. Set Up Environment Variables
+  Create a `.env` frontend file in the root directory:
 
-### 4. Go to Development Mode
+  ```env
+  # Backend URL
+  URL_BE=http://localhost:8080/api
+  # JWT_Secret
+  JWT_SECRET= [match the one in the backend]
+  ```
 
-``` 
-go to browser http://localhost:3000
-```
+  ### 4. Run the Application
+  ```bash 
+  npm run dev
+  ```
+
+  ### 5. Go to Browser
+  ``` 
+  http://localhost:3000
+  ```
 
 ## Backend 
 
